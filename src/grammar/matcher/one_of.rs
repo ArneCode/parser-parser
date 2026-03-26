@@ -1,8 +1,5 @@
 use crate::grammar::{
-    Grammar, HasId, IsCheckable,
-    context::{MatcherContext, ParserContext},
-    get_next_id,
-    matcher::Matcher,
+    Grammar, HasId, IsCheckable, context::ParserContext, get_next_id, matcher::Matcher,
 };
 use std::{marker::PhantomData, ops::Deref};
 pub struct OneOfMatcher<T, MContext, Tuple> {
@@ -12,7 +9,7 @@ pub struct OneOfMatcher<T, MContext, Tuple> {
 }
 
 impl<T, MContext, Tuple> OneOfMatcher<T, MContext, Tuple> {
-    fn new(options: Tuple) -> Self {
+    pub fn new(options: Tuple) -> Self {
         Self {
             options,
             id: get_next_id(),

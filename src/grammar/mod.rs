@@ -3,22 +3,12 @@ pub mod context;
 pub mod matcher;
 pub mod parser;
 use std::{
-    array,
-    cell::RefCell,
-    collections::HashMap,
-    marker::PhantomData,
-    ops::{Deref, DerefMut},
     rc::Rc,
     sync::atomic::{self, AtomicUsize},
     usize,
 };
 
-use crate::grammar::{
-    capture::{Capture, capture_property},
-    context::{MatcherContext, ParserContext},
-    matcher::Matcher,
-    parser::Parser,
-};
+use crate::grammar::context::ParserContext;
 
 static NEXT_ID: AtomicUsize = AtomicUsize::new(0);
 fn get_next_id() -> usize {

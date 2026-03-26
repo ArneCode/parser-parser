@@ -7,7 +7,7 @@ use crate::grammar::{
     matcher::Matcher,
     parser::Parser,
 };
-use std::{array, marker::PhantomData, ops::Deref, rc::Rc};
+use std::{marker::PhantomData, rc::Rc};
 
 pub trait Property<T, V, MContext> {
     fn put_in_context(&self, context: &mut MContext, value: V);

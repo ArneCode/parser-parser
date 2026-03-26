@@ -1,13 +1,19 @@
 use crate::grammar::{
     HasId, IsCheckable,
-    context::{MatcherContext, ParserContext},
+    context::ParserContext,
     get_next_id,
     matcher::Matcher,
 };
 use std::{marker::PhantomData, ops::Deref};
 pub struct AnyToken<T> {
     id: usize,
-    _phantom: PhantomData<(T)>,
+    _phantom: PhantomData<T >,
+}
+
+impl<T> Default for AnyToken<T> {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl<T> AnyToken<T> {

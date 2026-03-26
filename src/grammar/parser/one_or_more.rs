@@ -3,7 +3,7 @@ use std::{marker::PhantomData, rc::Rc};
 use crate::grammar::{
     Grammar, HasId, IsCheckable, context::ParserContext, get_next_id, parser::Parser,
 };
-struct OneOrMoreParser<T, NodeIn, NodeOut, Pars, CombF>
+pub struct OneOrMoreParser<T, NodeIn, NodeOut, Pars, CombF>
 where
     NodeOut: ?Sized,
 {

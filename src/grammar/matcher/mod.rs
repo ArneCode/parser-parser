@@ -9,7 +9,7 @@ pub mod sequence;
 pub mod string;
 use std::rc::Rc;
 
-use crate::grammar::{HasId, IsCheckable, context::MatcherContext};
+use crate::grammar::{HasId, IsCheckable};
 
 pub trait Matcher<T, MContext> {
     fn match_pattern(&self, context: &mut MContext, pos: &mut usize) -> Result<(), String>;

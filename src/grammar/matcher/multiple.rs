@@ -2,7 +2,7 @@ use std::{marker::PhantomData, ops::Deref};
 
 use crate::grammar::{
     Grammar, HasId, IsCheckable,
-    context::{MatcherContext, ParserContext},
+    context::ParserContext,
     get_next_id,
     matcher::Matcher,
 };
@@ -90,7 +90,7 @@ where
 {
     fn calc_check(&self, context: &ParserContext<T>, pos: &mut usize) -> bool {
         while self.matcher.check(context, pos) {}
-        return true;
+        true
     }
 }
 

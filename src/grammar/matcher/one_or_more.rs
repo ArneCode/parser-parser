@@ -1,6 +1,6 @@
 use crate::grammar::{
     Grammar, HasId, IsCheckable,
-    context::{MatcherContext, ParserContext},
+    context::ParserContext,
     get_next_id,
     matcher::Matcher,
 };
