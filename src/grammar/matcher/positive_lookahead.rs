@@ -1,24 +1,19 @@
 use crate::grammar::{
-    AstNode, Grammar, HasId, IsCheckable, Token,
+    Grammar, HasId, IsCheckable,
     context::{MatcherContext, ParserContext},
     get_next_id,
     matcher::Matcher,
 };
-use std::marker::PhantomData;
-pub struct PositiveLookahead<T, N, Check>
-where
-    T: Token,
-    N: AstNode + ?Sized,
-{
+use std::{marker::PhantomData, ops::Deref};
+pub struct PositiveLookahead<T, Check> {
     checker: Check,
     id: usize,
-    _phantom: PhantomData<(T, N)>,
+    _phantom: PhantomData<T>,
 }
 
-impl<T, N, Check> PositiveLookahead<T, N, Check>
+impl<T, Check> PositiveLookahead<T, Check>
 where
-    T: Token,
-    N: AstNode + ?Sized,
+    Check: Grammar<T>,
 {
     pub fn new(checker: Check) -> Self {
         Self {
@@ -30,31 +25,22 @@ where
 }
 
 /// &e  — positive lookahead. Succeeds without consuming if `e` would match.
-pub fn positive_lookahead<T, N, Check>(checker: Check) -> PositiveLookahead<T, N, Check>
+pub fn positive_lookahead<T, Check>(checker: Check) -> PositiveLookahead<T, Check>
 where
-    T: Token + 'static,
-    N: AstNode + ?Sized + 'static,
-    Check: HasId + IsCheckable<T> + 'static,
+    Check: Grammar<T>,
 {
     PositiveLookahead::new(checker)
 }
 
-impl<T, N, Check> HasId for PositiveLookahead<T, N, Check>
-where
-    T: Token,
-    N: AstNode + ?Sized,
-    Check: HasId + IsCheckable<T>,
-{
+impl<T, Check> HasId for PositiveLookahead<T, Check> {
     fn id(&self) -> usize {
         self.id
     }
 }
 
-impl<T, N, Check> IsCheckable<T> for PositiveLookahead<T, N, Check>
+impl<T, Check> IsCheckable<T> for PositiveLookahead<T, Check>
 where
-    T: Token,
-    N: AstNode + ?Sized,
-    Check: HasId + IsCheckable<T>,
+    Check: Grammar<T>,
 {
     fn calc_check(&self, context: &ParserContext<T>, pos: &mut usize) -> bool {
         // Pure peek — pos must not move regardless of outcome.
@@ -62,19 +48,12 @@ where
     }
 }
 
-impl<T, N, Check> Matcher<T> for PositiveLookahead<T, N, Check>
+impl<T, MContext, Check> Matcher<T, MContext> for PositiveLookahead<T, Check>
 where
-    T: Token,
-    N: AstNode + ?Sized,
+    MContext: Deref<Target = ParserContext<T>>,
     Check: HasId + IsCheckable<T>,
 {
-    type Output = N;
-
-    fn match_pattern(
-        &self,
-        context: &mut MatcherContext<T, Self::Output>,
-        pos: &mut usize,
-    ) -> Result<(), String> {
+    fn match_pattern(&self, context: &mut MContext, pos: &mut usize) -> Result<(), String> {
         if self.checker.check_no_advance(context, pos) {
             Ok(()) // pos unchanged, nothing captured
         } else {

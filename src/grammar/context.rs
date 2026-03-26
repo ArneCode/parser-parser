@@ -1,13 +1,11 @@
 use std::{cell::RefCell, collections::HashMap, ops::Deref, rc::Rc};
 
-use crate::grammar::{AstNode, Token};
-
-pub struct ParserContext<T: Token> {
+pub struct ParserContext<T> {
     pub tokens: Vec<T>,
     pub memo_table: RefCell<HashMap<(usize, usize), Option<usize>>>,
 }
 
-impl<T: Token> ParserContext<T> {
+impl<T> ParserContext<T> {
     pub fn new(tokens: Vec<T>) -> Self {
         Self {
             tokens,
@@ -15,31 +13,62 @@ impl<T: Token> ParserContext<T> {
         }
     }
 }
-pub struct MatchResult<N: AstNode + ?Sized> {
-    pub single_matches: Vec<Option<Box<N>>>,
-    pub multiple_matches: Vec<Vec<Box<N>>>,
-    pub optional_matches: Vec<Option<Box<N>>>,
+
+pub trait MatchResultSingle {
+    type Properties;
+    fn new() -> Self;
+    fn new_properties() -> Self::Properties;
+}
+pub trait MatchResultMultiple {
+    type Properties;
+    fn new() -> Self;
+    fn new_properties() -> Self::Properties;
+}
+pub trait MatchResultOptional {
+    type Properties;
+    fn new() -> Self;
+    fn new_properties() -> Self::Properties;
 }
 
-pub struct MatcherContext<T: Token, N: AstNode + ?Sized> {
+pub struct MatcherContext<T, MResSingle, MResMultiple, MResOptional> {
     pub parser_context: Rc<ParserContext<T>>,
-    pub match_result: MatchResult<N>,
+    pub match_result_single: MResSingle,
+    pub match_result_multiple: MResMultiple,
+    pub match_result_optional: MResOptional,
 }
 
-impl<T: Token, N: AstNode + ?Sized> MatcherContext<T, N> {
+impl<T, MResSingle, MResMultiple, MResOptional> Deref
+    for MatcherContext<T, MResSingle, MResMultiple, MResOptional>
+where
+    MResSingle: MatchResultSingle,
+    MResMultiple: MatchResultMultiple,
+    MResOptional: MatchResultOptional,
+{
+    type Target = ParserContext<T>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.parser_context
+    }
+}
+
+impl<T, MResSingle, MResMultiple, MResOptional>
+    MatcherContext<T, MResSingle, MResMultiple, MResOptional>
+where
+    MResSingle: MatchResultSingle,
+    MResMultiple: MatchResultMultiple,
+    MResOptional: MatchResultOptional,
+{
     pub fn new(
         parser_context: Rc<ParserContext<T>>,
-        n_single: usize,
-        n_multiple: usize,
-        n_optional: usize,
+        match_result_single: MResSingle,
+        match_result_multiple: MResMultiple,
+        match_result_optional: MResOptional,
     ) -> Self {
         Self {
             parser_context,
-            match_result: MatchResult {
-                single_matches: (0..n_single).map(|_| None).collect(),
-                multiple_matches: (0..n_multiple).map(|_| Vec::new()).collect(),
-                optional_matches: (0..n_optional).map(|_| None).collect(),
-            },
+            match_result_single,
+            match_result_multiple,
+            match_result_optional,
         }
     }
 }

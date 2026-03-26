@@ -1,173 +1,300 @@
 use crate::grammar::{
-    AstNode, Grammar, HasId, IsCheckable, Token,
-    context::{MatcherContext, ParserContext},
+    Grammar, HasId, IsCheckable,
+    context::{
+        MatchResultMultiple, MatchResultOptional, MatchResultSingle, MatcherContext, ParserContext,
+    },
     get_next_id,
     matcher::Matcher,
     parser::Parser,
 };
 use std::{array, marker::PhantomData, ops::Deref, rc::Rc};
-impl<T: Token, N: AstNode + ?Sized> Deref for MatcherContext<T, N> {
-    type Target = ParserContext<T>;
 
-    fn deref(&self) -> &Self::Target {
-        &self.parser_context
-    }
-}
-
-pub trait Property<T: Token, N: AstNode + ?Sized> {
-    fn put_in_context(&self, context: &mut MatcherContext<T, N>, value: Box<N>);
+pub trait Property<T, V, MContext> {
+    fn put_in_context(&self, context: &mut MContext, value: V);
 }
 
 #[derive(Clone, Copy)]
-pub struct SingleProperty {
-    property_pos: usize,
-}
-impl<T: Token, N: AstNode + ?Sized> Property<T, N> for SingleProperty {
-    fn put_in_context(&self, context: &mut MatcherContext<T, N>, value: Box<N>) {
-        if self.property_pos < context.match_result.single_matches.len() {
-            context.match_result.single_matches[self.property_pos] = Some(value);
-        } else {
-            panic!("SingleProperty position out of bounds");
-        }
-    }
-}
-#[derive(Clone, Copy)]
-pub struct MultipleProperty {
-    property_pos: usize,
-}
-impl<T: Token, N: AstNode + ?Sized> Property<T, N> for MultipleProperty {
-    fn put_in_context(&self, context: &mut MatcherContext<T, N>, value: Box<N>) {
-        if self.property_pos < context.match_result.multiple_matches.len() {
-            context.match_result.multiple_matches[self.property_pos].push(value);
-        } else {
-            panic!("MultipleProperty position out of bounds");
-        }
-    }
-}
-#[derive(Clone, Copy)]
-pub struct OptionalProperty {
-    property_pos: usize,
-}
-impl<T: Token, N: AstNode + ?Sized> Property<T, N> for OptionalProperty {
-    fn put_in_context(&self, context: &mut MatcherContext<T, N>, value: Box<N>) {
-        if self.property_pos < context.match_result.optional_matches.len() {
-            context.match_result.optional_matches[self.property_pos] = Some(value);
-        } else {
-            panic!("OptionalProperty position out of bounds");
-        }
-    }
+pub struct SingleProperty<V, MRes, F> {
+    setter: F,
+    _phantom: PhantomData<(V, MRes)>,
 }
 
-pub struct Capture<T, N, Match, F>
+impl<V, MRes, F> SingleProperty<V, MRes, F>
 where
-    T: Token,
-    N: AstNode + ?Sized,
-    Match: Matcher<T, Output = N> + HasId + IsCheckable<T>,
-    F: Fn(MatcherContext<T, N>) -> Box<N>,
+    MRes: MatchResultSingle,
+    F: Fn(&mut MRes) -> &mut Option<V>,
 {
+    pub fn new(setter: F) -> Self {
+        Self {
+            setter,
+            _phantom: PhantomData,
+        }
+    }
+}
+
+impl<T, V, MResSingle, MResMultiple, MResOptional, F>
+    Property<T, V, MatcherContext<T, MResSingle, MResMultiple, MResOptional>>
+    for SingleProperty<V, MResSingle, F>
+where
+    MResSingle: MatchResultSingle,
+    MResMultiple: MatchResultMultiple,
+    MResOptional: MatchResultOptional,
+    F: Fn(&mut MResSingle) -> &mut Option<V>,
+{
+    fn put_in_context(
+        &self,
+        context: &mut MatcherContext<T, MResSingle, MResMultiple, MResOptional>,
+        value: V,
+    ) {
+        let property_slot = (self.setter)(&mut context.match_result_single);
+        if property_slot.is_some() {
+            panic!("SingleProperty already set");
+        }
+        *property_slot = Some(value);
+    }
+}
+
+#[derive(Clone, Copy)]
+pub struct MultipleProperty<V, MRes, F> {
+    setter: F,
+    _phantom: PhantomData<(V, MRes)>,
+}
+
+impl<V, MRes, F> MultipleProperty<V, MRes, F>
+where
+    MRes: MatchResultMultiple,
+    F: Fn(&mut MRes) -> &mut Vec<V>,
+{
+    pub fn new(setter: F) -> Self {
+        Self {
+            setter,
+            _phantom: PhantomData,
+        }
+    }
+}
+
+// impl<T, V, MRes, F> Property<T, V, MRes> for MultipleProperty<V, MRes, F>
+// where
+//     T: Token,
+//     MRes: MatchResult,
+//     F: Fn(&mut MRes) -> &mut Vec<V>,
+// {
+//     fn put_in_context(&self, context: &mut MatcherContext<T, MRes>, value: V) {
+//         let property_slot = (self.setter)(&mut context.match_result);
+//         property_slot.push(value);
+//     }
+// }
+impl<T, V, MResSingle, MResMultiple, MResOptional, F>
+    Property<T, V, MatcherContext<T, MResSingle, MResMultiple, MResOptional>>
+    for MultipleProperty<V, MResMultiple, F>
+where
+    MResSingle: MatchResultSingle,
+    MResMultiple: MatchResultMultiple,
+    MResOptional: MatchResultOptional,
+    F: Fn(&mut MResMultiple) -> &mut Vec<V>,
+{
+    fn put_in_context(
+        &self,
+        context: &mut MatcherContext<T, MResSingle, MResMultiple, MResOptional>,
+        value: V,
+    ) {
+        let property_slot = (self.setter)(&mut context.match_result_multiple);
+        property_slot.push(value);
+    }
+}
+
+#[derive(Clone, Copy)]
+pub struct OptionalProperty<V, MRes, F> {
+    setter: F,
+    _phantom: PhantomData<(V, MRes)>,
+}
+
+impl<V, MRes, F> OptionalProperty<V, MRes, F>
+where
+    MRes: MatchResultOptional,
+    F: Fn(&mut MRes) -> &mut Option<V>,
+{
+    pub fn new(setter: F) -> Self {
+        Self {
+            setter,
+            _phantom: PhantomData,
+        }
+    }
+}
+
+impl<T, V, MResSingle, MResMultiple, MResOptional, F>
+    Property<T, V, MatcherContext<T, MResSingle, MResMultiple, MResOptional>>
+    for OptionalProperty<V, MResOptional, F>
+where
+    MResSingle: MatchResultSingle,
+    MResMultiple: MatchResultMultiple,
+    MResOptional: MatchResultOptional,
+    F: Fn(&mut MResOptional) -> &mut Option<V>,
+{
+    fn put_in_context(
+        &self,
+        context: &mut MatcherContext<T, MResSingle, MResMultiple, MResOptional>,
+        value: V,
+    ) {
+        let property_slot = (self.setter)(&mut context.match_result_optional);
+        if property_slot.is_some() {
+            panic!("OptionalProperty already set");
+        }
+        *property_slot = Some(value);
+    }
+}
+
+pub struct Capture<T, Out, MResSingle, MResMultiple, MResOptional, Match, F> {
     matcher: Match,
     constructor: F,
-    n_single: usize,
-    n_multiple: usize,
-    n_optional: usize,
     id: usize,
-    _phantom: PhantomData<(T, N)>,
+    _phantom: PhantomData<(T, MResSingle, MResMultiple, MResOptional, Out)>,
 }
 
-impl<T, N, Match, F> Capture<T, N, Match, F>
+// impl<T, Out, MRes, Match, F> Capture<T, Out, MRes, Match, F>
+// where
+//     MRes: MatchResult,
+//     Match: Matcher<T, MRes> + HasId + IsCheckable<T>,
+//     F: Fn(MRes) -> Out,
+// {
+//     pub fn new<GF: Fn(MRes::Properties) -> Match>(grammar_factory: GF, constructor: F) -> Self {
+//         let properties = MRes::new_properties();
+//         Self {
+//             matcher: grammar_factory(properties),
+//             constructor,
+//             id: get_next_id(),
+//             _phantom: PhantomData,
+//         }
+//     }
+// }
+impl<T, Out, MResSingle, MResMultiple, MResOptional, Match, F>
+    Capture<T, Out, MResSingle, MResMultiple, MResOptional, Match, F>
 where
-    T: Token,
-    N: AstNode + ?Sized,
-    Match: Matcher<T, Output = N> + HasId + IsCheckable<T>,
-    F: Fn(MatcherContext<T, N>) -> Box<N>,
+    MResSingle: MatchResultSingle,
+    MResMultiple: MatchResultMultiple,
+    MResOptional: MatchResultOptional,
+    Match: Matcher<T, MatcherContext<T, MResSingle, MResMultiple, MResOptional>>
+        + HasId
+        + IsCheckable<T>,
+    F: Fn(MResSingle, MResMultiple, MResOptional) -> Out,
 {
     pub fn new<
-        const N_SINGLE: usize,
-        const N_MULTIPLE: usize,
-        const N_OPTIONAL: usize,
-        GF: Fn(
-            [SingleProperty; N_SINGLE],
-            [MultipleProperty; N_MULTIPLE],
-            [OptionalProperty; N_OPTIONAL],
-        ) -> Match,
+        GF: Fn(MResSingle::Properties, MResMultiple::Properties, MResOptional::Properties) -> Match,
     >(
         grammar_factory: GF,
         constructor: F,
     ) -> Self {
+        let properties_single = MResSingle::new_properties();
+        let properties_multiple = MResMultiple::new_properties();
+        let properties_optional = MResOptional::new_properties();
         Self {
-            matcher: grammar_factory(
-                array::from_fn(|i| SingleProperty { property_pos: i }),
-                array::from_fn(|i| MultipleProperty { property_pos: i }),
-                array::from_fn(|i| OptionalProperty { property_pos: i }),
-            ),
+            matcher: grammar_factory(properties_single, properties_multiple, properties_optional),
             constructor,
-            n_single: N_SINGLE,
-            n_multiple: N_MULTIPLE,
-            n_optional: N_OPTIONAL,
             id: get_next_id(),
             _phantom: PhantomData,
         }
     }
 }
 
-impl<T, N, Match, F> Parser<T> for Capture<T, N, Match, F>
+// impl<T, Out, MRes, Match, F> Parser<T> for Capture<T, Out, MRes, Match, F>
+// where
+//     T: Token,
+//     MRes: MatchResult,
+//     Match: Matcher<T, MRes> + HasId + IsCheckable<T>,
+//     F: Fn(MRes) -> Out,
+// {
+//     type Output = Out;
+
+//     fn parse(
+//         &self,
+//         context: Rc<ParserContext<T>>,
+//         pos: &mut usize,
+//     ) -> Result<Self::Output, String> {
+//         let mut context = MatcherContext::new(context, MRes::new());
+//         self.matcher.match_pattern(&mut context, pos)?;
+//         Ok((self.constructor)(context.match_result))
+//     }
+// }´
+impl<T, Out, MResSingle, MResMultiple, MResOptional, Match, F> Parser<T>
+    for Capture<T, Out, MResSingle, MResMultiple, MResOptional, Match, F>
 where
-    T: Token,
-    N: AstNode + ?Sized,
-    Match: Matcher<T, Output = N> + HasId + IsCheckable<T>,
-    F: Fn(MatcherContext<T, N>) -> Box<N>,
+    MResSingle: MatchResultSingle,
+    MResMultiple: MatchResultMultiple,
+    MResOptional: MatchResultOptional,
+    Match: Matcher<T, MatcherContext<T, MResSingle, MResMultiple, MResOptional>>
+        + HasId
+        + IsCheckable<T>,
+    F: Fn(MResSingle, MResMultiple, MResOptional) -> Out,
 {
-    type Output = N;
+    type Output = Out;
 
     fn parse(
         &self,
         context: Rc<ParserContext<T>>,
         pos: &mut usize,
-    ) -> Result<Box<Self::Output>, String> {
-        let mut context =
-            MatcherContext::new(context, self.n_single, self.n_multiple, self.n_optional);
+    ) -> Result<Self::Output, String> {
+        let mut context = MatcherContext::new(
+            context,
+            MResSingle::new(),
+            MResMultiple::new(),
+            MResOptional::new(),
+        );
         self.matcher.match_pattern(&mut context, pos)?;
-        Ok((self.constructor)(context))
+        Ok((self.constructor)(
+            context.match_result_single,
+            context.match_result_multiple,
+            context.match_result_optional,
+        ))
     }
 }
 
-impl<T, N, Match, F> IsCheckable<T> for Capture<T, N, Match, F>
+// impl<T, Out, MRes, Match, F> IsCheckable<T> for Capture<T, Out, MRes, Match, F>
+// where
+//     Match: Grammar<T>,
+// {
+//     fn calc_check(&self, context: &ParserContext<T>, pos: &mut usize) -> bool {
+//         self.matcher.check(context, pos)
+//     }
+// }
+impl<T, Out, MResSingle, MResMultiple, MResOptional, Match, F> IsCheckable<T>
+    for Capture<T, Out, MResSingle, MResMultiple, MResOptional, Match, F>
 where
-    T: Token,
-    N: AstNode + ?Sized,
-    Match: Matcher<T, Output = N> + HasId + IsCheckable<T>,
-    F: Fn(MatcherContext<T, N>) -> Box<N>,
+    Match: Grammar<T>,
 {
     fn calc_check(&self, context: &ParserContext<T>, pos: &mut usize) -> bool {
         self.matcher.check(context, pos)
     }
 }
 
-impl<T, N, Match, F> HasId for Capture<T, N, Match, F>
+// impl<T, Out, MRes, Match, F> HasId for Capture<T, Out, MRes, Match, F>
+// where
+//     Match: HasId,
+// {
+//     fn id(&self) -> usize {
+//         self.id
+//     }
+// }
+impl<T, Out, MResSingle, MResMultiple, MResOptional, Match, F> HasId
+    for Capture<T, Out, MResSingle, MResMultiple, MResOptional, Match, F>
 where
-    T: Token,
-    N: AstNode + ?Sized,
-    Match: Matcher<T, Output = N> + HasId + IsCheckable<T>,
-    F: Fn(MatcherContext<T, N>) -> Box<N>,
+    Match: HasId,
 {
     fn id(&self) -> usize {
         self.id
     }
 }
-pub struct CaptureProperty<
-    T: Token,
-    N: AstNode + ?Sized,
-    Pars: Parser<T, Output = N>,
-    Prop: Property<T, N>,
-> {
+
+pub struct CaptureProperty<T, Out, MContext, Pars, Prop> {
     parser: Pars,
     property: Prop,
     id: usize,
-    _phantom: PhantomData<(T, N)>,
+    _phantom: PhantomData<(T, Out, MContext)>,
 }
 
-impl<T: Token, N: AstNode + ?Sized, Pars: Parser<T, Output = N>, Prop: Property<T, N>>
-    CaptureProperty<T, N, Pars, Prop>
+impl<T, Out, MContext, Pars, Prop> CaptureProperty<T, Out, MContext, Pars, Prop>
+where
+    Pars: Parser<T, Output = Out>,
+    Prop: Property<T, Out, MContext>,
 {
     pub fn new(parser: Pars, property: Prop) -> Self {
         Self {
@@ -179,44 +306,51 @@ impl<T: Token, N: AstNode + ?Sized, Pars: Parser<T, Output = N>, Prop: Property<
     }
 }
 
-pub fn capture_property<
-    T: Token + 'static,
-    N: AstNode + ?Sized + 'static,
-    Pars: Parser<T, Output = N> + 'static,
-    Prop: Property<T, N> + 'static,
->(
+pub fn capture_property<T, Out, MContext, Pars, Prop>(
     parser: Pars,
     property: Prop,
-) -> CaptureProperty<T, N, Pars, Prop> {
+) -> CaptureProperty<T, Out, MContext, Pars, Prop>
+where
+    Pars: Parser<T, Output = Out> + 'static,
+    Prop: Property<T, Out, MContext> + 'static,
+{
     CaptureProperty::new(parser, property)
 }
 
-impl<T: Token, N: AstNode + ?Sized, Pars: Parser<T, Output = N>, Prop: Property<T, N>> HasId
-    for CaptureProperty<T, N, Pars, Prop>
+impl<T, Out, MContext, Pars, Prop> HasId for CaptureProperty<T, Out, MContext, Pars, Prop>
+where
+    Pars: HasId,
 {
     fn id(&self) -> usize {
-        return self.id;
+        self.id
     }
 }
-impl<T, N, Pars, Prop> IsCheckable<T> for CaptureProperty<T, N, Pars, Prop>
+
+impl<T, Out, MContext, Pars, Prop> IsCheckable<T> for CaptureProperty<T, Out, MContext, Pars, Prop>
 where
-    T: Token,
-    N: AstNode + ?Sized,
-    Pars: Parser<T, Output = N> + Grammar<T>,
-    Prop: Property<T, N>,
+    Pars: Grammar<T>,
 {
     fn calc_check(&self, context: &ParserContext<T>, pos: &mut usize) -> bool {
         self.parser.check(context, pos)
     }
 }
-impl<T: Token, N: AstNode + ?Sized, Pars: Parser<T, Output = N>, Prop: Property<T, N>> Matcher<T>
-    for CaptureProperty<T, N, Pars, Prop>
-{
-    type Output = N;
 
+impl<T, Out, MResSingle, MResMultiple, MResOptional, Pars, Prop>
+    Matcher<T, MatcherContext<T, MResSingle, MResMultiple, MResOptional>>
+    for CaptureProperty<
+        T,
+        Out,
+        MatcherContext<T, MResSingle, MResMultiple, MResOptional>,
+        Pars,
+        Prop,
+    >
+where
+    Pars: Parser<T, Output = Out>,
+    Prop: Property<T, Out, MatcherContext<T, MResSingle, MResMultiple, MResOptional>>,
+{
     fn match_pattern(
         &self,
-        context: &mut MatcherContext<T, Self::Output>,
+        context: &mut MatcherContext<T, MResSingle, MResMultiple, MResOptional>,
         pos: &mut usize,
     ) -> Result<(), String> {
         let result = self.parser.parse(context.parser_context.clone(), pos)?;
@@ -224,3 +358,142 @@ impl<T: Token, N: AstNode + ?Sized, Pars: Parser<T, Output = N>, Prop: Property<
         Ok(())
     }
 }
+
+macro_rules! impl_match_results_for_tuple {
+    ( $(($T:ident, $idx:tt)),+ ) => {
+
+        impl<$($T),+> MatchResultSingle for ($(Option<$T>,)+) {
+            type Properties = (
+                $(SingleProperty<$T, Self, fn(&mut Self) -> &mut Option<$T>>,)+
+            );
+
+            fn new() -> Self {
+                // Block expr per repetition to anchor to $T without PhantomData imports
+                ($( { let _: std::marker::PhantomData<$T>; None },)+ )
+            }
+
+            fn new_properties() -> Self::Properties {
+                ($(
+                    SingleProperty::new(
+                        (|s: &mut Self| -> &mut Option<$T> { &mut s.$idx })
+                            as fn(&mut Self) -> &mut Option<$T>,
+                    ),
+                )+)
+            }
+        }
+
+        impl<$($T),+> MatchResultMultiple for ($(Vec<$T>,)+) {
+            type Properties = (
+                $(MultipleProperty<$T, Self, fn(&mut Self) -> &mut Vec<$T>>,)+
+            );
+
+            fn new() -> Self {
+                ($( { let _: std::marker::PhantomData<$T>; Vec::new() },)+ )
+            }
+
+            fn new_properties() -> Self::Properties {
+                ($(
+                    MultipleProperty::new(
+                        (|s: &mut Self| -> &mut Vec<$T> { &mut s.$idx })
+                            as fn(&mut Self) -> &mut Vec<$T>,
+                    ),
+                )+)
+            }
+        }
+
+        impl<$($T),+> MatchResultOptional for ($(Option<$T>,)+) {
+            type Properties = (
+                $(OptionalProperty<$T, Self, fn(&mut Self) -> &mut Option<$T>>,)+
+            );
+
+            fn new() -> Self {
+                ($( { let _: std::marker::PhantomData<$T>; None },)+ )
+            }
+
+            fn new_properties() -> Self::Properties {
+                ($(
+                    OptionalProperty::new(
+                        (|s: &mut Self| -> &mut Option<$T> { &mut s.$idx })
+                            as fn(&mut Self) -> &mut Option<$T>,
+                    ),
+                )+)
+            }
+        }
+    };
+}
+
+impl_match_results_for_tuple!((T0, 0));
+impl_match_results_for_tuple!((T0, 0), (T1, 1));
+impl_match_results_for_tuple!((T0, 0), (T1, 1), (T2, 2));
+impl_match_results_for_tuple!((T0, 0), (T1, 1), (T2, 2), (T3, 3));
+impl_match_results_for_tuple!((T0, 0), (T1, 1), (T2, 2), (T3, 3), (T4, 4));
+impl_match_results_for_tuple!((T0, 0), (T1, 1), (T2, 2), (T3, 3), (T4, 4), (T5, 5));
+impl_match_results_for_tuple!(
+    (T0, 0),
+    (T1, 1),
+    (T2, 2),
+    (T3, 3),
+    (T4, 4),
+    (T5, 5),
+    (T6, 6)
+);
+impl_match_results_for_tuple!(
+    (T0, 0),
+    (T1, 1),
+    (T2, 2),
+    (T3, 3),
+    (T4, 4),
+    (T5, 5),
+    (T6, 6),
+    (T7, 7)
+);
+impl_match_results_for_tuple!(
+    (T0, 0),
+    (T1, 1),
+    (T2, 2),
+    (T3, 3),
+    (T4, 4),
+    (T5, 5),
+    (T6, 6),
+    (T7, 7),
+    (T8, 8)
+);
+impl_match_results_for_tuple!(
+    (T0, 0),
+    (T1, 1),
+    (T2, 2),
+    (T3, 3),
+    (T4, 4),
+    (T5, 5),
+    (T6, 6),
+    (T7, 7),
+    (T8, 8),
+    (T9, 9)
+);
+impl_match_results_for_tuple!(
+    (T0, 0),
+    (T1, 1),
+    (T2, 2),
+    (T3, 3),
+    (T4, 4),
+    (T5, 5),
+    (T6, 6),
+    (T7, 7),
+    (T8, 8),
+    (T9, 9),
+    (T10, 10)
+);
+impl_match_results_for_tuple!(
+    (T0, 0),
+    (T1, 1),
+    (T2, 2),
+    (T3, 3),
+    (T4, 4),
+    (T5, 5),
+    (T6, 6),
+    (T7, 7),
+    (T8, 8),
+    (T9, 9),
+    (T10, 10),
+    (T11, 11)
+);

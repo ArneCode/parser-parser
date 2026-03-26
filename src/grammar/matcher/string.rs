@@ -1,51 +1,54 @@
-use std::marker::PhantomData;
+use std::{marker::PhantomData, ops::Deref};
 
 use crate::grammar::{
-    AstNode, Grammar, HasId, IsCheckable, Token,
+    Grammar, HasId, IsCheckable,
     context::{MatcherContext, ParserContext},
     get_next_id,
     matcher::{Matcher, ToMatcher},
 };
 
-pub struct StringMatcher<N: AstNode + ?Sized> {
+pub struct StringMatcher {
     expected: String,
     id: usize,
-    _phantom: PhantomData<N>,
 }
 
-impl<N: AstNode + ?Sized> StringMatcher<N> {
+impl StringMatcher {
     fn new(expected: String) -> Self {
         Self {
             expected,
             id: get_next_id(),
-            _phantom: PhantomData,
         }
     }
 }
 
 // impl ToMatcher<char, N> for String {
-impl<N: AstNode + ?Sized + 'static> ToMatcher<char, N> for String {
-    type MatcherType = StringMatcher<N>;
+impl<N> ToMatcher<char, N> for String
+where
+    N: Deref<Target = ParserContext<char>>,
+{
+    type MatcherType = StringMatcher;
 
     fn to_matcher(&self) -> Self::MatcherType {
         StringMatcher::new(self.clone())
     }
 }
 
-impl<N: AstNode + ?Sized + 'static> ToMatcher<char, N> for &str {
-    type MatcherType = StringMatcher<N>;
+impl<N> ToMatcher<char, N> for &str
+where
+    N: Deref<Target = ParserContext<char>>,
+{
+    type MatcherType = StringMatcher;
     fn to_matcher(&self) -> Self::MatcherType {
         StringMatcher::new(self.to_string())
     }
 }
 
-impl<N: AstNode + ?Sized> HasId for StringMatcher<N> {
+impl HasId for StringMatcher {
     fn id(&self) -> usize {
         self.id
     }
 }
-impl Token for char {}
-impl<N: AstNode + ?Sized> IsCheckable<char> for StringMatcher<N> {
+impl IsCheckable<char> for StringMatcher {
     fn calc_check(&self, context: &ParserContext<char>, pos: &mut usize) -> bool {
         let end_pos = *pos + self.expected.len();
         if end_pos > context.tokens.len() {
@@ -61,14 +64,12 @@ impl<N: AstNode + ?Sized> IsCheckable<char> for StringMatcher<N> {
     }
 }
 
-impl<N: AstNode + ?Sized> Matcher<char> for StringMatcher<N> {
-    type Output = N;
-    fn match_pattern(
-        &self,
-        _context: &mut MatcherContext<char, Self::Output>,
-        pos: &mut usize,
-    ) -> Result<(), String> {
-        if self.check(_context, pos) {
+impl<N> Matcher<char, N> for StringMatcher
+where
+    N: Deref<Target = ParserContext<char>>,
+{
+    fn match_pattern(&self, context: &mut N, pos: &mut usize) -> Result<(), String> {
+        if self.check(context, pos) {
             Ok(())
         } else {
             Err(format!("Expected '{}' at position {}", self.expected, pos))

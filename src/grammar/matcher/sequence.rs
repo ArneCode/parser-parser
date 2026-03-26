@@ -1,24 +1,16 @@
 use crate::grammar::{
-    AstNode, Grammar, HasId, IsCheckable, Token,
+    Grammar, HasId, IsCheckable,
     context::{MatcherContext, ParserContext},
     get_next_id,
     matcher::Matcher,
 };
 use std::marker::PhantomData;
-pub struct Sequence<T, N, Tuple>
-where
-    T: Token,
-    N: AstNode + ?Sized,
-{
+pub struct Sequence<T, MContext, Tuple> {
     elements: Tuple,
     id: usize,
-    phantom: PhantomData<(T, N)>,
+    phantom: PhantomData<(T, MContext)>,
 }
-impl<T, N, Tuple> Sequence<T, N, Tuple>
-where
-    T: Token,
-    N: AstNode,
-{
+impl<T, MContext, Tuple> Sequence<T, MContext, Tuple> {
     fn new(elements: Tuple) -> Self {
         Self {
             elements,
@@ -28,19 +20,11 @@ where
     }
 }
 
-pub fn seq<T, N, Tuple>(elements: Tuple) -> Sequence<T, N, Tuple>
-where
-    T: Token,
-    N: AstNode,
-{
+pub fn seq<T, MContext, Tuple>(elements: Tuple) -> Sequence<T, MContext, Tuple> {
     Sequence::new(elements)
 }
 
-impl<T, N, Tuple> HasId for Sequence<T, N, Tuple>
-where
-    T: Token,
-    N: AstNode,
-{
+impl<T, MContext, Tuple> HasId for Sequence<T, MContext, Tuple> {
     fn id(&self) -> usize {
         self.id
     }
@@ -49,10 +33,8 @@ where
 macro_rules! impl_matcher_for_seq_tuples {
     () => {};
     ($head:ident $(,$tail:ident)*) => {
-        impl<T, N, $head, $($tail),*> IsCheckable<T> for Sequence<T, N,($head, $($tail,)*)>
+        impl<T, MContext, $head, $($tail),*> IsCheckable<T> for Sequence<T, MContext,($head, $($tail,)*)>
         where
-            T: Token,
-            N: AstNode,
             $head: Grammar<T>,
             $($tail: Grammar<T>,)*
         {
@@ -74,18 +56,15 @@ macro_rules! impl_matcher_for_seq_tuples {
                 true
             }
         }
-        impl<T, N, $head, $($tail),*> Matcher<T> for Sequence<T, N,($head, $($tail,)*)>
+        impl<T, MContext, $head, $($tail),*> Matcher<T, MContext> for Sequence<T, MContext,($head, $($tail,)*)>
         where
-            T: Token,
-            N: AstNode + ?Sized,
-            $head: Matcher<T, Output = N>,
-            $($tail: Matcher<T, Output = N>,)*
+            $head: Matcher<T, MContext>,
+            $($tail: Matcher<T, MContext>,)*
         {
-            type Output = N;
 
             fn match_pattern(
                 &self,
-                context: &mut MatcherContext<T, N>,
+                context: &mut MContext,
                 pos: &mut usize,
             ) -> Result<(), String> {
 

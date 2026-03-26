@@ -1,24 +1,16 @@
 use crate::grammar::{
-    AstNode, HasId, IsCheckable, Token,
+    HasId, IsCheckable,
     context::{MatcherContext, ParserContext},
     get_next_id,
     matcher::Matcher,
 };
-use std::marker::PhantomData;
-pub struct AnyToken<T, N>
-where
-    T: Token,
-    N: AstNode + ?Sized,
-{
+use std::{marker::PhantomData, ops::Deref};
+pub struct AnyToken<T> {
     id: usize,
-    _phantom: PhantomData<(T, N)>,
+    _phantom: PhantomData<(T)>,
 }
 
-impl<T, N> AnyToken<T, N>
-where
-    T: Token,
-    N: AstNode + ?Sized,
-{
+impl<T> AnyToken<T> {
     pub fn new() -> Self {
         Self {
             id: get_next_id(),
@@ -28,29 +20,17 @@ where
 }
 
 /// `.`  — match any single token without inspecting its value.
-pub fn any_token<T, N>() -> AnyToken<T, N>
-where
-    T: Token,
-    N: AstNode + ?Sized,
-{
+pub fn any_token<T>() -> AnyToken<T> {
     AnyToken::new()
 }
 
-impl<T, N> HasId for AnyToken<T, N>
-where
-    T: Token,
-    N: AstNode + ?Sized,
-{
+impl<T> HasId for AnyToken<T> {
     fn id(&self) -> usize {
         self.id
     }
 }
 
-impl<T, N> IsCheckable<T> for AnyToken<T, N>
-where
-    T: Token,
-    N: AstNode + ?Sized,
-{
+impl<T> IsCheckable<T> for AnyToken<T> {
     fn calc_check(&self, context: &ParserContext<T>, pos: &mut usize) -> bool {
         if *pos < context.tokens.len() {
             *pos += 1;
@@ -61,18 +41,11 @@ where
     }
 }
 
-impl<T, N> Matcher<T> for AnyToken<T, N>
+impl<T, MContext> Matcher<T, MContext> for AnyToken<T>
 where
-    T: Token,
-    N: AstNode + ?Sized,
+    MContext: Deref<Target = ParserContext<T>>,
 {
-    type Output = N;
-
-    fn match_pattern(
-        &self,
-        context: &mut MatcherContext<T, Self::Output>,
-        pos: &mut usize,
-    ) -> Result<(), String> {
+    fn match_pattern(&self, context: &mut MContext, pos: &mut usize) -> Result<(), String> {
         if *pos < context.tokens.len() {
             *pos += 1;
             Ok(())

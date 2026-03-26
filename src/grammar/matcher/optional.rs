@@ -1,16 +1,12 @@
 use crate::grammar::{
-    AstNode, Grammar, HasId, IsCheckable, Token,
+    Grammar, HasId, IsCheckable,
     context::{MatcherContext, ParserContext},
     get_next_id,
     matcher::Matcher,
 };
-use std::marker::PhantomData;
+use std::{marker::PhantomData, ops::Deref};
 
-pub struct Optional<T, N, Match>
-where
-    T: Token,
-    N: AstNode + ?Sized,
-{
+pub struct Optional<T, N, Match> {
     matcher: Match,
     id: usize,
     _phantom: PhantomData<(T, N)>,
@@ -18,8 +14,7 @@ where
 
 impl<T, N, Match> Optional<T, N, Match>
 where
-    T: Token,
-    N: AstNode + ?Sized,
+    Match: Matcher<T, N> + Grammar<T>,
 {
     fn new(matcher: Match) -> Self {
         Self {
@@ -32,26 +27,17 @@ where
 
 pub fn optional<T, N, Match>(matcher: Match) -> Optional<T, N, Match>
 where
-    T: Token + 'static,
-    N: AstNode + ?Sized + 'static,
-    Match: Matcher<T, Output = N> + HasId + IsCheckable<T> + 'static,
+    Match: Matcher<T, N> + HasId + IsCheckable<T>,
 {
     Optional::new(matcher)
 }
 
-impl<T, N, Match> Matcher<T> for Optional<T, N, Match>
+impl<T, N, Match> Matcher<T, N> for Optional<T, N, Match>
 where
-    T: Token,
-    N: AstNode + ?Sized,
-    Match: Matcher<T, Output = N> + Grammar<T>,
+    N: Deref<Target = ParserContext<T>>,
+    Match: Matcher<T, N> + Grammar<T>,
 {
-    type Output = N;
-
-    fn match_pattern(
-        &self,
-        context: &mut MatcherContext<T, Self::Output>,
-        pos: &mut usize,
-    ) -> Result<(), String> {
+    fn match_pattern(&self, context: &mut N, pos: &mut usize) -> Result<(), String> {
         if self.matcher.check_no_advance(context, pos) {
             self.matcher.match_pattern(context, pos)?;
         }
@@ -61,8 +47,6 @@ where
 
 impl<T, N, Match> IsCheckable<T> for Optional<T, N, Match>
 where
-    T: Token,
-    N: AstNode + ?Sized,
     Match: Grammar<T>,
 {
     fn calc_check(&self, context: &ParserContext<T>, pos: &mut usize) -> bool {
@@ -71,12 +55,7 @@ where
     }
 }
 
-impl<T, N, Match> HasId for Optional<T, N, Match>
-where
-    T: Token,
-    N: AstNode + ?Sized,
-    Match: Matcher<T, Output = N>,
-{
+impl<T, N, Match> HasId for Optional<T, N, Match> {
     fn id(&self) -> usize {
         self.id
     }

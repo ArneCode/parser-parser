@@ -9,35 +9,21 @@ pub mod sequence;
 pub mod string;
 use std::rc::Rc;
 
-use crate::grammar::{AstNode, HasId, IsCheckable, Token, context::MatcherContext};
+use crate::grammar::{HasId, IsCheckable, context::MatcherContext};
 
-pub trait Matcher<T: Token> {
-    type Output: AstNode + ?Sized;
-    fn match_pattern(
-        &self,
-        context: &mut MatcherContext<T, Self::Output>,
-        pos: &mut usize,
-    ) -> Result<(), String>;
+pub trait Matcher<T, MContext> {
+    fn match_pattern(&self, context: &mut MContext, pos: &mut usize) -> Result<(), String>;
 }
-pub trait ToMatcher<T: Token, N: AstNode + ?Sized> {
-    type MatcherType: Matcher<T, Output = N> + HasId + IsCheckable<T>;
+pub trait ToMatcher<T, MContext> {
+    type MatcherType: Matcher<T, MContext> + HasId + IsCheckable<T>;
     fn to_matcher(&self) -> Self::MatcherType;
 }
 
-// impl Matcher for all Rc<Matcher>
-impl<T, N, M> Matcher<T> for Rc<M>
+impl<T, MContext, M> Matcher<T, MContext> for Rc<M>
 where
-    T: Token,
-    N: AstNode + ?Sized,
-    M: Matcher<T, Output = N>,
+    M: Matcher<T, MContext>,
 {
-    type Output = N;
-
-    fn match_pattern(
-        &self,
-        context: &mut MatcherContext<T, Self::Output>,
-        pos: &mut usize,
-    ) -> Result<(), String> {
+    fn match_pattern(&self, context: &mut MContext, pos: &mut usize) -> Result<(), String> {
         (**self).match_pattern(context, pos)
     }
 }

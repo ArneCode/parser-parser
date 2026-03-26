@@ -1,26 +1,17 @@
 use crate::grammar::{
-    AstNode, Grammar, HasId, IsCheckable, Token,
+    Grammar, HasId, IsCheckable,
     context::{MatcherContext, ParserContext},
     get_next_id,
     matcher::Matcher,
 };
-use std::marker::PhantomData;
-pub struct OneOfMatcher<T, N, Tuple>
-where
-    T: Token,
-    N: AstNode + ?Sized,
-{
+use std::{marker::PhantomData, ops::Deref};
+pub struct OneOfMatcher<T, MContext, Tuple> {
     options: Tuple,
     id: usize,
-    phantom: PhantomData<(T, N)>,
+    phantom: PhantomData<(T, MContext)>,
 }
 
-impl<T, N, Tuple> OneOfMatcher<T, N, Tuple>
-where
-    T: Token,
-    N: AstNode + ?Sized,
-    Tuple: IsCheckable<T> + Matcher<T, Output = N>,
-{
+impl<T, MContext, Tuple> OneOfMatcher<T, MContext, Tuple> {
     fn new(options: Tuple) -> Self {
         Self {
             options,
@@ -30,11 +21,7 @@ where
     }
 }
 
-impl<T, N, Tuple> HasId for OneOfMatcher<T, N, Tuple>
-where
-    T: Token,
-    N: AstNode + ?Sized,
-{
+impl<T, MContext, Tuple> HasId for OneOfMatcher<T, MContext, Tuple> {
     fn id(&self) -> usize {
         self.id
     }
@@ -43,10 +30,8 @@ where
 macro_rules! impl_matcher_for_one_of_tuples {
     () => {};
     ($head:ident $(,$tail:ident)*) => {
-        impl<T, N, $head, $($tail),*> IsCheckable<T> for OneOfMatcher<T, N,($head, $($tail,)*)>
+        impl<T, MContext, $head, $($tail),*> IsCheckable<T> for OneOfMatcher<T, MContext,($head, $($tail,)*)>
         where
-            T: Token,
-            N: AstNode,
             $head: Grammar<T>,
             $($tail: Grammar<T>,)*
         {
@@ -69,18 +54,16 @@ macro_rules! impl_matcher_for_one_of_tuples {
             }
         }
 
-        impl<T, N, $head, $($tail),*> Matcher<T> for OneOfMatcher<T, N,($head, $($tail,)*)>
+        impl<T, MContext, $head, $($tail),*> Matcher<T, MContext> for OneOfMatcher<T, MContext,($head, $($tail,)*)>
         where
-            T: Token,
-            N: AstNode + ?Sized,
-            $head: Matcher<T, Output = N> + Grammar<T>,
-            $($tail: Matcher<T, Output = N> + Grammar<T>,)*
+            MContext: Deref<Target = ParserContext<T>>,
+            $head: Matcher<T, MContext> + Grammar<T>,
+            $($tail: Matcher<T, MContext> + Grammar<T>,)*
         {
-            type Output = N;
 
             fn match_pattern(
                 &self,
-                context: &mut MatcherContext<T, Self::Output>,
+                context: &mut MContext,
                 pos: &mut usize,
             ) -> Result<(), String> {
 

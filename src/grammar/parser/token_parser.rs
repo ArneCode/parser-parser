@@ -1,15 +1,12 @@
 use std::{marker::PhantomData, rc::Rc};
 
 use crate::grammar::{
-    AstNode, Grammar, HasId, IsCheckable, Token, context::ParserContext, get_next_id,
-    parser::Parser,
+    Grammar, HasId, IsCheckable, context::ParserContext, get_next_id, parser::Parser,
 };
 pub struct TokenParser<T, N, CheckF, ParseF>
 where
-    T: Token,
-    N: AstNode + ?Sized,
-    // CheckF: Fn(&T) -> bool,
-    // ParseF: Fn(&T) -> Box<N>,
+// CheckF: Fn(&T) -> bool,
+// ParseF: Fn(&T) -> Box<N>,
 {
     check_fn: CheckF,
     parse_fn: ParseF,
@@ -19,10 +16,8 @@ where
 
 impl<T, N, CheckF, ParseF> TokenParser<T, N, CheckF, ParseF>
 where
-    T: Token,
-    N: AstNode + ?Sized,
-    // CheckF: Fn(&T) -> bool,
-    // ParseF: Fn(&T) -> Box<N>,
+// CheckF: Fn(&T) -> bool,
+// ParseF: Fn(&T) -> Box<N>,
 {
     pub fn new(check_fn: CheckF, parse_fn: ParseF) -> Self {
         Self {
@@ -34,11 +29,7 @@ where
     }
 }
 
-impl<T, N, CheckF, ParseF> HasId for TokenParser<T, N, CheckF, ParseF>
-where
-    T: Token,
-    N: AstNode + ?Sized,
-{
+impl<T, N, CheckF, ParseF> HasId for TokenParser<T, N, CheckF, ParseF> {
     fn id(&self) -> usize {
         self.id
     }
@@ -46,8 +37,6 @@ where
 
 impl<T, N, CheckF, ParseF> IsCheckable<T> for TokenParser<T, N, CheckF, ParseF>
 where
-    T: Token,
-    N: AstNode + ?Sized,
     CheckF: Fn(&T) -> bool,
 {
     fn calc_check(&self, context: &ParserContext<T>, pos: &mut usize) -> bool {
@@ -63,10 +52,8 @@ where
 
 impl<T, N, CheckF, ParseF> Parser<T> for TokenParser<T, N, CheckF, ParseF>
 where
-    T: Token,
-    N: AstNode + ?Sized,
     CheckF: Fn(&T) -> bool,
-    ParseF: Fn(&T) -> Box<N>,
+    ParseF: Fn(&T) -> N,
 {
     type Output = N;
 
@@ -74,7 +61,7 @@ where
         &self,
         context: Rc<ParserContext<T>>,
         pos: &mut usize,
-    ) -> Result<Box<Self::Output>, String> {
+    ) -> Result<Self::Output, String> {
         if *pos < context.tokens.len() {
             if self.check_no_advance(&context, pos) {
                 let token = &context.tokens[*pos];

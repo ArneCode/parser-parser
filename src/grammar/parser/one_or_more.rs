@@ -1,8 +1,7 @@
 use std::{marker::PhantomData, rc::Rc};
 
 use crate::grammar::{
-    AstNode, Grammar, HasId, IsCheckable, Token, context::ParserContext, get_next_id,
-    parser::Parser,
+    Grammar, HasId, IsCheckable, context::ParserContext, get_next_id, parser::Parser,
 };
 struct OneOrMoreParser<T, NodeIn, NodeOut, Pars, CombF>
 where
@@ -16,9 +15,6 @@ where
 
 impl<T, NodeIn, NodeOut, Pars, CombF> OneOrMoreParser<T, NodeIn, NodeOut, Pars, CombF>
 where
-    T: Token,
-    NodeIn: AstNode,
-    NodeOut: AstNode + ?Sized,
     Pars: Parser<T, Output = NodeIn>,
     CombF: Fn(Vec<NodeIn>) -> NodeOut,
 {
@@ -44,8 +40,6 @@ where
 impl<T, NodeIn, NodeOut, Pars, CombF> IsCheckable<T>
     for OneOrMoreParser<T, NodeIn, NodeOut, Pars, CombF>
 where
-    T: Token,
-    NodeOut: ?Sized,
     Pars: Parser<T, Output = NodeIn> + Grammar<T>,
 {
     fn calc_check(&self, context: &ParserContext<T>, pos: &mut usize) -> bool {
@@ -59,9 +53,6 @@ where
 
 impl<T, NodeIn, NodeOut, Pars, CombF> Parser<T> for OneOrMoreParser<T, NodeIn, NodeOut, Pars, CombF>
 where
-    T: Token,
-    NodeIn: AstNode,
-    NodeOut: AstNode,
     Pars: Parser<T, Output = NodeIn> + Grammar<T>,
     CombF: Fn(Vec<NodeIn>) -> NodeOut,
 {
@@ -71,14 +62,14 @@ where
         &self,
         context: Rc<ParserContext<T>>,
         pos: &mut usize,
-    ) -> Result<Box<Self::Output>, String> {
+    ) -> Result<Self::Output, String> {
         let mut results = Vec::new();
         // First match is mandatory — propagate the error if absent.
-        results.push(*self.parser.parse(context.clone(), pos)?);
+        results.push(self.parser.parse(context.clone(), pos)?);
         // Remaining matches are optional (same as Multiple).
         while self.parser.check_no_advance(&context, pos) {
-            results.push(*self.parser.parse(context.clone(), pos)?);
+            results.push(self.parser.parse(context.clone(), pos)?);
         }
-        Ok(Box::new((self.combine_fn)(results)))
+        Ok((self.combine_fn)(results))
     }
 }
