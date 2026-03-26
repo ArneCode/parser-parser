@@ -3,6 +3,7 @@ pub mod context;
 pub mod matcher;
 pub mod parser;
 use std::{
+    ops::Deref,
     rc::Rc,
     sync::atomic::{self, AtomicUsize},
     usize,
@@ -17,27 +18,27 @@ fn get_next_id() -> usize {
 pub trait HasId {
     fn id(&self) -> usize;
 }
-
-pub trait IsCheckable<T> {
-    fn calc_check(&self, context: &ParserContext<T>, pos: &mut usize) -> bool;
-}
-// impl IsCheckable for all Rc<IsCheckable>
-impl<T, C> IsCheckable<T> for Rc<C>
+// impl HasId for all types that deref to a HasId
+impl<T, H> HasId for T
 where
-    C: IsCheckable<T>,
-{
-    fn calc_check(&self, context: &ParserContext<T>, pos: &mut usize) -> bool {
-        (**self).calc_check(context, pos)
-    }
-}
-
-// impl HasId for all Rc<HasId>
-impl<H> HasId for Rc<H>
-where
+    T: Deref<Target = H>,
     H: HasId,
 {
     fn id(&self) -> usize {
         (**self).id()
+    }
+}
+pub trait IsCheckable<T> {
+    fn calc_check(&self, context: &ParserContext<T>, pos: &mut usize) -> bool;
+}
+// impl IsCheckable for all types that deref to an IsCheckable
+impl<Token, T, C> IsCheckable<Token> for T
+where
+    T: Deref<Target = C>,
+    C: IsCheckable<Token>,
+{
+    fn calc_check(&self, context: &ParserContext<Token>, pos: &mut usize) -> bool {
+        (**self).calc_check(context, pos)
     }
 }
 

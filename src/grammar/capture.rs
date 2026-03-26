@@ -73,17 +73,6 @@ where
     }
 }
 
-// impl<T, V, MRes, F> Property<T, V, MRes> for MultipleProperty<V, MRes, F>
-// where
-//     T: Token,
-//     MRes: MatchResult,
-//     F: Fn(&mut MRes) -> &mut Vec<V>,
-// {
-//     fn put_in_context(&self, context: &mut MatcherContext<T, MRes>, value: V) {
-//         let property_slot = (self.setter)(&mut context.match_result);
-//         property_slot.push(value);
-//     }
-// }
 impl<T, V, MResSingle, MResMultiple, MResOptional, F>
     Property<T, V, MatcherContext<T, MResSingle, MResMultiple, MResOptional>>
     for MultipleProperty<V, MResMultiple, F>
@@ -151,22 +140,6 @@ pub struct Capture<T, Out, MResSingle, MResMultiple, MResOptional, Match, F> {
     _phantom: PhantomData<(T, MResSingle, MResMultiple, MResOptional, Out)>,
 }
 
-// impl<T, Out, MRes, Match, F> Capture<T, Out, MRes, Match, F>
-// where
-//     MRes: MatchResult,
-//     Match: Matcher<T, MRes> + HasId + IsCheckable<T>,
-//     F: Fn(MRes) -> Out,
-// {
-//     pub fn new<GF: Fn(MRes::Properties) -> Match>(grammar_factory: GF, constructor: F) -> Self {
-//         let properties = MRes::new_properties();
-//         Self {
-//             matcher: grammar_factory(properties),
-//             constructor,
-//             id: get_next_id(),
-//             _phantom: PhantomData,
-//         }
-//     }
-// }
 impl<T, Out, MResSingle, MResMultiple, MResOptional, Match, F>
     Capture<T, Out, MResSingle, MResMultiple, MResOptional, Match, F>
 where
@@ -196,25 +169,6 @@ where
     }
 }
 
-// impl<T, Out, MRes, Match, F> Parser<T> for Capture<T, Out, MRes, Match, F>
-// where
-//     T: Token,
-//     MRes: MatchResult,
-//     Match: Matcher<T, MRes> + HasId + IsCheckable<T>,
-//     F: Fn(MRes) -> Out,
-// {
-//     type Output = Out;
-
-//     fn parse(
-//         &self,
-//         context: Rc<ParserContext<T>>,
-//         pos: &mut usize,
-//     ) -> Result<Self::Output, String> {
-//         let mut context = MatcherContext::new(context, MRes::new());
-//         self.matcher.match_pattern(&mut context, pos)?;
-//         Ok((self.constructor)(context.match_result))
-//     }
-// }´
 impl<T, Out, MResSingle, MResMultiple, MResOptional, Match, F> Parser<T>
     for Capture<T, Out, MResSingle, MResMultiple, MResOptional, Match, F>
 where
@@ -248,14 +202,6 @@ where
     }
 }
 
-// impl<T, Out, MRes, Match, F> IsCheckable<T> for Capture<T, Out, MRes, Match, F>
-// where
-//     Match: Grammar<T>,
-// {
-//     fn calc_check(&self, context: &ParserContext<T>, pos: &mut usize) -> bool {
-//         self.matcher.check(context, pos)
-//     }
-// }
 impl<T, Out, MResSingle, MResMultiple, MResOptional, Match, F> IsCheckable<T>
     for Capture<T, Out, MResSingle, MResMultiple, MResOptional, Match, F>
 where
@@ -266,14 +212,6 @@ where
     }
 }
 
-// impl<T, Out, MRes, Match, F> HasId for Capture<T, Out, MRes, Match, F>
-// where
-//     Match: HasId,
-// {
-//     fn id(&self) -> usize {
-//         self.id
-//     }
-// }
 impl<T, Out, MResSingle, MResMultiple, MResOptional, Match, F> HasId
     for Capture<T, Out, MResSingle, MResMultiple, MResOptional, Match, F>
 where
@@ -287,7 +225,6 @@ where
 pub struct CaptureProperty<T, Out, MContext, Pars, Prop> {
     parser: Pars,
     property: Prop,
-    id: usize,
     _phantom: PhantomData<(T, Out, MContext)>,
 }
 
@@ -300,7 +237,6 @@ where
         Self {
             parser,
             property,
-            id: get_next_id(),
             _phantom: PhantomData,
         }
     }
@@ -322,7 +258,7 @@ where
     Pars: HasId,
 {
     fn id(&self) -> usize {
-        self.id
+        self.parser.id()
     }
 }
 

@@ -7,7 +7,7 @@ pub mod optional;
 pub mod positive_lookahead;
 pub mod sequence;
 pub mod string;
-use std::rc::Rc;
+use std::ops::Deref;
 
 use crate::grammar::{HasId, IsCheckable};
 
@@ -19,9 +19,10 @@ pub trait ToMatcher<T, MContext> {
     fn to_matcher(&self) -> Self::MatcherType;
 }
 
-impl<T, MContext, M> Matcher<T, MContext> for Rc<M>
+impl<Token, MContext, M, T> Matcher<Token, MContext> for T
 where
-    M: Matcher<T, MContext>,
+    T: Deref<Target = M>,
+    M: Matcher<Token, MContext>,
 {
     fn match_pattern(&self, context: &mut MContext, pos: &mut usize) -> Result<(), String> {
         (**self).match_pattern(context, pos)

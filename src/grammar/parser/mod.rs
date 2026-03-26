@@ -1,7 +1,7 @@
 pub mod multiple;
 pub mod one_or_more;
 pub mod token_parser;
-use std::rc::Rc;
+use std::{ops::Deref, rc::Rc};
 
 use crate::grammar::context::ParserContext;
 
@@ -11,16 +11,17 @@ pub trait Parser<T> {
     -> Result<Self::Output, String>;
 }
 
-// impl Parser for all Rc<Parser>
-impl<T, N, P> Parser<T> for Rc<P>
+// impl Parser for all types that deref to a parser
+impl<Token, Out, T, Pars> Parser<Token> for T
 where
-    P: Parser<T, Output = N>,
+    T: Deref<Target = Pars>,
+    Pars: Parser<Token, Output = Out>,
 {
-    type Output = N;
+    type Output = Out;
 
     fn parse(
         &self,
-        context: Rc<ParserContext<T>>,
+        context: Rc<ParserContext<Token>>,
         pos: &mut usize,
     ) -> Result<Self::Output, String> {
         (**self).parse(context, pos)
