@@ -22,10 +22,7 @@ impl StringMatcher {
 }
 
 // impl ToMatcher<char, N> for String {
-impl<N> ToMatcher<char, N> for String
-where
-    N: Deref<Target = ParserContext<char>>,
-{
+impl ToMatcher<char> for String {
     type MatcherType = StringMatcher;
 
     fn to_matcher(&self) -> Self::MatcherType {
@@ -33,10 +30,7 @@ where
     }
 }
 
-impl<N> ToMatcher<char, N> for &str
-where
-    N: Deref<Target = ParserContext<char>>,
-{
+impl ToMatcher<char> for &str {
     type MatcherType = StringMatcher;
     fn to_matcher(&self) -> Self::MatcherType {
         StringMatcher::new(self.to_string())

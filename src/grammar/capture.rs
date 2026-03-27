@@ -7,7 +7,7 @@ use crate::grammar::{
     matcher::Matcher,
     parser::Parser,
 };
-use std::{marker::PhantomData, rc::Rc};
+use std::{fmt::Debug, marker::PhantomData, rc::Rc};
 
 pub trait Property<T, V, MContext> {
     fn put_in_context(&self, context: &mut MContext, value: V);
@@ -149,7 +149,7 @@ where
     Match: Matcher<T, MatcherContext<T, MResSingle, MResMultiple, MResOptional>>
         + HasId
         + IsCheckable<T>,
-    F: Fn(MResSingle, MResMultiple, MResOptional) -> Out,
+    F: Fn(MResSingle::Output, MResMultiple, MResOptional) -> Out,
 {
     pub fn new<
         GF: Fn(MResSingle::Properties, MResMultiple::Properties, MResOptional::Properties) -> Match,
@@ -178,7 +178,7 @@ where
     Match: Matcher<T, MatcherContext<T, MResSingle, MResMultiple, MResOptional>>
         + HasId
         + IsCheckable<T>,
-    F: Fn(MResSingle, MResMultiple, MResOptional) -> Out,
+    F: Fn(MResSingle::Output, MResMultiple, MResOptional) -> Out,
 {
     type Output = Out;
 
@@ -195,7 +195,7 @@ where
         );
         self.matcher.match_pattern(&mut context, pos)?;
         Ok((self.constructor)(
-            context.match_result_single,
+            context.match_result_single.as_output(),
             context.match_result_multiple,
             context.match_result_optional,
         ))
@@ -295,13 +295,47 @@ where
     }
 }
 
+impl MatchResultSingle for () {
+    type Properties = ();
+    type Output = ();
+
+    fn new() -> Self {}
+
+    fn new_properties() -> Self::Properties {}
+    fn as_output(self) -> Self::Output {
+        ()
+    }
+}
+
+impl MatchResultMultiple for () {
+    type Properties = ();
+
+    fn new() -> Self {}
+
+    fn new_properties() -> Self::Properties {}
+}
+
+impl MatchResultOptional for () {
+    type Properties = ();
+
+    fn new() -> Self {}
+
+    fn new_properties() -> Self::Properties {}
+}
+
+fn unwrap_single<T>(option: Option<T>) -> T {
+    option.expect("Expected single match result to be set, but it was not")
+}
+
 macro_rules! impl_match_results_for_tuple {
     ( $(($T:ident, $idx:tt)),+ ) => {
 
-        impl<$($T),+> MatchResultSingle for ($(Option<$T>,)+) {
+        impl<$($T),+> MatchResultSingle for ($(Option<$T>,)+)
+        where $($T: Debug),+ {
             type Properties = (
                 $(SingleProperty<$T, Self, fn(&mut Self) -> &mut Option<$T>>,)+
             );
+            type Output = ($($T,)+);
 
             fn new() -> Self {
                 // Block expr per repetition to anchor to $T without PhantomData imports
@@ -315,6 +349,11 @@ macro_rules! impl_match_results_for_tuple {
                             as fn(&mut Self) -> &mut Option<$T>,
                     ),
                 )+)
+            }
+            fn as_output(self) -> Self::Output {
+                #[allow(non_snake_case)]
+                let ($( $T, )+) = self;
+                ($(unwrap_single($T),)+)
             }
         }
 

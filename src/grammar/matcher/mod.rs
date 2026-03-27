@@ -9,13 +9,11 @@ pub mod sequence;
 pub mod string;
 use std::ops::Deref;
 
-use crate::grammar::{HasId, IsCheckable};
-
 pub trait Matcher<T, MContext> {
     fn match_pattern(&self, context: &mut MContext, pos: &mut usize) -> Result<(), String>;
 }
-pub trait ToMatcher<T, MContext> {
-    type MatcherType: Matcher<T, MContext> + HasId + IsCheckable<T>;
+pub trait ToMatcher<T> {
+    type MatcherType;
     fn to_matcher(&self) -> Self::MatcherType;
 }
 

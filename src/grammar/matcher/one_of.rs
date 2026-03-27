@@ -2,13 +2,13 @@ use crate::grammar::{
     Grammar, HasId, IsCheckable, context::ParserContext, get_next_id, matcher::Matcher,
 };
 use std::{marker::PhantomData, ops::Deref};
-pub struct OneOfMatcher<T, MContext, Tuple> {
+pub struct OneOfMatcher<T, Tuple> {
     options: Tuple,
     id: usize,
-    phantom: PhantomData<(T, MContext)>,
+    phantom: PhantomData<T>,
 }
 
-impl<T, MContext, Tuple> OneOfMatcher<T, MContext, Tuple> {
+impl<T, Tuple> OneOfMatcher<T, Tuple> {
     pub fn new(options: Tuple) -> Self {
         Self {
             options,
@@ -18,7 +18,7 @@ impl<T, MContext, Tuple> OneOfMatcher<T, MContext, Tuple> {
     }
 }
 
-impl<T, MContext, Tuple> HasId for OneOfMatcher<T, MContext, Tuple> {
+impl<T, Tuple> HasId for OneOfMatcher<T, Tuple> {
     fn id(&self) -> usize {
         self.id
     }
@@ -27,7 +27,7 @@ impl<T, MContext, Tuple> HasId for OneOfMatcher<T, MContext, Tuple> {
 macro_rules! impl_matcher_for_one_of_tuples {
     () => {};
     ($head:ident $(,$tail:ident)*) => {
-        impl<T, MContext, $head, $($tail),*> IsCheckable<T> for OneOfMatcher<T, MContext,($head, $($tail,)*)>
+        impl<T, $head, $($tail),*> IsCheckable<T> for OneOfMatcher<T,($head, $($tail,)*)>
         where
             $head: Grammar<T>,
             $($tail: Grammar<T>,)*
@@ -51,7 +51,7 @@ macro_rules! impl_matcher_for_one_of_tuples {
             }
         }
 
-        impl<T, MContext, $head, $($tail),*> Matcher<T, MContext> for OneOfMatcher<T, MContext,($head, $($tail,)*)>
+        impl<T, MContext, $head, $($tail),*> Matcher<T, MContext> for OneOfMatcher<T,($head, $($tail,)*)>
         where
             MContext: Deref<Target = ParserContext<T>>,
             $head: Matcher<T, MContext> + Grammar<T>,
@@ -67,12 +67,12 @@ macro_rules! impl_matcher_for_one_of_tuples {
                 #[allow(non_snake_case)]
                 let ($head, $($tail,)*) = &self.options;
 
-                if $head.check(context, pos) {
+                if $head.check_no_advance(context, pos) {
                     return $head.match_pattern(context, pos);
                 }
 
                 $(
-                    if $tail.check(context, pos) {
+                    if $tail.check_no_advance(context, pos) {
                         return $tail.match_pattern(context, pos);
                     }
                 )*

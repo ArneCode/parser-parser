@@ -6,9 +6,9 @@ pub struct ParserContext<T> {
 }
 
 impl<T> ParserContext<T> {
-    pub fn new(tokens: Vec<T>) -> Self {
+    pub fn new<V: Into<Vec<T>>>(tokens: V) -> Self {
         Self {
-            tokens,
+            tokens: tokens.into(),
             memo_table: RefCell::new(HashMap::new()),
         }
     }
@@ -16,8 +16,10 @@ impl<T> ParserContext<T> {
 
 pub trait MatchResultSingle {
     type Properties;
+    type Output;
     fn new() -> Self;
     fn new_properties() -> Self::Properties;
+    fn as_output(self) -> Self::Output;
 }
 pub trait MatchResultMultiple {
     type Properties;

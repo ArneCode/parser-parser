@@ -1,193 +1,162 @@
-// my_macro_crate/src/lib.rs
-
 use proc_macro::TokenStream;
-use quote::quote;
+use quote::{format_ident, quote};
 use syn::parse::{Parse, ParseStream};
-use syn::visit_mut::VisitMut;
-use syn::{Block, Expr, Ident, Token, parse_macro_input, parse_quote};
+use syn::visit_mut::{self, VisitMut};
+use syn::{Expr, Ident, Result, Token, parse_macro_input, parse_quote};
 
-// 1. Structure to hold our parsed input: { grammar } => { body }
+// --- (Keep CaptureInput, BindKind, and BindInfo from previous version) ---
 struct CaptureInput {
     grammar: Expr,
     _arrow: Token![=>],
-    constructor: Block,
+    result_expr: Expr,
 }
 
 impl Parse for CaptureInput {
-    fn parse(input: ParseStream) -> syn::Result<Self> {
-        // We expect a block for the grammar, but standard Expr handles `{ ... }`
+    fn parse(input: ParseStream) -> Result<Self> {
         let grammar = input.parse()?;
-        let _arrow = input.parse()?;
-        let constructor = input.parse()?;
+        let _arrow = input.parse::<Token![=>]>()?;
+        let result_expr = input.parse()?;
         Ok(CaptureInput {
             grammar,
             _arrow,
-            constructor,
+            result_expr,
         })
     }
 }
 
-// 2. Enum to classify the type of binding
 enum BindKind {
-    Single(Ident),
-    Multiple(Ident), // starts with *
-    Optional(Ident), // starts with ?
+    Single,
+    Multiple,
+    Optional,
 }
-struct BindInput {
+struct BindInfo {
     parser: Expr,
-    _comma: Token![,],
+    ident: Ident,
     kind: BindKind,
 }
 
-impl Parse for BindInput {
-    fn parse(input: ParseStream) -> syn::Result<Self> {
+impl Parse for BindInfo {
+    fn parse(input: ParseStream) -> Result<Self> {
         let parser: Expr = input.parse()?;
-        let _comma: Token![,] = input.parse()?;
-
-        let kind = if input.peek(Token![*]) {
+        let _: Token![,] = input.parse()?;
+        if input.peek(Token![*]) {
             input.parse::<Token![*]>()?;
-            BindKind::Multiple(input.parse()?)
+            Ok(BindInfo {
+                parser,
+                ident: input.parse()?,
+                kind: BindKind::Multiple,
+            })
         } else if input.peek(Token![?]) {
             input.parse::<Token![?]>()?;
-            BindKind::Optional(input.parse()?)
+            Ok(BindInfo {
+                parser,
+                ident: input.parse()?,
+                kind: BindKind::Optional,
+            })
         } else {
-            BindKind::Single(input.parse()?)
-        };
-
-        Ok(BindInput {
-            parser,
-            _comma,
-            kind,
-        })
+            Ok(BindInfo {
+                parser,
+                ident: input.parse()?,
+                kind: BindKind::Single,
+            })
+        }
     }
 }
-// 3. The visitor that will traverse the AST and mutate it
+
 struct BindVisitor {
-    single_vars: Vec<Ident>,
-    multiple_vars: Vec<Ident>,
-    optional_vars: Vec<Ident>,
-    errors: Vec<syn::Error>,
-}
-
-impl BindVisitor {
-    fn new() -> Self {
-        Self {
-            single_vars: Vec::new(),
-            multiple_vars: Vec::new(),
-            optional_vars: Vec::new(),
-            errors: Vec::new(),
-        }
-    }
-
-    // Helper to add a var without duplicating it (allows re-using `params`)
-    fn add_unique(vars: &mut Vec<Ident>, ident: Ident) {
-        if !vars.iter().any(|v| v == &ident) {
-            vars.push(ident);
-        }
-    }
+    singles: Vec<Ident>,
+    multiples: Vec<Ident>,
+    optionals: Vec<Ident>,
 }
 
 impl VisitMut for BindVisitor {
-    fn visit_expr_mut(&mut self, node: &mut Expr) {
-        // Visit children first
-        syn::visit_mut::visit_expr_mut(self, node);
-
-        // Check if this node is a macro call to `bind!`
-        if let Expr::Macro(expr_macro) = node {
-            if expr_macro.mac.path.is_ident("bind") {
-                // Now syn::parse2 knows exactly what to parse into: BindInput
-                match syn::parse2::<BindInput>(expr_macro.mac.tokens.clone()) {
-                    Ok(bind) => {
-                        let ident = match bind.kind {
-                            BindKind::Single(id) => {
-                                Self::add_unique(&mut self.single_vars, id.clone());
-                                id
+    fn visit_expr_mut(&mut self, i: &mut Expr) {
+        if let Expr::Macro(m) = i {
+            if m.mac.path.is_ident("bind") {
+                if let Ok(info) = m.mac.parse_body::<BindInfo>() {
+                    let id = &info.ident;
+                    let parser = &info.parser;
+                    match info.kind {
+                        BindKind::Single => {
+                            if !self.singles.contains(id) {
+                                self.singles.push(id.clone())
                             }
-                            BindKind::Multiple(id) => {
-                                Self::add_unique(&mut self.multiple_vars, id.clone());
-                                id
+                        }
+                        BindKind::Multiple => {
+                            if !self.multiples.contains(id) {
+                                self.multiples.push(id.clone())
                             }
-                            BindKind::Optional(id) => {
-                                Self::add_unique(&mut self.optional_vars, id.clone());
-                                id
+                        }
+                        BindKind::Optional => {
+                            if !self.optionals.contains(id) {
+                                self.optionals.push(id.clone())
                             }
-                        };
-
-                        let parser_expr = bind.parser;
-                        *node = parse_quote! {
-                            capture_property(#parser_expr, #ident)
-                        };
+                        }
                     }
-                    Err(e) => self.errors.push(e),
+                    *i = parse_quote! { capture_property(#parser, #id.clone()) };
+                    return;
                 }
             }
         }
+        visit_mut::visit_expr_mut(self, i);
     }
 }
 
 #[proc_macro]
 pub fn capture(input: TokenStream) -> TokenStream {
-    let mut parsed_input = parse_macro_input!(input as CaptureInput);
-    let mut visitor = BindVisitor::new();
+    let mut input = parse_macro_input!(input as CaptureInput);
+    let mut visitor = BindVisitor {
+        singles: vec![],
+        multiples: vec![],
+        optionals: vec![],
+    };
 
-    // Traverse and mutate the grammar expression
-    visitor.visit_expr_mut(&mut parsed_input.grammar);
+    visitor.visit_expr_mut(&mut input.grammar);
 
-    // If there were syntax errors inside the `bind!` calls, return them
-    if let Some(err) = visitor.errors.into_iter().reduce(|mut a, b| {
-        a.combine(b);
-        a
-    }) {
-        return err.to_compile_error().into();
-    }
+    let grammar = &input.grammar;
+    let result_expr = &input.result_expr;
 
-    let grammar = parsed_input.grammar;
-    let constructor = parsed_input.constructor;
-
-    // Get the lists and counts
-    let singles = &visitor.single_vars;
-    let multiples = &visitor.multiple_vars;
-    let optionals = &visitor.optional_vars;
-
-    let n_single = singles.len();
-    let n_multiple = multiples.len();
-    let n_optional = optionals.len();
-
-    // Generate extraction logic for the constructor
-    // Example: let name = __ctx.match_result.single_matches[0].take().expect(...);
-    let extract_singles = singles.iter().enumerate().map(|(i, id)| {
-        quote! {
-            let #id = __ctx.match_result.single_matches[#i]
-                .take()
-                .expect(concat!("capture!: single capture `", stringify!(#id), "` was never set"));
+    // Helper to build the value tuples: (name, body,)
+    let build_val_tuple = |idents: &[Ident]| {
+        if idents.is_empty() {
+            quote! { () }
+        } else {
+            quote! { ( #(#idents,)* ) }
         }
-    });
+    };
 
-    let extract_multiples = multiples.iter().enumerate().map(|(i, id)| {
-        quote! {
-            let #id = ::std::mem::take(&mut __ctx.match_result.multiple_matches[#i]);
+    // Helper to build the type tuples: (Option<_>,) or (Vec<_>,)
+    // We use fully qualified paths for context independence.
+    let build_type_tuple = |idents: &[Ident], is_vec: bool| {
+        if idents.is_empty() {
+            quote! { () }
+        } else {
+            let inner = if is_vec {
+                quote! { ::std::vec::Vec<_> }
+            } else {
+                quote! { ::std::option::Option<_> }
+            };
+            let types = idents.iter().map(|_| &inner);
+            quote! { ( #(#types,)* ) }
         }
-    });
+    };
 
-    let extract_optionals = optionals.iter().enumerate().map(|(i, id)| {
-        quote! {
-            let #id = __ctx.match_result.optional_matches[#i].take();
-        }
-    });
+    let s_pat = build_val_tuple(&visitor.singles);
+    let m_pat = build_val_tuple(&visitor.multiples);
+    let o_pat = build_val_tuple(&visitor.optionals);
 
-    // Expand into the final output
+    let s_ty = build_type_tuple(&visitor.singles, false); // Option<_>
+    let m_ty = build_type_tuple(&visitor.multiples, true); // Vec<_>
+    let o_ty = build_type_tuple(&visitor.optionals, false); // Option<_>
+
     let expanded = quote! {
-        Capture::new::<#n_single, #n_multiple, #n_optional, _>(
-            |[#(#singles),*], [#(#multiples),*], [#(#optionals),*]| {
+        // Here we explicitly provide the capture group types
+        Capture::<_, _, #s_ty, #m_ty, #o_ty, _, _>::new(
+            |#s_pat, #m_pat, #o_pat| {
                 #grammar
             },
-            |mut __ctx| {
-                #(#extract_singles)*
-                #(#extract_multiples)*
-                #(#extract_optionals)*
-
-                // Finally, run the user's block
-                #constructor
+            |#s_pat, #m_pat, #o_pat| {
+                #result_expr
             }
         )
     };
