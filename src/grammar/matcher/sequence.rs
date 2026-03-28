@@ -1,8 +1,5 @@
 use crate::grammar::{
-    Grammar, HasId, IsCheckable,
-    context::ParserContext,
-    get_next_id,
-    matcher::Matcher,
+    Grammar, HasId, IsCheckable, context::ParserContext, get_next_id, matcher::Matcher,
 };
 use std::marker::PhantomData;
 pub struct Sequence<T, MContext, Tuple> {

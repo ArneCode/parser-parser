@@ -1,5 +1,7 @@
 pub mod capture;
 pub mod context;
+pub mod error_handler;
+pub mod label;
 pub mod matcher;
 pub mod parser;
 use std::{
@@ -49,7 +51,10 @@ pub trait Grammar<T> {
 }
 
 // impl Grammar for all Parsers / Matchers, using memoization to optimize repeated checks
-impl<T, G: HasId + IsCheckable<T> + ?Sized> Grammar<T> for G {
+impl<T, G> Grammar<T> for G
+where
+    G: HasId + IsCheckable<T> + ?Sized,
+{
     fn check(&self, context: &ParserContext<T>, pos: &mut usize) -> bool {
         let id = self.id();
         if let Some(&result) = context.memo_table.borrow().get(&(id, *pos)) {
