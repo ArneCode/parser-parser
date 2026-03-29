@@ -9,7 +9,7 @@ use crate::grammar::{
     matcher::Matcher,
     parser::Parser,
 };
-use std::{fmt::Debug, marker::PhantomData, rc::Rc, result};
+use std::{fmt::Debug, marker::PhantomData};
 
 pub trait Property<Value, MatchResult> {
     fn put_in_result(&self, result: &mut MatchResult, value: Value);

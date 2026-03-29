@@ -5,7 +5,6 @@ use crate::grammar::{
     get_next_id,
     matcher::Matcher,
 };
-use std::{marker::PhantomData, ops::Deref};
 pub struct OneOfMatcher<Tuple> {
     options: Tuple,
     id: usize,

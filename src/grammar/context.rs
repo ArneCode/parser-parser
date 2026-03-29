@@ -1,6 +1,6 @@
-use std::{cell::RefCell, collections::HashMap, ops::Deref, rc::Rc};
+use std::collections::HashMap;
 
-use crate::grammar::error_handler::{EmptyErrorHandler, ErrorHandler};
+use crate::grammar::error_handler::ErrorHandler;
 
 pub struct ParserContext<T, EHandler: ErrorHandler> {
     pub tokens: Vec<T>,
@@ -15,7 +15,7 @@ impl<T, EHandler: ErrorHandler> ParserContext<T, EHandler> {
             tokens: tokens.into(),
             memo_table: HashMap::new(),
             match_start: 0,
-            error_handler: error_handler,
+            error_handler,
         }
     }
 }

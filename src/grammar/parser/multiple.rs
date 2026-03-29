@@ -1,4 +1,3 @@
-use std::{marker::PhantomData, rc::Rc};
 
 use crate::grammar::{
     Grammar, HasId, IsCheckable, context::ParserContext, error_handler::ErrorHandler, get_next_id,

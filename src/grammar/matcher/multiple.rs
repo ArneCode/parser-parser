@@ -1,5 +1,3 @@
-use std::{marker::PhantomData, ops::Deref};
-
 use crate::grammar::{
     Grammar, HasId, IsCheckable,
     context::{MatcherContext, ParserContext},

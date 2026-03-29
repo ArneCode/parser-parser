@@ -5,7 +5,6 @@ use crate::grammar::{
     get_next_id,
     matcher::Matcher,
 };
-use std::{error::Error, marker::PhantomData, ops::Deref};
 pub struct AnyToken {
     id: usize,
 }

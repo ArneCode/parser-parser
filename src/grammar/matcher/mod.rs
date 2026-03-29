@@ -10,7 +10,7 @@ pub mod string;
 use std::ops::Deref;
 
 use crate::grammar::{
-    context::{MatchResult, MatcherContext},
+    context::MatcherContext,
     error_handler::ErrorHandler,
 };
 

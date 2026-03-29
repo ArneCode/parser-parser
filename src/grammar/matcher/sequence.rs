@@ -5,7 +5,6 @@ use crate::grammar::{
     get_next_id,
     matcher::Matcher,
 };
-use std::marker::PhantomData;
 pub struct Sequence<Tuple> {
     elements: Tuple,
     id: usize,
