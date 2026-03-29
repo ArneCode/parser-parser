@@ -1,60 +1,60 @@
 use crate::grammar::{
     Grammar, HasId, IsCheckable,
-    context::ParserContext,
+    context::{MatcherContext, ParserContext},
+    error_handler::ErrorHandler,
     get_next_id,
     matcher::Matcher,
 };
 use std::{marker::PhantomData, ops::Deref};
-pub struct PositiveLookahead<T, Check> {
+pub struct PositiveLookahead<Check> {
     checker: Check,
     id: usize,
-    _phantom: PhantomData<T>,
 }
 
-impl<T, Check> PositiveLookahead<T, Check>
-where
-    Check: Grammar<T>,
-{
+impl<Check> PositiveLookahead<Check> {
     pub fn new(checker: Check) -> Self {
         Self {
             checker,
             id: get_next_id(),
-            _phantom: PhantomData,
         }
     }
 }
 
 /// &e  — positive lookahead. Succeeds without consuming if `e` would match.
-pub fn positive_lookahead<T, Check>(checker: Check) -> PositiveLookahead<T, Check>
-where
-    Check: Grammar<T>,
-{
+pub fn positive_lookahead<Check>(checker: Check) -> PositiveLookahead<Check> {
     PositiveLookahead::new(checker)
 }
 
-impl<T, Check> HasId for PositiveLookahead<T, Check> {
+impl<Check> HasId for PositiveLookahead<Check> {
     fn id(&self) -> usize {
         self.id
     }
 }
 
-impl<T, Check> IsCheckable<T> for PositiveLookahead<T, Check>
+impl<Token, Check> IsCheckable<Token> for PositiveLookahead<Check>
 where
-    Check: Grammar<T>,
+    Check: Grammar<Token>,
 {
-    fn calc_check(&self, context: &ParserContext<T>, pos: &mut usize) -> bool {
+    fn calc_check(
+        &self,
+        context: &mut ParserContext<Token, impl ErrorHandler>,
+        pos: &mut usize,
+    ) -> bool {
         // Pure peek — pos must not move regardless of outcome.
         self.checker.check_no_advance(context, pos)
     }
 }
 
-impl<T, MContext, Check> Matcher<T, MContext> for PositiveLookahead<T, Check>
+impl<Token, MRes, Check> Matcher<Token, MRes> for PositiveLookahead<Check>
 where
-    MContext: Deref<Target = ParserContext<T>>,
-    Check: HasId + IsCheckable<T>,
+    Check: Grammar<Token>,
 {
-    fn match_pattern(&self, context: &mut MContext, pos: &mut usize) -> Result<(), String> {
-        if self.checker.check_no_advance(context, pos) {
+    fn match_pattern(
+        &self,
+        context: &mut MatcherContext<Token, MRes, impl ErrorHandler>,
+        pos: &mut usize,
+    ) -> Result<(), String> {
+        if self.checker.check_no_advance(context.parser_context, pos) {
             Ok(()) // pos unchanged, nothing captured
         } else {
             Err(format!("positive lookahead failed at position {}", pos))

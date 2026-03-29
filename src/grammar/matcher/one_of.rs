@@ -1,24 +1,26 @@
 use crate::grammar::{
-    Grammar, HasId, IsCheckable, context::ParserContext, get_next_id, matcher::Matcher,
+    Grammar, HasId, IsCheckable,
+    context::{MatcherContext, ParserContext},
+    error_handler::ErrorHandler,
+    get_next_id,
+    matcher::Matcher,
 };
 use std::{marker::PhantomData, ops::Deref};
-pub struct OneOfMatcher<T, Tuple> {
+pub struct OneOfMatcher<Tuple> {
     options: Tuple,
     id: usize,
-    phantom: PhantomData<T>,
 }
 
-impl<T, Tuple> OneOfMatcher<T, Tuple> {
+impl<Tuple> OneOfMatcher<Tuple> {
     pub fn new(options: Tuple) -> Self {
         Self {
             options,
             id: get_next_id(),
-            phantom: PhantomData,
         }
     }
 }
 
-impl<T, Tuple> HasId for OneOfMatcher<T, Tuple> {
+impl<Tuple> HasId for OneOfMatcher<Tuple> {
     fn id(&self) -> usize {
         self.id
     }
@@ -27,12 +29,12 @@ impl<T, Tuple> HasId for OneOfMatcher<T, Tuple> {
 macro_rules! impl_matcher_for_one_of_tuples {
     () => {};
     ($head:ident $(,$tail:ident)*) => {
-        impl<T, $head, $($tail),*> IsCheckable<T> for OneOfMatcher<T,($head, $($tail,)*)>
+        impl<Token, $head, $($tail),*> IsCheckable<Token> for OneOfMatcher<($head, $($tail,)*)>
         where
-            $head: Grammar<T>,
-            $($tail: Grammar<T>,)*
+            $head: Grammar<Token>,
+            $($tail: Grammar<Token>,)*
         {
-            fn calc_check(&self, context: &ParserContext<T>, pos: &mut usize) -> bool {
+            fn calc_check(&self, context: &mut ParserContext<Token, impl ErrorHandler>, pos: &mut usize) -> bool {
 
                 #[allow(non_snake_case)]
                 let ($head, $($tail,)*) = &self.options;
@@ -51,28 +53,27 @@ macro_rules! impl_matcher_for_one_of_tuples {
             }
         }
 
-        impl<T, MContext, $head, $($tail),*> Matcher<T, MContext> for OneOfMatcher<T,($head, $($tail,)*)>
+        impl<Token, MRes, $head, $($tail),*> Matcher<Token, MRes> for OneOfMatcher<($head, $($tail,)*)>
         where
-            MContext: Deref<Target = ParserContext<T>>,
-            $head: Matcher<T, MContext> + Grammar<T>,
-            $($tail: Matcher<T, MContext> + Grammar<T>,)*
+            $head: Matcher<Token, MRes> + Grammar<Token>,
+            $($tail: Matcher<Token, MRes> + Grammar<Token>,)*
         {
 
             fn match_pattern(
                 &self,
-                context: &mut MContext,
+                context: &mut MatcherContext<Token, MRes, impl ErrorHandler>,
                 pos: &mut usize,
             ) -> Result<(), String> {
 
                 #[allow(non_snake_case)]
                 let ($head, $($tail,)*) = &self.options;
 
-                if $head.check_no_advance(context, pos) {
+                if $head.check_no_advance(context.parser_context, pos) {
                     return $head.match_pattern(context, pos);
                 }
 
                 $(
-                    if $tail.check_no_advance(context, pos) {
+                    if $tail.check_no_advance(context.parser_context, pos) {
                         return $tail.match_pattern(context, pos);
                     }
                 )*

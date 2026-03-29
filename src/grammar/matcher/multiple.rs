@@ -1,52 +1,61 @@
 use std::{marker::PhantomData, ops::Deref};
 
 use crate::grammar::{
-    Grammar, HasId, IsCheckable, context::ParserContext, get_next_id, matcher::Matcher,
+    Grammar, HasId, IsCheckable,
+    context::{MatcherContext, ParserContext},
+    error_handler::ErrorHandler,
+    get_next_id,
+    matcher::Matcher,
 };
 
-pub struct Multiple<T, Match> {
+pub struct Multiple<Match> {
     matcher: Match,
     id: usize,
-    _phantom: PhantomData<T>,
 }
 
-impl<T, Match> Multiple<T, Match> {
+impl<Match> Multiple<Match> {
     fn new(matcher: Match) -> Self {
         Self {
             matcher,
             id: get_next_id(),
-            _phantom: PhantomData,
         }
     }
 }
 
-pub fn many<T, Match>(matcher: Match) -> Multiple<T, Match> {
+pub fn many<Match>(matcher: Match) -> Multiple<Match> {
     Multiple::new(matcher)
 }
-impl<T, MContext, Match> Matcher<T, MContext> for Multiple<T, Match>
+impl<Match, Token, MRes> Matcher<Token, MRes> for Multiple<Match>
 where
-    MContext: Deref<Target = ParserContext<T>>,
-    Match: Matcher<T, MContext> + HasId + IsCheckable<T>,
+    Match: Matcher<Token, MRes> + HasId + IsCheckable<Token>,
 {
-    fn match_pattern(&self, context: &mut MContext, pos: &mut usize) -> Result<(), String> {
-        while self.matcher.check_no_advance(context, pos) {
+    fn match_pattern(
+        &self,
+        context: &mut MatcherContext<Token, MRes, impl ErrorHandler>,
+        pos: &mut usize,
+    ) -> Result<(), String> {
+        while self.matcher.check_no_advance(context.parser_context, pos) {
             self.matcher.match_pattern(context, pos)?;
         }
         Ok(())
     }
 }
 
-impl<T, Match> IsCheckable<T> for Multiple<T, Match>
+impl<T, Match> IsCheckable<T> for Multiple<Match>
 where
     Match: Grammar<T>,
 {
-    fn calc_check(&self, context: &ParserContext<T>, pos: &mut usize) -> bool {
+    fn calc_check(
+        &self,
+        context: &mut ParserContext<T, impl ErrorHandler>,
+        pos: &mut usize,
+    ) -> bool {
         while self.matcher.check(context, pos) {}
         true
     }
 }
 
-impl<T, Match> HasId for Multiple<T, Match> {
+impl<Match> HasId for Multiple<Match> {
     fn id(&self) -> usize {
         self.id
     }

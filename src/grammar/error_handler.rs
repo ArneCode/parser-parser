@@ -1,30 +1,27 @@
 use crate::grammar::label::MaybeLabel;
 
-pub trait ErrorHandler {
+pub trait ErrorHandler: Default {
     type Indexer;
-    type Object;
 
     fn register_start(&mut self) -> Self::Indexer;
-    fn register_error(
+    fn register_error<L: Display + 'static, O: MaybeLabel<Label = L>>(
         &mut self,
-        obj: &Self::Object,
+        obj: &O,
         idx: Self::Indexer,
         match_start: usize,
         failure_slice: (usize, usize),
     );
 }
+#[derive(Default)]
+pub struct EmptyErrorHandler {}
 
-pub struct EmptyErrorHandler<O> {
-    phantom: std::marker::PhantomData<O>,
-}
-impl<O> ErrorHandler for EmptyErrorHandler<O> {
+impl ErrorHandler for EmptyErrorHandler {
     type Indexer = ();
-    type Object = O;
 
     fn register_start(&mut self) -> Self::Indexer {}
-    fn register_error(
+    fn register_error<L: Display, O: MaybeLabel<Label = L>>(
         &mut self,
-        _obj: &Self::Object,
+        _obj: &O,
         _idx: Self::Indexer,
         _match_start: usize,
         _failure_slice: (usize, usize),
@@ -32,43 +29,42 @@ impl<O> ErrorHandler for EmptyErrorHandler<O> {
     }
 }
 
-pub struct ErrorDescription<L> {
-    label: L,
-    match_start: usize,
+pub struct ErrorDescription<L: ?Sized> {
+    label: Box<L>,
 }
-pub struct MultiErrorHandler<L, O> {
+pub struct MultiErrorHandler {
     best_failure_slice: (usize, usize),
-    errors: Vec<Option<ErrorDescription<L>>>,
+    errors: Vec<Option<ErrorDescription<dyn Display>>>, // indexed by the indexer returned by register_start
     errors_at_match_start: Vec<usize>, // indices of errors that occurred at their match_start
-    phantom: std::marker::PhantomData<O>,
 }
 
-impl<L, O> MultiErrorHandler<L, O> {
+impl Default for MultiErrorHandler {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl MultiErrorHandler {
     pub fn new() -> Self {
         Self {
             best_failure_slice: (0, 0),
             errors: Vec::new(),
             errors_at_match_start: Vec::new(),
-            phantom: std::marker::PhantomData,
         }
     }
 }
 
-impl<L, O> ErrorHandler for MultiErrorHandler<L, O>
-where
-    O: MaybeLabel<Label = L>,
-{
+impl ErrorHandler for MultiErrorHandler {
     type Indexer = usize;
-    type Object = O;
 
     fn register_start(&mut self) -> Self::Indexer {
         self.errors.push(None);
         self.errors.len() - 1
     }
 
-    fn register_error(
+    fn register_error<L: Display + 'static, O: MaybeLabel<Label = L>>(
         &mut self,
-        obj: &Self::Object,
+        obj: &O,
         mut idx: Self::Indexer,
         match_start: usize,
         failure_slice: (usize, usize),
@@ -106,7 +102,9 @@ where
         }
 
         // Now this error is at least as interesting as the best failure, so register it.
-        self.errors[idx] = Some(ErrorDescription { label, match_start });
+        self.errors[idx] = Some(ErrorDescription {
+            label: Box::new(label),
+        });
 
         // If this error occurs at its match_start, add it to the list of errors at match_start.
         if match_start == failure_slice.0 {
@@ -119,11 +117,7 @@ use ariadne::{Color, Label, Report, ReportKind, Source};
 use std::collections::HashSet;
 use std::fmt::Display;
 
-impl<L, O> MultiErrorHandler<L, O>
-where
-    L: Display + Eq + std::hash::Hash, // Added Eq/Hash to deduplicate labels
-    O: crate::grammar::label::MaybeLabel<Label = L>,
-{
+impl MultiErrorHandler {
     pub fn render_report(&self, source_id: &str, source_text: &str) {
         // 1. Collect all unique expected labels
         let expected_labels: Vec<String> = self
@@ -145,7 +139,7 @@ where
         // We look at the start of the best_failure_slice
         let found = source_text
             .get(self.best_failure_slice.0..self.best_failure_slice.1)
-            .unwrap_or_else(|| {
+            .unwrap_or({
                 // Handle EOF (End of File)
                 if self.best_failure_slice.0 >= source_text.len() {
                     "end of input"
@@ -158,7 +152,7 @@ where
         let main_message = format!("expected one of {} but found '{}'", expected_str, found);
 
         // 4. Create the Ariadne Report
-        let mut report = Report::build(
+        let report = Report::build(
             ReportKind::Error,
             (
                 source_id,

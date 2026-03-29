@@ -1,43 +1,44 @@
 use crate::grammar::{
     HasId, IsCheckable,
-    context::ParserContext,
+    context::{MatcherContext, ParserContext},
+    error_handler::ErrorHandler,
     get_next_id,
     matcher::Matcher,
 };
-use std::{marker::PhantomData, ops::Deref};
-pub struct AnyToken<T> {
+use std::{error::Error, marker::PhantomData, ops::Deref};
+pub struct AnyToken {
     id: usize,
-    _phantom: PhantomData<T >,
 }
 
-impl<T> Default for AnyToken<T> {
+impl Default for AnyToken {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl<T> AnyToken<T> {
+impl AnyToken {
     pub fn new() -> Self {
-        Self {
-            id: get_next_id(),
-            _phantom: PhantomData,
-        }
+        Self { id: get_next_id() }
     }
 }
 
 /// `.`  — match any single token without inspecting its value.
-pub fn any_token<T>() -> AnyToken<T> {
+pub fn any_token() -> AnyToken {
     AnyToken::new()
 }
 
-impl<T> HasId for AnyToken<T> {
+impl HasId for AnyToken {
     fn id(&self) -> usize {
         self.id
     }
 }
 
-impl<T> IsCheckable<T> for AnyToken<T> {
-    fn calc_check(&self, context: &ParserContext<T>, pos: &mut usize) -> bool {
+impl<Token> IsCheckable<Token> for AnyToken {
+    fn calc_check(
+        &self,
+        context: &mut ParserContext<Token, impl ErrorHandler>,
+        pos: &mut usize,
+    ) -> bool {
         if *pos < context.tokens.len() {
             *pos += 1;
             true
@@ -47,12 +48,13 @@ impl<T> IsCheckable<T> for AnyToken<T> {
     }
 }
 
-impl<T, MContext> Matcher<T, MContext> for AnyToken<T>
-where
-    MContext: Deref<Target = ParserContext<T>>,
-{
-    fn match_pattern(&self, context: &mut MContext, pos: &mut usize) -> Result<(), String> {
-        if *pos < context.tokens.len() {
+impl<Token, MRes> Matcher<Token, MRes> for AnyToken {
+    fn match_pattern(
+        &self,
+        context: &mut MatcherContext<Token, MRes, impl ErrorHandler>,
+        pos: &mut usize,
+    ) -> Result<(), String> {
+        if *pos < context.parser_context.tokens.len() {
             *pos += 1;
             Ok(())
         } else {

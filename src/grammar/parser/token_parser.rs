@@ -1,45 +1,40 @@
 use std::{marker::PhantomData, rc::Rc};
 
 use crate::grammar::{
-    Grammar, HasId, IsCheckable, context::ParserContext, get_next_id, parser::Parser,
+    Grammar, HasId, IsCheckable, context::ParserContext, error_handler::ErrorHandler, get_next_id,
+    parser::Parser,
 };
-pub struct TokenParser<T, N, CheckF, ParseF>
-where
-// CheckF: Fn(&T) -> bool,
-// ParseF: Fn(&T) -> Box<N>,
-{
+pub struct TokenParser<CheckF, ParseF> {
     check_fn: CheckF,
     parse_fn: ParseF,
     id: usize,
-    _phantom: PhantomData<(T, N)>,
 }
 
-impl<T, N, CheckF, ParseF> TokenParser<T, N, CheckF, ParseF>
-where
-// CheckF: Fn(&T) -> bool,
-// ParseF: Fn(&T) -> Box<N>,
-{
+impl<CheckF, ParseF> TokenParser<CheckF, ParseF> {
     pub fn new(check_fn: CheckF, parse_fn: ParseF) -> Self {
         Self {
             check_fn,
             parse_fn,
             id: get_next_id(),
-            _phantom: PhantomData,
         }
     }
 }
 
-impl<T, N, CheckF, ParseF> HasId for TokenParser<T, N, CheckF, ParseF> {
+impl<CheckF, ParseF> HasId for TokenParser<CheckF, ParseF> {
     fn id(&self) -> usize {
         self.id
     }
 }
 
-impl<T, N, CheckF, ParseF> IsCheckable<T> for TokenParser<T, N, CheckF, ParseF>
+impl<Token, CheckF, ParseF> IsCheckable<Token> for TokenParser<CheckF, ParseF>
 where
-    CheckF: Fn(&T) -> bool,
+    CheckF: Fn(&Token) -> bool,
 {
-    fn calc_check(&self, context: &ParserContext<T>, pos: &mut usize) -> bool {
+    fn calc_check(
+        &self,
+        context: &mut ParserContext<Token, impl ErrorHandler>,
+        pos: &mut usize,
+    ) -> bool {
         if *pos < context.tokens.len() {
             let token = &context.tokens[*pos];
             *pos += 1; // Advance position on success
@@ -50,20 +45,20 @@ where
     }
 }
 
-impl<T, N, CheckF, ParseF> Parser<T> for TokenParser<T, N, CheckF, ParseF>
+impl<Token, Out, CheckF, ParseF> Parser<Token> for TokenParser<CheckF, ParseF>
 where
-    CheckF: Fn(&T) -> bool,
-    ParseF: Fn(&T) -> N,
+    CheckF: Fn(&Token) -> bool,
+    ParseF: Fn(&Token) -> Out,
 {
-    type Output = N;
+    type Output = Out;
 
     fn parse(
         &self,
-        context: Rc<ParserContext<T>>,
+        context: &mut ParserContext<Token, impl ErrorHandler>,
         pos: &mut usize,
     ) -> Result<Self::Output, String> {
         if *pos < context.tokens.len() {
-            if self.check_no_advance(&context, pos) {
+            if self.check_no_advance(context, pos) {
                 let token = &context.tokens[*pos];
                 *pos += 1; // Advance position on success
                 Ok((self.parse_fn)(token))

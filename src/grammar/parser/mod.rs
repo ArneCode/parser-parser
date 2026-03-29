@@ -3,25 +3,28 @@ pub mod one_or_more;
 pub mod token_parser;
 use std::{ops::Deref, rc::Rc};
 
-use crate::grammar::context::ParserContext;
+use crate::grammar::{context::ParserContext, error_handler::ErrorHandler};
 
-pub trait Parser<T> {
+pub trait Parser<Token> {
     type Output;
-    fn parse(&self, context: Rc<ParserContext<T>>, pos: &mut usize)
-    -> Result<Self::Output, String>;
+    fn parse(
+        &self,
+        context: &mut ParserContext<Token, impl ErrorHandler>,
+        pos: &mut usize,
+    ) -> Result<Self::Output, String>;
 }
 
 // impl Parser for all types that deref to a parser
-impl<Token, Out, T, Pars> Parser<Token> for T
+impl<Inner, Outer, Token> Parser<Token> for Outer
 where
-    T: Deref<Target = Pars>,
-    Pars: Parser<Token, Output = Out>,
+    Outer: Deref<Target = Inner>,
+    Inner: Parser<Token>,
 {
-    type Output = Out;
+    type Output = Inner::Output;
 
     fn parse(
         &self,
-        context: Rc<ParserContext<Token>>,
+        context: &mut ParserContext<Token, impl ErrorHandler>,
         pos: &mut usize,
     ) -> Result<Self::Output, String> {
         (**self).parse(context, pos)

@@ -2,7 +2,8 @@ use std::ops::Deref;
 
 use crate::grammar::{
     Grammar, HasId, IsCheckable,
-    context::ParserContext,
+    context::{MatcherContext, ParserContext},
+    error_handler::ErrorHandler,
     get_next_id,
     matcher::{Matcher, ToMatcher},
 };
@@ -43,7 +44,11 @@ impl HasId for StringMatcher {
     }
 }
 impl IsCheckable<char> for StringMatcher {
-    fn calc_check(&self, context: &ParserContext<char>, pos: &mut usize) -> bool {
+    fn calc_check(
+        &self,
+        context: &mut ParserContext<char, impl ErrorHandler>,
+        pos: &mut usize,
+    ) -> bool {
         let end_pos = *pos + self.expected.len();
         if end_pos > context.tokens.len() {
             return false;
@@ -58,12 +63,13 @@ impl IsCheckable<char> for StringMatcher {
     }
 }
 
-impl<N> Matcher<char, N> for StringMatcher
-where
-    N: Deref<Target = ParserContext<char>>,
-{
-    fn match_pattern(&self, context: &mut N, pos: &mut usize) -> Result<(), String> {
-        if self.check(context, pos) {
+impl<MRes> Matcher<char, MRes> for StringMatcher {
+    fn match_pattern(
+        &self,
+        context: &mut MatcherContext<char, MRes, impl ErrorHandler>,
+        pos: &mut usize,
+    ) -> Result<(), String> {
+        if self.check(context.parser_context, pos) {
             Ok(())
         } else {
             Err(format!("Expected '{}' at position {}", self.expected, pos))

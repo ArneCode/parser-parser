@@ -9,20 +9,33 @@ pub mod sequence;
 pub mod string;
 use std::ops::Deref;
 
-pub trait Matcher<T, MContext> {
-    fn match_pattern(&self, context: &mut MContext, pos: &mut usize) -> Result<(), String>;
+use crate::grammar::{
+    context::{MatchResult, MatcherContext},
+    error_handler::ErrorHandler,
+};
+
+pub trait Matcher<Token, MatchResult> {
+    fn match_pattern(
+        &self,
+        context: &mut MatcherContext<Token, MatchResult, impl ErrorHandler>,
+        pos: &mut usize,
+    ) -> Result<(), String>;
 }
 pub trait ToMatcher<T> {
     type MatcherType;
     fn to_matcher(&self) -> Self::MatcherType;
 }
 
-impl<Token, MContext, M, T> Matcher<Token, MContext> for T
+impl<Outer, Inner, Token, MRes> Matcher<Token, MRes> for Outer
 where
-    T: Deref<Target = M>,
-    M: Matcher<Token, MContext>,
+    Outer: Deref<Target = Inner>,
+    Inner: Matcher<Token, MRes>,
 {
-    fn match_pattern(&self, context: &mut MContext, pos: &mut usize) -> Result<(), String> {
+    fn match_pattern(
+        &self,
+        context: &mut MatcherContext<Token, MRes, impl ErrorHandler>,
+        pos: &mut usize,
+    ) -> Result<(), String> {
         (**self).match_pattern(context, pos)
     }
 }

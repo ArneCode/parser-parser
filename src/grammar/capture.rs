@@ -1,52 +1,38 @@
 use crate::grammar::{
     Grammar, HasId, IsCheckable,
     context::{
-        MatchResultMultiple, MatchResultOptional, MatchResultSingle, MatcherContext, ParserContext,
+        MatchResult, MatchResultMultiple, MatchResultOptional, MatchResultSingle, MatcherContext,
+        ParserContext,
     },
+    error_handler::ErrorHandler,
     get_next_id,
     matcher::Matcher,
     parser::Parser,
 };
-use std::{fmt::Debug, marker::PhantomData, rc::Rc};
+use std::{fmt::Debug, marker::PhantomData, rc::Rc, result};
 
-pub trait Property<T, V, MContext> {
-    fn put_in_context(&self, context: &mut MContext, value: V);
+pub trait Property<Value, MatchResult> {
+    fn put_in_result(&self, result: &mut MatchResult, value: Value);
 }
 
 #[derive(Clone, Copy)]
-pub struct SingleProperty<V, MRes, F> {
+pub struct SingleProperty<F> {
     setter: F,
-    _phantom: PhantomData<(V, MRes)>,
 }
 
-impl<V, MRes, F> SingleProperty<V, MRes, F>
-where
-    MRes: MatchResultSingle,
-    F: Fn(&mut MRes) -> &mut Option<V>,
-{
+impl<F> SingleProperty<F> {
     pub fn new(setter: F) -> Self {
-        Self {
-            setter,
-            _phantom: PhantomData,
-        }
+        Self { setter }
     }
 }
 
-impl<T, V, MResSingle, MResMultiple, MResOptional, F>
-    Property<T, V, MatcherContext<T, MResSingle, MResMultiple, MResOptional>>
-    for SingleProperty<V, MResSingle, F>
+impl<V, MRes, F> Property<V, MRes> for SingleProperty<F>
 where
-    MResSingle: MatchResultSingle,
-    MResMultiple: MatchResultMultiple,
-    MResOptional: MatchResultOptional,
-    F: Fn(&mut MResSingle) -> &mut Option<V>,
+    MRes: MatchResult,
+    F: Fn(&mut MRes::Single) -> &mut Option<V>,
 {
-    fn put_in_context(
-        &self,
-        context: &mut MatcherContext<T, MResSingle, MResMultiple, MResOptional>,
-        value: V,
-    ) {
-        let property_slot = (self.setter)(&mut context.match_result_single);
+    fn put_in_result(&self, result: &mut MRes, value: V) {
+        let property_slot = (self.setter)(result.single());
         if property_slot.is_some() {
             panic!("SingleProperty already set");
         }
@@ -55,77 +41,45 @@ where
 }
 
 #[derive(Clone, Copy)]
-pub struct MultipleProperty<V, MRes, F> {
+pub struct MultipleProperty<F> {
     setter: F,
-    _phantom: PhantomData<(V, MRes)>,
 }
 
-impl<V, MRes, F> MultipleProperty<V, MRes, F>
-where
-    MRes: MatchResultMultiple,
-    F: Fn(&mut MRes) -> &mut Vec<V>,
-{
+impl<F> MultipleProperty<F> {
     pub fn new(setter: F) -> Self {
-        Self {
-            setter,
-            _phantom: PhantomData,
-        }
+        Self { setter }
     }
 }
 
-impl<T, V, MResSingle, MResMultiple, MResOptional, F>
-    Property<T, V, MatcherContext<T, MResSingle, MResMultiple, MResOptional>>
-    for MultipleProperty<V, MResMultiple, F>
+impl<V, MRes, F> Property<V, MRes> for MultipleProperty<F>
 where
-    MResSingle: MatchResultSingle,
-    MResMultiple: MatchResultMultiple,
-    MResOptional: MatchResultOptional,
-    F: Fn(&mut MResMultiple) -> &mut Vec<V>,
+    MRes: MatchResult,
+    F: Fn(&mut MRes::Multiple) -> &mut Vec<V>,
 {
-    fn put_in_context(
-        &self,
-        context: &mut MatcherContext<T, MResSingle, MResMultiple, MResOptional>,
-        value: V,
-    ) {
-        let property_slot = (self.setter)(&mut context.match_result_multiple);
+    fn put_in_result(&self, result: &mut MRes, value: V) {
+        let property_slot = (self.setter)(result.multiple());
         property_slot.push(value);
     }
 }
 
 #[derive(Clone, Copy)]
-pub struct OptionalProperty<V, MRes, F> {
+pub struct OptionalProperty<F> {
     setter: F,
-    _phantom: PhantomData<(V, MRes)>,
 }
 
-impl<V, MRes, F> OptionalProperty<V, MRes, F>
-where
-    MRes: MatchResultOptional,
-    F: Fn(&mut MRes) -> &mut Option<V>,
-{
+impl<F> OptionalProperty<F> {
     pub fn new(setter: F) -> Self {
-        Self {
-            setter,
-            _phantom: PhantomData,
-        }
+        Self { setter }
     }
 }
 
-impl<T, V, MResSingle, MResMultiple, MResOptional, F>
-    Property<T, V, MatcherContext<T, MResSingle, MResMultiple, MResOptional>>
-    for OptionalProperty<V, MResOptional, F>
+impl<V, MRes, F> Property<V, MRes> for OptionalProperty<F>
 where
-    MResSingle: MatchResultSingle,
-    MResMultiple: MatchResultMultiple,
-    MResOptional: MatchResultOptional,
-    F: Fn(&mut MResOptional) -> &mut Option<V>,
+    MRes: MatchResult,
+    F: Fn(&mut MRes::Optional) -> &mut Option<V>,
 {
-    fn put_in_context(
-        &self,
-        context: &mut MatcherContext<T, MResSingle, MResMultiple, MResOptional>,
-        value: V,
-    ) {
-        let property_slot = (self.setter)(&mut context.match_result_optional);
+    fn put_in_result(&self, result: &mut MRes, value: V) {
+        let property_slot = (self.setter)(result.optional());
         if property_slot.is_some() {
             panic!("OptionalProperty already set");
         }
@@ -133,22 +87,19 @@ where
     }
 }
 
-pub struct Capture<T, Out, MResSingle, MResMultiple, MResOptional, Match, F> {
+pub struct Capture<MRes, Match, F> {
     matcher: Match,
     constructor: F,
     id: usize,
-    _phantom: PhantomData<(T, MResSingle, MResMultiple, MResOptional, Out)>,
+    _phantom: PhantomData<MRes>,
 }
 
-impl<T, Out, MResSingle, MResMultiple, MResOptional, Match, F>
-    Capture<T, Out, MResSingle, MResMultiple, MResOptional, Match, F>
+impl<Out, MResSingle, MResMultiple, MResOptional, Match, F>
+    Capture<(MResSingle, MResMultiple, MResOptional), Match, F>
 where
     MResSingle: MatchResultSingle,
     MResMultiple: MatchResultMultiple,
     MResOptional: MatchResultOptional,
-    Match: Matcher<T, MatcherContext<T, MResSingle, MResMultiple, MResOptional>>
-        + HasId
-        + IsCheckable<T>,
     F: Fn(MResSingle::Output, MResMultiple, MResOptional) -> Out,
 {
     pub fn new<
@@ -169,22 +120,20 @@ where
     }
 }
 
-impl<T, Out, MResSingle, MResMultiple, MResOptional, Match, F> Parser<T>
-    for Capture<T, Out, MResSingle, MResMultiple, MResOptional, Match, F>
+impl<Token, Out, MResSingle, MResMultiple, MResOptional, Match, F> Parser<Token>
+    for Capture<(MResSingle, MResMultiple, MResOptional), Match, F>
 where
     MResSingle: MatchResultSingle,
     MResMultiple: MatchResultMultiple,
     MResOptional: MatchResultOptional,
-    Match: Matcher<T, MatcherContext<T, MResSingle, MResMultiple, MResOptional>>
-        + HasId
-        + IsCheckable<T>,
+    Match: Matcher<Token, (MResSingle, MResMultiple, MResOptional)> + HasId + IsCheckable<Token>,
     F: Fn(MResSingle::Output, MResMultiple, MResOptional) -> Out,
 {
     type Output = Out;
 
     fn parse(
         &self,
-        context: Rc<ParserContext<T>>,
+        context: &mut ParserContext<Token, impl ErrorHandler>,
         pos: &mut usize,
     ) -> Result<Self::Output, String> {
         let mut context = MatcherContext::new(
@@ -194,26 +143,29 @@ where
             MResOptional::new(),
         );
         self.matcher.match_pattern(&mut context, pos)?;
+        let (res_single, res_multiple, res_optional) = context.match_result;
         Ok((self.constructor)(
-            context.match_result_single.as_output(),
-            context.match_result_multiple,
-            context.match_result_optional,
+            res_single.as_output(),
+            res_multiple,
+            res_optional,
         ))
     }
 }
 
-impl<T, Out, MResSingle, MResMultiple, MResOptional, Match, F> IsCheckable<T>
-    for Capture<T, Out, MResSingle, MResMultiple, MResOptional, Match, F>
+impl<T, MRes, Match, F> IsCheckable<T> for Capture<MRes, Match, F>
 where
     Match: Grammar<T>,
 {
-    fn calc_check(&self, context: &ParserContext<T>, pos: &mut usize) -> bool {
+    fn calc_check(
+        &self,
+        context: &mut ParserContext<T, impl ErrorHandler>,
+        pos: &mut usize,
+    ) -> bool {
         self.matcher.check(context, pos)
     }
 }
 
-impl<T, Out, MResSingle, MResMultiple, MResOptional, Match, F> HasId
-    for Capture<T, Out, MResSingle, MResMultiple, MResOptional, Match, F>
+impl<MRes, Match, F> HasId for Capture<MRes, Match, F>
 where
     Match: HasId,
 {
@@ -222,38 +174,25 @@ where
     }
 }
 
-pub struct CaptureProperty<T, Out, MContext, Pars, Prop> {
+pub struct CaptureProperty<Pars, Prop> {
     parser: Pars,
     property: Prop,
-    _phantom: PhantomData<(T, Out, MContext)>,
 }
 
-impl<T, Out, MContext, Pars, Prop> CaptureProperty<T, Out, MContext, Pars, Prop>
-where
-    Pars: Parser<T, Output = Out>,
-    Prop: Property<T, Out, MContext>,
-{
+impl<Pars, Prop> CaptureProperty<Pars, Prop> {
     pub fn new(parser: Pars, property: Prop) -> Self {
-        Self {
-            parser,
-            property,
-            _phantom: PhantomData,
-        }
+        Self { parser, property }
     }
 }
 
-pub fn capture_property<T, Out, MContext, Pars, Prop>(
+pub fn capture_property<MContext, Pars, Prop>(
     parser: Pars,
     property: Prop,
-) -> CaptureProperty<T, Out, MContext, Pars, Prop>
-where
-    Pars: Parser<T, Output = Out> + 'static,
-    Prop: Property<T, Out, MContext> + 'static,
-{
+) -> CaptureProperty<Pars, Prop> {
     CaptureProperty::new(parser, property)
 }
 
-impl<T, Out, MContext, Pars, Prop> HasId for CaptureProperty<T, Out, MContext, Pars, Prop>
+impl<Pars, Prop> HasId for CaptureProperty<Pars, Prop>
 where
     Pars: HasId,
 {
@@ -262,35 +201,32 @@ where
     }
 }
 
-impl<T, Out, MContext, Pars, Prop> IsCheckable<T> for CaptureProperty<T, Out, MContext, Pars, Prop>
+impl<Pars, Prop, Token> IsCheckable<Token> for CaptureProperty<Pars, Prop>
 where
-    Pars: Grammar<T>,
+    Pars: Grammar<Token>,
 {
-    fn calc_check(&self, context: &ParserContext<T>, pos: &mut usize) -> bool {
+    fn calc_check(
+        &self,
+        context: &mut ParserContext<Token, impl ErrorHandler>,
+        pos: &mut usize,
+    ) -> bool {
         self.parser.check(context, pos)
     }
 }
 
-impl<T, Out, MResSingle, MResMultiple, MResOptional, Pars, Prop>
-    Matcher<T, MatcherContext<T, MResSingle, MResMultiple, MResOptional>>
-    for CaptureProperty<
-        T,
-        Out,
-        MatcherContext<T, MResSingle, MResMultiple, MResOptional>,
-        Pars,
-        Prop,
-    >
+impl<Token, MRes, Pars, Prop> Matcher<Token, MRes> for CaptureProperty<Pars, Prop>
 where
-    Pars: Parser<T, Output = Out>,
-    Prop: Property<T, Out, MatcherContext<T, MResSingle, MResMultiple, MResOptional>>,
+    Pars: Parser<Token>,
+    Prop: Property<Pars::Output, MRes>,
 {
     fn match_pattern(
         &self,
-        context: &mut MatcherContext<T, MResSingle, MResMultiple, MResOptional>,
+        context: &mut MatcherContext<Token, MRes, impl ErrorHandler>,
         pos: &mut usize,
     ) -> Result<(), String> {
-        let result = self.parser.parse(context.parser_context.clone(), pos)?;
-        self.property.put_in_context(context, result);
+        let result = self.parser.parse(context.parser_context, pos)?;
+        self.property
+            .put_in_result(&mut context.match_result, result);
         Ok(())
     }
 }
@@ -302,9 +238,7 @@ impl MatchResultSingle for () {
     fn new() -> Self {}
 
     fn new_properties() -> Self::Properties {}
-    fn as_output(self) -> Self::Output {
-        ()
-    }
+    fn as_output(self) -> Self::Output {}
 }
 
 impl MatchResultMultiple for () {
@@ -333,7 +267,7 @@ macro_rules! impl_match_results_for_tuple {
         impl<$($T),+> MatchResultSingle for ($(Option<$T>,)+)
         where $($T: Debug),+ {
             type Properties = (
-                $(SingleProperty<$T, Self, fn(&mut Self) -> &mut Option<$T>>,)+
+                $(SingleProperty<fn(&mut Self) -> &mut Option<$T>>,)+
             );
             type Output = ($($T,)+);
 
@@ -359,7 +293,7 @@ macro_rules! impl_match_results_for_tuple {
 
         impl<$($T),+> MatchResultMultiple for ($(Vec<$T>,)+) {
             type Properties = (
-                $(MultipleProperty<$T, Self, fn(&mut Self) -> &mut Vec<$T>>,)+
+                $(MultipleProperty<fn(&mut Self) -> &mut Vec<$T>>,)+
             );
 
             fn new() -> Self {
@@ -378,7 +312,7 @@ macro_rules! impl_match_results_for_tuple {
 
         impl<$($T),+> MatchResultOptional for ($(Option<$T>,)+) {
             type Properties = (
-                $(OptionalProperty<$T, Self, fn(&mut Self) -> &mut Option<$T>>,)+
+                $(OptionalProperty<fn(&mut Self) -> &mut Option<$T>>,)+
             );
 
             fn new() -> Self {

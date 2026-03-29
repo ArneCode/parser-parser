@@ -1,27 +1,29 @@
 use crate::grammar::{
-    Grammar, HasId, IsCheckable, context::ParserContext, get_next_id, matcher::Matcher,
+    Grammar, HasId, IsCheckable,
+    context::{MatcherContext, ParserContext},
+    error_handler::ErrorHandler,
+    get_next_id,
+    matcher::Matcher,
 };
 use std::marker::PhantomData;
-pub struct Sequence<T, MContext, Tuple> {
+pub struct Sequence<Tuple> {
     elements: Tuple,
     id: usize,
-    phantom: PhantomData<(T, MContext)>,
 }
-impl<T, MContext, Tuple> Sequence<T, MContext, Tuple> {
+impl<Tuple> Sequence<Tuple> {
     fn new(elements: Tuple) -> Self {
         Self {
             elements,
             id: get_next_id(),
-            phantom: PhantomData,
         }
     }
 }
 
-pub fn seq<T, MContext, Tuple>(elements: Tuple) -> Sequence<T, MContext, Tuple> {
+pub fn seq<Tuple>(elements: Tuple) -> Sequence<Tuple> {
     Sequence::new(elements)
 }
 
-impl<T, MContext, Tuple> HasId for Sequence<T, MContext, Tuple> {
+impl<Tuple> HasId for Sequence<Tuple> {
     fn id(&self) -> usize {
         self.id
     }
@@ -30,12 +32,12 @@ impl<T, MContext, Tuple> HasId for Sequence<T, MContext, Tuple> {
 macro_rules! impl_matcher_for_seq_tuples {
     () => {};
     ($head:ident $(,$tail:ident)*) => {
-        impl<T, MContext, $head, $($tail),*> IsCheckable<T> for Sequence<T, MContext,($head, $($tail,)*)>
+        impl<Token, $head, $($tail),*> IsCheckable<Token> for Sequence<($head, $($tail,)*)>
         where
-            $head: Grammar<T>,
-            $($tail: Grammar<T>,)*
+            $head: Grammar<Token>,
+            $($tail: Grammar<Token>,)*
         {
-            fn calc_check(&self, context: &ParserContext<T>, pos: &mut usize) -> bool {
+            fn calc_check(&self, context: &mut ParserContext<Token, impl ErrorHandler>, pos: &mut usize) -> bool {
 
                 #[allow(non_snake_case)]
                 let ($head, $($tail,)*) = &self.elements;
@@ -53,15 +55,15 @@ macro_rules! impl_matcher_for_seq_tuples {
                 true
             }
         }
-        impl<T, MContext, $head, $($tail),*> Matcher<T, MContext> for Sequence<T, MContext,($head, $($tail,)*)>
+        impl<Token, MRes, $head, $($tail),*> Matcher<Token, MRes> for Sequence<($head, $($tail,)*)>
         where
-            $head: Matcher<T, MContext>,
-            $($tail: Matcher<T, MContext>,)*
+            $head: Matcher<Token, MRes>,
+            $($tail: Matcher<Token, MRes>,)*
         {
 
             fn match_pattern(
                 &self,
-                context: &mut MContext,
+                context: &mut MatcherContext<Token, MRes, impl ErrorHandler>,
                 pos: &mut usize,
             ) -> Result<(), String> {
 
