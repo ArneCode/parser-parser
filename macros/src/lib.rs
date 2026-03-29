@@ -151,7 +151,7 @@ pub fn capture(input: TokenStream) -> TokenStream {
 
     let expanded = quote! {
         // Here we explicitly provide the capture group types
-        Capture::<_, _, #s_ty, #m_ty, #o_ty, _, _>::new(
+        Capture::<(#s_ty, #m_ty, #o_ty), _, _>::new(
             |#s_pat, #m_pat, #o_pat| {
                 #grammar
             },

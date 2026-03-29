@@ -1,4 +1,3 @@
-
 use crate::grammar::{
     Grammar, HasId, IsCheckable, context::ParserContext, error_handler::ErrorHandler, get_next_id,
     parser::Parser,
@@ -46,9 +45,9 @@ where
 {
     type Output = NodeOut;
 
-    fn parse(
+    fn parse<'ctx>(
         &self,
-        context: &mut ParserContext<T, impl ErrorHandler>,
+        context: &mut ParserContext<'ctx, T, impl ErrorHandler>,
         pos: &mut usize,
     ) -> Result<Self::Output, String> {
         let mut results = Vec::new();

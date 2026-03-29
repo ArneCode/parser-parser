@@ -2,17 +2,17 @@ use std::collections::HashMap;
 
 use crate::grammar::error_handler::ErrorHandler;
 
-pub struct ParserContext<T, EHandler: ErrorHandler> {
-    pub tokens: Vec<T>,
+pub struct ParserContext<'a, T, EHandler: ErrorHandler> {
+    pub tokens: &'a mut Vec<T>,
     pub memo_table: HashMap<(usize, usize), Option<usize>>,
     pub match_start: usize,
-    pub error_handler: EHandler,
+    pub error_handler: &'a mut EHandler,
 }
 
-impl<T, EHandler: ErrorHandler> ParserContext<T, EHandler> {
-    pub fn new<V: Into<Vec<T>>>(tokens: V, error_handler: EHandler) -> Self {
+impl<'a, T, EHandler: ErrorHandler> ParserContext<'a, T, EHandler> {
+    pub fn new(tokens: &'a mut Vec<T>, error_handler: &'a mut EHandler) -> Self {
         Self {
-            tokens: tokens.into(),
+            tokens,
             memo_table: HashMap::new(),
             match_start: 0,
             error_handler,
@@ -89,20 +89,20 @@ where
     }
 }
 
-pub struct MatcherContext<'ctx, Token, MRes, EHandler: ErrorHandler> {
-    pub parser_context: &'ctx mut ParserContext<Token, EHandler>,
+pub struct MatcherContext<'a, 'ctx, Token, MRes, EHandler: ErrorHandler> {
+    pub parser_context: &'a mut ParserContext<'ctx, Token, EHandler>,
     pub match_result: MRes,
 }
 
-impl<'ctx, T, MResSingle, MResMultiple, MResOptional, EHandler: ErrorHandler>
-    MatcherContext<'ctx, T, (MResSingle, MResMultiple, MResOptional), EHandler>
+impl<'a, 'ctx, T, MResSingle, MResMultiple, MResOptional, EHandler: ErrorHandler>
+    MatcherContext<'a, 'ctx, T, (MResSingle, MResMultiple, MResOptional), EHandler>
 where
     MResSingle: MatchResultSingle,
     MResMultiple: MatchResultMultiple,
     MResOptional: MatchResultOptional,
 {
     pub fn new(
-        parser_context: &'ctx mut ParserContext<T, EHandler>,
+        parser_context: &'a mut ParserContext<'ctx, T, EHandler>,
         match_result_single: MResSingle,
         match_result_multiple: MResMultiple,
         match_result_optional: MResOptional,

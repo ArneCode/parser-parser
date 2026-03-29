@@ -5,11 +5,15 @@ pub mod label;
 pub mod matcher;
 pub mod parser;
 use std::{
-    ops::Deref,
+    ops::{Deref, Mul},
     sync::atomic::{self, AtomicUsize},
 };
 
-use crate::grammar::{context::ParserContext, error_handler::ErrorHandler};
+use crate::grammar::{
+    context::ParserContext,
+    error_handler::{EmptyErrorHandler, ErrorHandler, MultiErrorHandler},
+    parser::Parser,
+};
 
 static NEXT_ID: AtomicUsize = AtomicUsize::new(0);
 fn get_next_id() -> usize {
@@ -99,100 +103,119 @@ macro_rules! bind {
     };
 }
 
-// #[cfg(test)]
-// mod tests {
-//     use std::{rc::Rc, vec};
+fn parse<Pars>(parser: Pars, src: &str) -> Result<Pars::Output, String>
+where
+    Pars: Parser<char> + Grammar<char>,
+{
+    let mut tokens: Vec<char> = src.chars().collect();
+    let mut error_handler = EmptyErrorHandler::default();
+    let mut context = ParserContext::new(&mut tokens, &mut error_handler);
+    let mut pos = 0;
+    if parser.check(&mut context, &mut pos) {
+        parser.parse(&mut context, &mut pos)
+    } else {
+        let mut error_handler = MultiErrorHandler::default();
+        let mut context = ParserContext::new(&mut tokens, &mut error_handler);
+        parser.check(&mut context, &mut pos);
+        error_handler.render_report("call to parse function", src);
+        Err(format!("Parsing failed at position {}", pos))
+    }
+}
 
-//     use macros::capture;
+#[cfg(test)]
+mod tests {
+    use std::{rc::Rc, vec};
 
-//     use crate::grammar::{
-//         capture::{Capture, capture_property},
-//         matcher::{
-//             ToMatcher, multiple::many, one_or_more::one_or_more, optional::optional, sequence::seq,
-//         },
-//         parser::{Parser, token_parser::TokenParser},
-//     };
+    use macros::capture;
 
-//     use super::*;
+    use crate::grammar::{
+        capture::{Capture, capture_property},
+        matcher::{
+            ToMatcher, multiple::many, one_or_more::one_or_more, optional::optional, sequence::seq,
+        },
+        parser::{Parser, token_parser::TokenParser},
+    };
 
-//     #[test]
-//     fn test_capture_macro() {
-//         let letter_parser = Rc::new(TokenParser::<char, String, _, _>::new(
-//             |token: &char| token.is_alphabetic(),
-//             |token: &char| token.to_string(),
-//         ));
-//         let word_parser = Rc::new(capture!(
-//             {
-//                 seq((
-//                     bind!(letter_parser.clone(),
-//                 *letters),
-//                     many(bind!(letter_parser.clone(), *letters)),
-//                 ))
-//             } => {
-//                 letters.into_iter().collect::<String>()
-//             }
-//         ));
-//         let digit_parser = Rc::new(TokenParser::new(
-//             |token: &char| token.is_digit(10),
-//             |token: &char| token.to_string(),
-//         ));
+    use super::*;
 
-//         let number_parser = capture!(
-//             {
-//                 seq((
-//                     bind!(digit_parser.clone(), *digits),
-//                     many(bind!(digit_parser.clone(), *digits)),
-//                 ))
-//             } => {
-//                 digits.into_iter().collect::<String>()
-//             }
-//         );
+    #[test]
+    fn test_capture_macro() {
+        let letter_parser = Rc::new(TokenParser::new(
+            |token: &char| token.is_alphabetic(),
+            |token: &char| token.to_string(),
+        ));
+        let word_parser = Rc::new(capture!(
+            {
+                seq((
+                    bind!(letter_parser.clone(),
+                *letters),
+                    many(bind!(letter_parser.clone(), *letters)),
+                ))
+            } => {
+                letters.into_iter().collect::<String>()
+            }
+        ));
+        let digit_parser = Rc::new(TokenParser::new(
+            |token: &char| token.is_digit(10),
+            |token: &char| token.to_string(),
+        ));
 
-//         assert_eq!(
-//             number_parser.parse(Rc::new(ParserContext::new(vec!['1', '2', '3'])), &mut 0),
-//             Ok("123".to_string())
-//         );
+        let number_parser = capture!(
+            {
+                seq((
+                    bind!(digit_parser.clone(), *digits),
+                    many(bind!(digit_parser.clone(), *digits)),
+                ))
+            } => {
+                digits.into_iter().collect::<String>()
+            }
+        );
 
-//         let func_parser = capture!(
-//             {
-//                 seq((
-//                     "fn".to_matcher(),
-//                     one_or_more(" ".to_matcher()),
-//                     bind!(word_parser.clone(), name),
-//                     many(" ".to_matcher()),
-//                     "(".to_matcher(),
-//                     many(" ".to_matcher()),
-//                     bind!(word_parser.clone(), *params),
-//                     many(seq((
-//                         many(" ".to_matcher()),
-//                         ",".to_matcher(),
-//                         many(" ".to_matcher()),
-//                         bind!(word_parser.clone(), *params),
-//                     ))),
-//                     many(" ".to_matcher()),
-//                     ")".to_matcher(),
-//                     many(" ".to_matcher()),
-//                     optional(
-//                         bind!(word_parser.clone(), ?body)
-//                     ),
-//                 ))
-//             } => {
-//                 format!(
-//                     "Function: name={}, params=[{}], body={}",
-//                     name,
-//                     params.into_iter().map(|p| p).collect::<Vec<_>>().join(", "),
-//                     body.map_or("None".to_string(), |b| b)
-//                 )
-//             }
-//         );
-//         assert_eq!(
-//             func_parser.parse(
-//                 Rc::new(ParserContext::new(vec![
-//                     'f', 'n', ' ', 'm', 'a', 'i', 'n', '(', 'x', ',', ' ', 'y', ')', ' ', '{', '}'
-//                 ])),
-//                 &mut 0
-//             ),
-//             Ok("Function: name=main, params=[x, y], body=None".to_string())
-//         );
-//     }
-// }
+        // assert_eq!(
+        //     number_parser.parse(Rc::new(ParserContext::new(vec!['1', '2', '3'])), &mut 0),
+        //     Ok("123".to_string())
+        // );
+
+        let func_parser = capture!(
+            {
+                seq((
+                    "fn".to_matcher(),
+                    one_or_more(" ".to_matcher()),
+                    bind!(word_parser.clone(), name),
+                    many(" ".to_matcher()),
+                    "(".to_matcher(),
+                    many(" ".to_matcher()),
+                    bind!(word_parser.clone(), *params),
+                    many(seq((
+                        many(" ".to_matcher()),
+                        ",".to_matcher(),
+                        many(" ".to_matcher()),
+                        bind!(word_parser.clone(), *params),
+                    ))),
+                    many(" ".to_matcher()),
+                    ")".to_matcher(),
+                    many(" ".to_matcher()),
+                    optional(
+                        bind!(word_parser.clone(), ?body)
+                    ),
+                ))
+            } => {
+                format!(
+                    "Function: name={}, params=[{}], body={}",
+                    name,
+                    params.into_iter().map(|p| p).collect::<Vec<_>>().join(", "),
+                    body.map_or("None".to_string(), |b| b)
+                )
+            }
+        );
+        // assert_eq!(
+        //     func_parser.parse(
+        //         Rc::new(ParserContext::new(vec![
+        //             'f', 'n', ' ', 'm', 'a', 'i', 'n', '(', 'x', ',', ' ', 'y', ')', ' ', '{', '}'
+        //         ])),
+        //         &mut 0
+        //     ),
+        //     Ok("Function: name=main, params=[x, y], body=None".to_string())
+        // );
+    }
+}

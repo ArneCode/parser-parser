@@ -131,9 +131,9 @@ where
 {
     type Output = Out;
 
-    fn parse(
+    fn parse<'ctx>(
         &self,
-        context: &mut ParserContext<Token, impl ErrorHandler>,
+        context: &mut ParserContext<'ctx, Token, impl ErrorHandler>,
         pos: &mut usize,
     ) -> Result<Self::Output, String> {
         let mut context = MatcherContext::new(

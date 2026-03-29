@@ -7,9 +7,9 @@ use crate::grammar::{context::ParserContext, error_handler::ErrorHandler};
 
 pub trait Parser<Token> {
     type Output;
-    fn parse(
+    fn parse<'ctx>(
         &self,
-        context: &mut ParserContext<Token, impl ErrorHandler>,
+        context: &mut ParserContext<'ctx, Token, impl ErrorHandler>,
         pos: &mut usize,
     ) -> Result<Self::Output, String>;
 }
@@ -22,9 +22,9 @@ where
 {
     type Output = Inner::Output;
 
-    fn parse(
+    fn parse<'ctx>(
         &self,
-        context: &mut ParserContext<Token, impl ErrorHandler>,
+        context: &mut ParserContext<'ctx, Token, impl ErrorHandler>,
         pos: &mut usize,
     ) -> Result<Self::Output, String> {
         (**self).parse(context, pos)
