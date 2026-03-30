@@ -1,3 +1,5 @@
+use std::marker::PhantomData;
+
 use crate::grammar::{
     Grammar, HasId, IsCheckable,
     context::{MatcherContext, ParserContext},
@@ -6,24 +8,26 @@ use crate::grammar::{
     matcher::Matcher,
 };
 
-pub struct Multiple<Match> {
+pub struct Multiple<MRes, Match> {
     matcher: Match,
     id: usize,
+    _phantom: PhantomData<MRes>,
 }
 
-impl<Match> Multiple<Match> {
+impl<Match, MRes> Multiple<MRes, Match> {
     fn new(matcher: Match) -> Self {
         Self {
             matcher,
             id: get_next_id(),
+            _phantom: PhantomData,
         }
     }
 }
 
-pub fn many<Match>(matcher: Match) -> Multiple<Match> {
+pub fn many<MRes, Match>(matcher: Match) -> Multiple<MRes, Match> {
     Multiple::new(matcher)
 }
-impl<Match, Token, MRes> Matcher<Token, MRes> for Multiple<Match>
+impl<Match, Token, MRes> Matcher<Token, MRes> for Multiple<MRes, Match>
 where
     Match: Matcher<Token, MRes> + HasId + IsCheckable<Token>,
 {
@@ -39,7 +43,7 @@ where
     }
 }
 
-impl<T, Match> IsCheckable<T> for Multiple<Match>
+impl<MRes, T, Match> IsCheckable<T> for Multiple<MRes, Match>
 where
     Match: Grammar<T>,
 {
@@ -53,7 +57,7 @@ where
     }
 }
 
-impl<Match> HasId for Multiple<Match> {
+impl<MRes, Match> HasId for Multiple<MRes, Match> {
     fn id(&self) -> usize {
         self.id
     }

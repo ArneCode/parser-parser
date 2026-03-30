@@ -1,31 +1,38 @@
+use std::marker::PhantomData;
 
 use crate::grammar::{
     Grammar, HasId, IsCheckable, context::ParserContext, error_handler::ErrorHandler, get_next_id,
     parser::Parser,
 };
-pub struct TokenParser<CheckF, ParseF> {
+pub struct TokenParser<CheckF, ParseF, Token, Out> {
     check_fn: CheckF,
     parse_fn: ParseF,
     id: usize,
+    _phantom: PhantomData<(Token, Out)>,
 }
 
-impl<CheckF, ParseF> TokenParser<CheckF, ParseF> {
+impl<CheckF, ParseF, Token, Out> TokenParser<CheckF, ParseF, Token, Out>
+where
+    CheckF: Fn(&Token) -> bool,
+    ParseF: Fn(&Token) -> Out,
+{
     pub fn new(check_fn: CheckF, parse_fn: ParseF) -> Self {
         Self {
             check_fn,
             parse_fn,
             id: get_next_id(),
+            _phantom: PhantomData,
         }
     }
 }
 
-impl<CheckF, ParseF> HasId for TokenParser<CheckF, ParseF> {
+impl<CheckF, ParseF, Out, Token> HasId for TokenParser<CheckF, ParseF, Token, Out> {
     fn id(&self) -> usize {
         self.id
     }
 }
 
-impl<Token, CheckF, ParseF> IsCheckable<Token> for TokenParser<CheckF, ParseF>
+impl<Token, CheckF, ParseF, Out> IsCheckable<Token> for TokenParser<CheckF, ParseF, Token, Out>
 where
     CheckF: Fn(&Token) -> bool,
 {
@@ -44,7 +51,7 @@ where
     }
 }
 
-impl<Token, Out, CheckF, ParseF> Parser<Token> for TokenParser<CheckF, ParseF>
+impl<Token, Out, CheckF, ParseF> Parser<Token> for TokenParser<CheckF, ParseF, Token, Out>
 where
     CheckF: Fn(&Token) -> bool,
     ParseF: Fn(&Token) -> Out,

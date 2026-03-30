@@ -38,56 +38,75 @@ pub trait MatchResultOptional {
     fn new_properties() -> Self::Properties;
 }
 
-pub trait MatchResult {
-    type Single: MatchResultSingle;
-    type Multiple: MatchResultMultiple;
-    type Optional: MatchResultOptional;
-    fn new(
-        match_result_single: Self::Single,
-        match_result_multiple: Self::Multiple,
-        match_result_optional: Self::Optional,
-    ) -> Self;
+// pub trait MatchResult {
+//     type Single: MatchResultSingle;
+//     type Multiple: MatchResultMultiple;
+//     type Optional: MatchResultOptional;
+//     fn new(
+//         match_result_single: Self::Single,
+//         match_result_multiple: Self::Multiple,
+//         match_result_optional: Self::Optional,
+//     ) -> Self;
 
-    fn single(&mut self) -> &mut Self::Single;
-    fn multiple(&mut self) -> &mut Self::Multiple;
-    fn optional(&mut self) -> &mut Self::Optional;
-}
+//     fn single(&mut self) -> &mut Self::Single;
+//     fn multiple(&mut self) -> &mut Self::Multiple;
+//     fn optional(&mut self) -> &mut Self::Optional;
+// }
+// pub struct MatchResult<MResSingle, MResMultiple, MResOptional> {
+//     pub single: MResSingle,
+//     pub multiple: MResMultiple,
+//     pub optional: MResOptional,
+// }
 
-impl<MResSingle, MResMultiple, MResOptional> MatchResult
-    for (MResSingle, MResMultiple, MResOptional)
-where
-    MResSingle: MatchResultSingle,
-    MResMultiple: MatchResultMultiple,
-    MResOptional: MatchResultOptional,
-{
-    type Single = MResSingle;
-    type Multiple = MResMultiple;
-    type Optional = MResOptional;
+// impl<MResSingle, MResMultiple, MResOptional> MatchResult<MResSingle, MResMultiple, MResOptional> {
+//     pub fn new(
+//         match_result_single: MResSingle,
+//         match_result_multiple: MResMultiple,
+//         match_result_optional: MResOptional,
+//     ) -> Self {
+//         Self {
+//             single: match_result_single,
+//             multiple: match_result_multiple,
+//             optional: match_result_optional,
+//         }
+//     }
+// }
 
-    fn new(
-        match_result_single: MResSingle,
-        match_result_multiple: MResMultiple,
-        match_result_optional: MResOptional,
-    ) -> Self {
-        (
-            match_result_single,
-            match_result_multiple,
-            match_result_optional,
-        )
-    }
+// impl<MResSingle, MResMultiple, MResOptional> MatchResult
+//     for (MResSingle, MResMultiple, MResOptional)
+// where
+//     MResSingle: MatchResultSingle,
+//     MResMultiple: MatchResultMultiple,
+//     MResOptional: MatchResultOptional,
+// {
+//     type Single = MResSingle;
+//     type Multiple = MResMultiple;
+//     type Optional = MResOptional;
 
-    fn single(&mut self) -> &mut MResSingle {
-        &mut self.0
-    }
+//     fn new(
+//         match_result_single: MResSingle,
+//         match_result_multiple: MResMultiple,
+//         match_result_optional: MResOptional,
+//     ) -> Self {
+//         (
+//             match_result_single,
+//             match_result_multiple,
+//             match_result_optional,
+//         )
+//     }
 
-    fn multiple(&mut self) -> &mut MResMultiple {
-        &mut self.1
-    }
+//     fn single(&mut self) -> &mut MResSingle {
+//         &mut self.0
+//     }
 
-    fn optional(&mut self) -> &mut MResOptional {
-        &mut self.2
-    }
-}
+//     fn multiple(&mut self) -> &mut MResMultiple {
+//         &mut self.1
+//     }
+
+//     fn optional(&mut self) -> &mut MResOptional {
+//         &mut self.2
+//     }
+// }
 
 pub struct MatcherContext<'a, 'ctx, Token, MRes, EHandler: ErrorHandler> {
     pub parser_context: &'a mut ParserContext<'ctx, Token, EHandler>,
@@ -107,7 +126,7 @@ where
         match_result_multiple: MResMultiple,
         match_result_optional: MResOptional,
     ) -> Self {
-        let match_result = MatchResult::new(
+        let match_result = (
             match_result_single,
             match_result_multiple,
             match_result_optional,

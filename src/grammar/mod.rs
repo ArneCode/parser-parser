@@ -144,31 +144,45 @@ mod tests {
             |token: &char| token.is_alphabetic(),
             |token: &char| token.to_string(),
         ));
-        let word_parser = Rc::new(capture!(
-            {
-                seq((
-                    bind!(letter_parser.clone(),
-                *letters),
-                    many(bind!(letter_parser.clone(), *letters)),
-                ))
-            } => {
-                letters.into_iter().collect::<String>()
-            }
-        ));
+        // let word_parser = Rc::new(capture!(
+        //     {
+        //         seq((
+        //             bind!(letter_parser.clone(),
+        //         *letters),
+        //             many(bind!(letter_parser.clone(), *letters)),
+        //         ))
+        //     } => {
+        //         letters.into_iter().collect::<String>()
+        //     }
+        // ));
         let digit_parser = Rc::new(TokenParser::new(
             |token: &char| token.is_digit(10),
             |token: &char| token.to_string(),
         ));
 
-        let number_parser = capture!(
-            {
-                seq((
-                    bind!(digit_parser.clone(), *digits),
-                    many(bind!(digit_parser.clone(), *digits)),
-                ))
-            } => {
-                digits.into_iter().collect::<String>()
-            }
+        let number_parser = Capture::<((), (::std::vec::Vec<String>,), ()), _, _>::new(
+            |(), (digits,), ()| {
+                {
+                    seq::<_, ((), (Vec<String>,), ())>((
+                        capture_property::<_, _, _, _, (), (Vec<_>,), ()>(
+                            digit_parser.clone(),
+                            digits.clone(),
+                        ),
+                        many::<((), (Vec<String>,), ()), _>(capture_property::<
+                            _,
+                            _,
+                            _,
+                            _,
+                            (),
+                            (Vec<_>,),
+                            (),
+                        >(
+                            digit_parser.clone(), digits.clone()
+                        )),
+                    ))
+                }
+            },
+            |(), (digits,), ()| digits.into_iter().collect::<String>(),
         );
 
         // assert_eq!(
@@ -176,38 +190,38 @@ mod tests {
         //     Ok("123".to_string())
         // );
 
-        let func_parser = capture!(
-            {
-                seq((
-                    "fn".to_matcher(),
-                    one_or_more(" ".to_matcher()),
-                    bind!(word_parser.clone(), name),
-                    many(" ".to_matcher()),
-                    "(".to_matcher(),
-                    many(" ".to_matcher()),
-                    bind!(word_parser.clone(), *params),
-                    many(seq((
-                        many(" ".to_matcher()),
-                        ",".to_matcher(),
-                        many(" ".to_matcher()),
-                        bind!(word_parser.clone(), *params),
-                    ))),
-                    many(" ".to_matcher()),
-                    ")".to_matcher(),
-                    many(" ".to_matcher()),
-                    optional(
-                        bind!(word_parser.clone(), ?body)
-                    ),
-                ))
-            } => {
-                format!(
-                    "Function: name={}, params=[{}], body={}",
-                    name,
-                    params.into_iter().map(|p| p).collect::<Vec<_>>().join(", "),
-                    body.map_or("None".to_string(), |b| b)
-                )
-            }
-        );
+        // let func_parser = capture!(
+        //     {
+        //         seq((
+        //             "fn".to_matcher(),
+        //             one_or_more(" ".to_matcher()),
+        //             bind!(word_parser.clone(), name),
+        //             many(" ".to_matcher()),
+        //             "(".to_matcher(),
+        //             many(" ".to_matcher()),
+        //             bind!(word_parser.clone(), *params),
+        //             many(seq((
+        //                 many(" ".to_matcher()),
+        //                 ",".to_matcher(),
+        //                 many(" ".to_matcher()),
+        //                 bind!(word_parser.clone(), *params),
+        //             ))),
+        //             many(" ".to_matcher()),
+        //             ")".to_matcher(),
+        //             many(" ".to_matcher()),
+        //             optional(
+        //                 bind!(word_parser.clone(), ?body)
+        //             ),
+        //         ))
+        //     } => {
+        //         format!(
+        //             "Function: name={}, params=[{}], body={}",
+        //             name,
+        //             params.into_iter().map(|p| p).collect::<Vec<_>>().join(", "),
+        //             body.map_or("None".to_string(), |b| b)
+        //         )
+        //     }
+        // );
         // assert_eq!(
         //     func_parser.parse(
         //         Rc::new(ParserContext::new(vec![

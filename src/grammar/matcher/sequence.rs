@@ -1,3 +1,5 @@
+use std::marker::PhantomData;
+
 use crate::grammar::{
     Grammar, HasId, IsCheckable,
     context::{MatcherContext, ParserContext},
@@ -5,24 +7,26 @@ use crate::grammar::{
     get_next_id,
     matcher::Matcher,
 };
-pub struct Sequence<Tuple> {
+pub struct Sequence<MRes, Tuple> {
     elements: Tuple,
     id: usize,
+    _phantom: PhantomData<MRes>,
 }
-impl<Tuple> Sequence<Tuple> {
+impl<Tuple, MRes> Sequence<MRes, Tuple> {
     fn new(elements: Tuple) -> Self {
         Self {
             elements,
             id: get_next_id(),
+            _phantom: PhantomData,
         }
     }
 }
 
-pub fn seq<Tuple>(elements: Tuple) -> Sequence<Tuple> {
+pub fn seq<Tuple, MRes>(elements: Tuple) -> Sequence<MRes, Tuple> {
     Sequence::new(elements)
 }
 
-impl<Tuple> HasId for Sequence<Tuple> {
+impl<Tuple, MRes> HasId for Sequence<Tuple, MRes> {
     fn id(&self) -> usize {
         self.id
     }
@@ -31,7 +35,7 @@ impl<Tuple> HasId for Sequence<Tuple> {
 macro_rules! impl_matcher_for_seq_tuples {
     () => {};
     ($head:ident $(,$tail:ident)*) => {
-        impl<Token, $head, $($tail),*> IsCheckable<Token> for Sequence<($head, $($tail,)*)>
+        impl<Token, MRes,$head, $($tail),*> IsCheckable<Token> for Sequence<MRes, ($head, $($tail,)*)>
         where
             $head: Grammar<Token>,
             $($tail: Grammar<Token>,)*
@@ -54,7 +58,7 @@ macro_rules! impl_matcher_for_seq_tuples {
                 true
             }
         }
-        impl<Token, MRes, $head, $($tail),*> Matcher<Token, MRes> for Sequence<($head, $($tail,)*)>
+        impl<Token, MRes, $head, $($tail),*> Matcher<Token, MRes> for Sequence<MRes, ($head, $($tail,)*)>
         where
             $head: Matcher<Token, MRes>,
             $($tail: Matcher<Token, MRes>,)*
