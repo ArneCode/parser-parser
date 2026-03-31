@@ -36,12 +36,11 @@ where
         pos: &mut usize,
     ) -> bool {
         let token = context.tokens.get(*pos);
-        if let Some(token) = token {
-            if self.range.contains(token) {
+        if let Some(token) = token
+            && self.range.contains(token) {
                 *pos += 1;
                 return true;
             }
-        }
         false
     }
 }
@@ -60,12 +59,11 @@ where
         pos: &mut usize,
     ) -> Result<Self::Output, String> {
         let token = context.tokens.get(*pos);
-        if let Some(token) = token {
-            if self.range.contains(token) {
+        if let Some(token) = token
+            && self.range.contains(token) {
                 *pos += 1;
                 return Ok(token.clone());
             }
-        }
         Err(format!(
             "Expected token in range {:?} at position {}",
             self.range, pos

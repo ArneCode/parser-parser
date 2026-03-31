@@ -55,7 +55,7 @@ impl IsCheckable<char> for StringMatcher {
         }
         let slice: String = context.tokens[*pos..end_pos].iter().collect();
         *pos = end_pos; // Advance position
-        if slice == self.expected { true } else { false }
+        slice == self.expected
     }
 }
 

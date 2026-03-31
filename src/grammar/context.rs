@@ -25,7 +25,7 @@ pub trait MatchResultSingle {
     type Output;
     fn new() -> Self;
     fn new_properties() -> Self::Properties;
-    fn as_output(self) -> Self::Output;
+    fn to_output(self) -> Self::Output;
 }
 pub trait MatchResultMultiple {
     type Properties;

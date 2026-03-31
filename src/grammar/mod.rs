@@ -6,7 +6,7 @@ pub mod matcher;
 pub mod parser;
 pub mod span;
 use std::{
-    ops::{Deref, Mul},
+    ops::Deref,
     sync::atomic::{self, AtomicUsize},
 };
 

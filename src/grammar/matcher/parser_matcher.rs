@@ -42,11 +42,10 @@ where
         context: &mut ParserContext<Token, impl ErrorHandler>,
         pos: &mut usize,
     ) -> bool {
-        if let Ok(output) = self.parser.parse(context, pos) {
-            if output == self.expected_output {
+        if let Ok(output) = self.parser.parse(context, pos)
+            && output == self.expected_output {
                 return true;
             }
-        }
         false
     }
 }

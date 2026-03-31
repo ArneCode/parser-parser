@@ -153,7 +153,7 @@ where
         );
         self.matcher.match_pattern(&mut context, pos)?;
         let (res_single, res_multiple, res_optional) = context.match_result;
-        let result = (self.constructor)(res_single.as_output(), res_multiple, res_optional);
+        let result = (self.constructor)(res_single.to_output(), res_multiple, res_optional);
         context.parser_context.match_start = old_match_start;
         Ok(result)
     }
@@ -297,7 +297,7 @@ impl MatchResultSingle for () {
     fn new() -> Self {}
 
     fn new_properties() -> Self::Properties {}
-    fn as_output(self) -> Self::Output {}
+    fn to_output(self) -> Self::Output {}
 }
 
 impl MatchResultMultiple for () {
@@ -343,7 +343,7 @@ macro_rules! impl_match_results_for_tuple {
                     ),
                 )+)
             }
-            fn as_output(self) -> Self::Output {
+            fn to_output(self) -> Self::Output {
                 #[allow(non_snake_case)]
                 let ($( $T, )+) = self;
                 ($(unwrap_single($T),)+)
