@@ -4,15 +4,13 @@ pub mod negative_lookahead;
 pub mod one_of;
 pub mod one_or_more;
 pub mod optional;
+pub mod parser_matcher;
 pub mod positive_lookahead;
 pub mod sequence;
 pub mod string;
 use std::ops::Deref;
 
-use crate::grammar::{
-    context::MatcherContext,
-    error_handler::ErrorHandler,
-};
+use crate::grammar::{context::MatcherContext, error_handler::ErrorHandler};
 
 pub trait Matcher<Token, MatchResult> {
     fn match_pattern(
@@ -21,7 +19,7 @@ pub trait Matcher<Token, MatchResult> {
         pos: &mut usize,
     ) -> Result<(), String>;
 }
-pub trait ToMatcher<T> {
+pub trait ToMatcher {
     type MatcherType;
     fn to_matcher(&self) -> Self::MatcherType;
 }

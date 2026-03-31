@@ -4,7 +4,7 @@ pub trait ErrorHandler: Default {
     type Indexer;
 
     fn register_start(&mut self) -> Self::Indexer;
-    fn register_error<L: Display + 'static, O: MaybeLabel<Label = L>>(
+    fn register_error<L: Display + 'static, O: MaybeLabel<L> + ?Sized>(
         &mut self,
         obj: &O,
         idx: Self::Indexer,
@@ -19,7 +19,7 @@ impl ErrorHandler for EmptyErrorHandler {
     type Indexer = ();
 
     fn register_start(&mut self) -> Self::Indexer {}
-    fn register_error<L: Display, O: MaybeLabel<Label = L>>(
+    fn register_error<L: Display, O: MaybeLabel<L> + ?Sized>(
         &mut self,
         _obj: &O,
         _idx: Self::Indexer,
@@ -62,7 +62,7 @@ impl ErrorHandler for MultiErrorHandler {
         self.errors.len() - 1
     }
 
-    fn register_error<L: Display + 'static, O: MaybeLabel<Label = L>>(
+    fn register_error<L: Display + 'static, O: MaybeLabel<L> + ?Sized>(
         &mut self,
         obj: &O,
         mut idx: Self::Indexer,
@@ -124,7 +124,7 @@ impl MultiErrorHandler {
             .errors
             .iter()
             .flatten() // Remove Nones
-            .map(|err| format!("{}", err.label))
+            .map(|err| format!("'{}'", err.label))
             .collect::<HashSet<_>>() // Deduplicate
             .into_iter()
             .collect();
@@ -149,7 +149,13 @@ impl MultiErrorHandler {
             });
 
         // 3. Build the main diagnostic message
-        let main_message = format!("expected one of {} but found '{}'", expected_str, found);
+        // let main_message = format!("expected one of {} but found '{}'", expected_str, found);
+        // only include one of if there are multiple expected labels, otherwise just say expected
+        let main_message = if expected_labels.len() > 1 {
+            format!("expected one of {} but found '{}'", expected_str, found)
+        } else {
+            format!("expected {} but found '{}'", expected_str, found)
+        };
 
         // 4. Create the Ariadne Report
         let report = Report::build(

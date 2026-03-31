@@ -3,6 +3,7 @@ use crate::grammar::{
     context::{MatcherContext, ParserContext},
     error_handler::ErrorHandler,
     get_next_id,
+    label::MaybeLabel,
     matcher::Matcher,
 };
 pub struct OneOrMore<Match> {
@@ -54,7 +55,7 @@ where
 
 impl<Token, MRes, Match> Matcher<Token, MRes> for OneOrMore<Match>
 where
-    Match: Matcher<Token, MRes> + HasId + IsCheckable<Token>,
+    Match: Matcher<Token, MRes> + Grammar<Token>,
 {
     fn match_pattern(
         &self,
@@ -70,3 +71,5 @@ where
         Ok(())
     }
 }
+
+impl<Match, Label> MaybeLabel<Label> for OneOrMore<Match> {}

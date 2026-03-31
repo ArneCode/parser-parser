@@ -1,5 +1,8 @@
 pub mod multiple;
+pub mod one_of;
 pub mod one_or_more;
+pub mod range_parser;
+pub mod single_token;
 pub mod token_parser;
 use std::ops::Deref;
 
@@ -29,4 +32,9 @@ where
     ) -> Result<Self::Output, String> {
         (**self).parse(context, pos)
     }
+}
+
+pub trait ToParser {
+    type ParserType;
+    fn to_parser(&self) -> Self::ParserType;
 }

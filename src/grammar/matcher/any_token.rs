@@ -3,6 +3,7 @@ use crate::grammar::{
     context::{MatcherContext, ParserContext},
     error_handler::ErrorHandler,
     get_next_id,
+    label::MaybeLabel,
     matcher::Matcher,
 };
 pub struct AnyToken {
@@ -62,5 +63,11 @@ impl<Token, MRes> Matcher<Token, MRes> for AnyToken {
                 pos
             ))
         }
+    }
+}
+
+impl MaybeLabel<String> for AnyToken {
+    fn maybe_label(&self) -> Option<String> {
+        Some("any_token".to_string())
     }
 }

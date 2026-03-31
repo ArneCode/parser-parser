@@ -3,6 +3,7 @@ use crate::grammar::{
     context::{MatcherContext, ParserContext},
     error_handler::ErrorHandler,
     get_next_id,
+    label::MaybeLabel,
     matcher::Matcher,
 };
 pub struct NegativeLookahead<Check> {
@@ -62,3 +63,5 @@ where
         }
     }
 }
+
+impl<Check, Label> MaybeLabel<Label> for NegativeLookahead<Check> {}

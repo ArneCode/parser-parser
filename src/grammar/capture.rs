@@ -6,6 +6,7 @@ use crate::grammar::{
     },
     error_handler::ErrorHandler,
     get_next_id,
+    label::MaybeLabel,
     matcher::Matcher,
     parser::Parser,
 };
@@ -104,10 +105,15 @@ where
 {
     pub fn new<
         GF: Fn(MResSingle::Properties, MResMultiple::Properties, MResOptional::Properties) -> Match,
+        Token,
     >(
         grammar_factory: GF,
         constructor: F,
-    ) -> Self {
+    ) -> Self
+    where
+        Match:
+            Matcher<Token, (MResSingle, MResMultiple, MResOptional)> + HasId + IsCheckable<Token>,
+    {
         let properties_single = MResSingle::new_properties();
         let properties_multiple = MResMultiple::new_properties();
         let properties_optional = MResOptional::new_properties();
@@ -136,6 +142,8 @@ where
         context: &mut ParserContext<'ctx, Token, impl ErrorHandler>,
         pos: &mut usize,
     ) -> Result<Self::Output, String> {
+        let old_match_start = context.match_start;
+        context.match_start = *pos;
         let mut context = MatcherContext::new(
             context,
             MResSingle::new(),
@@ -144,11 +152,9 @@ where
         );
         self.matcher.match_pattern(&mut context, pos)?;
         let (res_single, res_multiple, res_optional) = context.match_result;
-        Ok((self.constructor)(
-            res_single.as_output(),
-            res_multiple,
-            res_optional,
-        ))
+        let result = (self.constructor)(res_single.as_output(), res_multiple, res_optional);
+        context.parser_context.match_start = old_match_start;
+        Ok(result)
     }
 }
 
@@ -185,10 +191,7 @@ impl<Pars, Prop> CaptureProperty<Pars, Prop> {
     }
 }
 
-pub fn capture_property<MContext, Pars, Prop>(
-    parser: Pars,
-    property: Prop,
-) -> CaptureProperty<Pars, Prop> {
+pub fn capture_property<Pars, Prop>(parser: Pars, property: Prop) -> CaptureProperty<Pars, Prop> {
     CaptureProperty::new(parser, property)
 }
 
@@ -406,3 +409,6 @@ impl_match_results_for_tuple!(
     (T10, 10),
     (T11, 11)
 );
+
+impl<Label, MRes, Match, F> MaybeLabel<Label> for Capture<MRes, Match, F> {}
+impl<Label, Pars, Prop> MaybeLabel<Label> for CaptureProperty<Pars, Prop> {}

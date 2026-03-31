@@ -8,9 +8,8 @@ use crate::grammar::{
     parser::Parser,
 };
 
-pub trait MaybeLabel {
-    type Label;
-    fn maybe_label(&self) -> Option<Self::Label> {
+pub trait MaybeLabel<Label> {
+    fn maybe_label(&self) -> Option<Label> {
         None
     }
 }
@@ -26,9 +25,8 @@ impl<L, I> Labeled<L, I> {
     }
 }
 
-impl<L: Clone, I> MaybeLabel for Labeled<L, I> {
-    type Label = L;
-    fn maybe_label(&self) -> Option<Self::Label> {
+impl<L: Clone, I> MaybeLabel<L> for Labeled<L, I> {
+    fn maybe_label(&self) -> Option<L> {
         Some(self.label.clone())
     }
 }
@@ -99,13 +97,12 @@ where
     }
 }
 
-impl<L, T, D> MaybeLabel for T
+impl<L, T, D> MaybeLabel<L> for T
 where
-    T: Deref<Target = D>,
-    D: MaybeLabel<Label = L>,
+    T: Deref<Target = D> + ?Sized,
+    D: MaybeLabel<L> + ?Sized,
 {
-    type Label = L;
-    fn maybe_label(&self) -> Option<Self::Label> {
+    fn maybe_label(&self) -> Option<L> {
         self.deref().maybe_label()
     }
 }

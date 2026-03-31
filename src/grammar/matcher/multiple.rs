@@ -3,6 +3,7 @@ use crate::grammar::{
     context::{MatcherContext, ParserContext},
     error_handler::ErrorHandler,
     get_next_id,
+    label::MaybeLabel,
     matcher::Matcher,
 };
 
@@ -25,7 +26,7 @@ pub fn many<Match>(matcher: Match) -> Multiple<Match> {
 }
 impl<Match, Token, MRes> Matcher<Token, MRes> for Multiple<Match>
 where
-    Match: Matcher<Token, MRes> + HasId + IsCheckable<Token>,
+    Match: Matcher<Token, MRes> + Grammar<Token>,
 {
     fn match_pattern(
         &self,
@@ -58,3 +59,5 @@ impl<Match> HasId for Multiple<Match> {
         self.id
     }
 }
+
+impl<Label, Match> MaybeLabel<Label> for Multiple<Match> {}

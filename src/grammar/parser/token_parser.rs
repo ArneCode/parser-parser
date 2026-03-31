@@ -1,7 +1,6 @@
-
 use crate::grammar::{
     Grammar, HasId, IsCheckable, context::ParserContext, error_handler::ErrorHandler, get_next_id,
-    parser::Parser,
+    label::MaybeLabel, parser::Parser,
 };
 pub struct TokenParser<CheckF, ParseF> {
     check_fn: CheckF,
@@ -56,22 +55,17 @@ where
         context: &mut ParserContext<Token, impl ErrorHandler>,
         pos: &mut usize,
     ) -> Result<Self::Output, String> {
-        if *pos < context.tokens.len() {
-            if self.check_no_advance(context, pos) {
-                let token = &context.tokens[*pos];
-                *pos += 1; // Advance position on success
-                Ok((self.parse_fn)(token))
-            } else {
-                Err(format!(
-                    "token did not satisfy check function at position {}",
-                    pos
-                ))
-            }
+        if self.check_no_advance(context, pos) {
+            let token = &context.tokens[*pos];
+            *pos += 1; // Advance position on success
+            Ok((self.parse_fn)(token))
         } else {
             Err(format!(
-                "expected token at position {} but reached end of input",
+                "token did not satisfy check function at position {}",
                 pos
             ))
         }
     }
 }
+
+impl<CheckF, ParseF, Label> MaybeLabel<Label> for TokenParser<CheckF, ParseF> {}

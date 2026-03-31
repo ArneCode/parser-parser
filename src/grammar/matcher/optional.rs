@@ -3,6 +3,7 @@ use crate::grammar::{
     context::{MatcherContext, ParserContext},
     error_handler::ErrorHandler,
     get_next_id,
+    label::MaybeLabel,
     matcher::Matcher,
 };
 
@@ -59,3 +60,5 @@ impl<Match> HasId for Optional<Match> {
         self.id
     }
 }
+
+impl<Label, Match> MaybeLabel<Label> for Optional<Match> {}

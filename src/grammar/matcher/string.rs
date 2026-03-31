@@ -1,9 +1,9 @@
-
 use crate::grammar::{
     Grammar, HasId, IsCheckable,
     context::{MatcherContext, ParserContext},
     error_handler::ErrorHandler,
     get_next_id,
+    label::MaybeLabel,
     matcher::{Matcher, ToMatcher},
 };
 
@@ -22,7 +22,7 @@ impl StringMatcher {
 }
 
 // impl ToMatcher<char, N> for String {
-impl ToMatcher<char> for String {
+impl ToMatcher for String {
     type MatcherType = StringMatcher;
 
     fn to_matcher(&self) -> Self::MatcherType {
@@ -30,7 +30,7 @@ impl ToMatcher<char> for String {
     }
 }
 
-impl ToMatcher<char> for &str {
+impl ToMatcher for &str {
     type MatcherType = StringMatcher;
     fn to_matcher(&self) -> Self::MatcherType {
         StringMatcher::new(self.to_string())
@@ -50,15 +50,12 @@ impl IsCheckable<char> for StringMatcher {
     ) -> bool {
         let end_pos = *pos + self.expected.len();
         if end_pos > context.tokens.len() {
+            *pos = context.tokens.len(); // Move to end if not enough tokens
             return false;
         }
         let slice: String = context.tokens[*pos..end_pos].iter().collect();
-        if slice == self.expected {
-            *pos = end_pos; // Advance position on success
-            true
-        } else {
-            false
-        }
+        *pos = end_pos; // Advance position
+        if slice == self.expected { true } else { false }
     }
 }
 
@@ -73,5 +70,11 @@ impl<MRes> Matcher<char, MRes> for StringMatcher {
         } else {
             Err(format!("Expected '{}' at position {}", self.expected, pos))
         }
+    }
+}
+
+impl MaybeLabel<String> for StringMatcher {
+    fn maybe_label(&self) -> Option<String> {
+        Some(self.expected.clone())
     }
 }
