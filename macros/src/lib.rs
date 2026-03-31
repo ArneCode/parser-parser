@@ -93,7 +93,7 @@ impl VisitMut for BindVisitor {
                             }
                         }
                     }
-                    *i = parse_quote! { capture_property(#parser, #id.clone()) };
+                    *i = parse_quote! { bind_result(#parser, #id.clone()) };
                     return;
                 }
             }

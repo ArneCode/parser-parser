@@ -9,6 +9,7 @@ use crate::grammar::{
     label::MaybeLabel,
     matcher::Matcher,
     parser::Parser,
+    span::Span,
 };
 use std::{fmt::Debug, marker::PhantomData};
 
@@ -180,22 +181,22 @@ where
     }
 }
 
-pub struct CaptureProperty<Pars, Prop> {
+pub struct ResultBinder<Pars, Prop> {
     parser: Pars,
     property: Prop,
 }
 
-impl<Pars, Prop> CaptureProperty<Pars, Prop> {
+impl<Pars, Prop> ResultBinder<Pars, Prop> {
     pub fn new(parser: Pars, property: Prop) -> Self {
         Self { parser, property }
     }
 }
 
-pub fn capture_property<Pars, Prop>(parser: Pars, property: Prop) -> CaptureProperty<Pars, Prop> {
-    CaptureProperty::new(parser, property)
+pub fn bind_result<Pars, Prop>(parser: Pars, property: Prop) -> ResultBinder<Pars, Prop> {
+    ResultBinder::new(parser, property)
 }
 
-impl<Pars, Prop> HasId for CaptureProperty<Pars, Prop>
+impl<Pars, Prop> HasId for ResultBinder<Pars, Prop>
 where
     Pars: HasId,
 {
@@ -204,7 +205,7 @@ where
     }
 }
 
-impl<Pars, Prop, Token> IsCheckable<Token> for CaptureProperty<Pars, Prop>
+impl<Pars, Prop, Token> IsCheckable<Token> for ResultBinder<Pars, Prop>
 where
     Pars: Grammar<Token>,
 {
@@ -217,7 +218,7 @@ where
     }
 }
 
-impl<Token, MRes, Pars, Prop> Matcher<Token, MRes> for CaptureProperty<Pars, Prop>
+impl<Token, MRes, Pars, Prop> Matcher<Token, MRes> for ResultBinder<Pars, Prop>
 where
     Pars: Parser<Token>,
     Prop: Property<Pars::Output, MRes>,
@@ -233,6 +234,61 @@ where
         Ok(())
     }
 }
+
+/// Binds the span (start and end positions) of a match to a property in the match result.
+pub struct SpanBinder<Match, Prop> {
+    matcher: Match,
+    property: Prop,
+}
+impl<Match, Prop> SpanBinder<Match, Prop> {
+    pub fn new(matcher: Match, property: Prop) -> Self {
+        Self { matcher, property }
+    }
+}
+pub fn bind_span<Match, Prop>(matcher: Match, property: Prop) -> SpanBinder<Match, Prop> {
+    SpanBinder::new(matcher, property)
+}
+impl<Match, Prop> HasId for SpanBinder<Match, Prop>
+where
+    Match: HasId,
+{
+    fn id(&self) -> usize {
+        self.matcher.id()
+    }
+}
+impl<Token, Match, Prop> IsCheckable<Token> for SpanBinder<Match, Prop>
+where
+    Match: Grammar<Token>,
+{
+    fn calc_check(
+        &self,
+        context: &mut ParserContext<Token, impl ErrorHandler>,
+        pos: &mut usize,
+    ) -> bool {
+        self.matcher.check(context, pos)
+    }
+}
+
+impl<Token, MRes, Match, Prop> Matcher<Token, MRes> for SpanBinder<Match, Prop>
+where
+    Match: Matcher<Token, MRes> + HasId,
+    Prop: Property<Span, MRes>,
+{
+    fn match_pattern(
+        &self,
+        context: &mut MatcherContext<Token, MRes, impl ErrorHandler>,
+        pos: &mut usize,
+    ) -> Result<(), String> {
+        let start_pos = *pos;
+        self.matcher.match_pattern(context, pos)?;
+        let end_pos = *pos;
+        self.property
+            .put_in_result(&mut context.match_result, Span::new(start_pos, end_pos));
+        Ok(())
+    }
+}
+
+impl<Label, Match, Prop> MaybeLabel<Label> for SpanBinder<Match, Prop> {}
 
 impl MatchResultSingle for () {
     type Properties = ();
@@ -411,4 +467,4 @@ impl_match_results_for_tuple!(
 );
 
 impl<Label, MRes, Match, F> MaybeLabel<Label> for Capture<MRes, Match, F> {}
-impl<Label, Pars, Prop> MaybeLabel<Label> for CaptureProperty<Pars, Prop> {}
+impl<Label, Pars, Prop> MaybeLabel<Label> for ResultBinder<Pars, Prop> {}
