@@ -10,9 +10,9 @@ use crate::grammar::{context::ParserContext, error_handler::ErrorHandler};
 
 pub trait Parser<Token> {
     type Output;
-    fn parse<'ctx>(
+    fn parse(
         &self,
-        context: &mut ParserContext<'ctx, Token, impl ErrorHandler>,
+        context: &mut ParserContext<'_, Token, impl ErrorHandler>,
         pos: &mut usize,
     ) -> Result<Self::Output, String>;
 }

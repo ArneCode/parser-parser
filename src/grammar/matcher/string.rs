@@ -4,18 +4,21 @@ use crate::grammar::{
     error_handler::ErrorHandler,
     get_next_id,
     label::MaybeLabel,
-    matcher::{Matcher, ToMatcher},
+    matcher::{
+        CanImplMatchWithRunner, DoImplMatchWithNoMoemoizeBacktrackingRunner, MatchRunner, Matcher,
+        ToMatcher,
+    },
 };
 
 pub struct StringMatcher {
-    expected: String,
+    expected: Vec<char>,
     id: usize,
 }
 
 impl StringMatcher {
     fn new(expected: String) -> Self {
         Self {
-            expected,
+            expected: expected.chars().collect(),
             id: get_next_id(),
         }
     }
@@ -53,9 +56,8 @@ impl IsCheckable<char> for StringMatcher {
             *pos = context.tokens.len(); // Move to end if not enough tokens
             return false;
         }
-        let slice: String = context.tokens[*pos..end_pos].iter().collect();
-        *pos = end_pos; // Advance position
-        slice == self.expected
+        let slice = &context.tokens[*pos..end_pos];
+        slice == self.expected.as_slice()
     }
 }
 
@@ -68,13 +70,40 @@ impl<MRes> Matcher<char, MRes> for StringMatcher {
         if self.check(context.parser_context, pos) {
             Ok(())
         } else {
-            Err(format!("Expected '{}' at position {}", self.expected, pos))
+            Err(format!(
+                "Expected '{}' at position {}",
+                self.expected.iter().collect::<String>(),
+                pos
+            ))
         }
     }
 }
 
+impl<'a, 'ctx, Runner> CanImplMatchWithRunner<Runner> for StringMatcher
+where
+    Runner: MatchRunner<'a, 'ctx, Token = char>,
+{
+    fn impl_match_with_runner(&self, runner: &mut Runner, pos: &mut usize) -> Result<bool, String> {
+        let context = runner.get_parser_context();
+        let end_pos = *pos + self.expected.len();
+        if end_pos > context.tokens.len() {
+            *pos = context.tokens.len(); // Move to end if not enough tokens
+            return Ok(false);
+        }
+        let slice = &context.tokens[*pos..end_pos];
+        if slice == self.expected {
+            *pos = end_pos; // Advance position
+            Ok(true)
+        } else {
+            Ok(false)
+        }
+    }
+}
+
+impl DoImplMatchWithNoMoemoizeBacktrackingRunner for StringMatcher {}
+
 impl MaybeLabel<String> for StringMatcher {
     fn maybe_label(&self) -> Option<String> {
-        Some(self.expected.clone())
+        None
     }
 }

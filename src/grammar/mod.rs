@@ -227,36 +227,68 @@ mod tests {
         println!("{}", parse(&number_parser, "123abc").unwrap());
         println!("{}", parse(&identifier_parser, "var_name123").unwrap());
 
-        let func_parser = Rc::new(capture!(
-            {
-                seq((
-                    bind_span!(ParserMatcher::new(&identifier_parser, "fn".to_string()), fn_keyword_span),
-                    one_or_more(" ".to_matcher()),
-                    bind!(word_parser.clone(), name, name_span),
-                    many(" ".to_matcher()),
-                    "(".to_matcher(),
-                    many(" ".to_matcher()),
-                    bind!(word_parser.clone(), *params, *param_spans),
-                    many(seq((
+        let func_parser = Rc::new(Capture::<
+            (
+                (
+                    ::std::option::Option<_>,
+                    ::std::option::Option<span::Span>,
+                    ::std::option::Option<span::Span>,
+                ),
+                (::std::vec::Vec<_>, ::std::vec::Vec<span::Span>),
+                (::std::option::Option<_>,),
+            ),
+            _,
+            _,
+        >::new(
+            |(name, fn_keyword_span, name_span), (params, param_spans), (body,)| {
+                {
+                    seq((
+                        bind_span(
+                            ParserMatcher::new(&identifier_parser, "fn".to_string()),
+                            fn_keyword_span.clone(),
+                        ),
+                        one_or_more(" ".to_matcher()),
+                        bind_span(
+                            bind_result(word_parser.clone(), name.clone()),
+                            name_span.clone(),
+                        ),
                         many(" ".to_matcher()),
-                        ",".to_matcher(),
+                        "(".to_matcher(),
                         many(" ".to_matcher()),
-                        bind!(word_parser.clone(), *params, *param_spans),
-                    ))),
-                    many(" ".to_matcher()),
-                    ")".to_matcher(),
-                    many(" ".to_matcher()),
-                    optional(
-                        bind!(word_parser.clone(), ?body)
-                    ),
-                ))
-            } => {
-                // can use the spans here (fn_keyword_span: Span, name_span: Span, param_spans: Vec<Span>)
-
-                println!("Captured function: name={}, params={:?}, body={:?}", name, params, body);
-                println!("Spans: fn_keyword_span={:?}, name_span={:?}, param_spans={:?}", fn_keyword_span, name_span, param_spans);
-                    format!("Function: name={}, params={:?}, body={:?}", name, params, body)
-            }
+                        bind_span(
+                            bind_result(word_parser.clone(), params.clone()),
+                            param_spans.clone(),
+                        ),
+                        many(seq((
+                            many(" ".to_matcher()),
+                            ",".to_matcher(),
+                            many(" ".to_matcher()),
+                            bind_span(
+                                bind_result(word_parser.clone(), params.clone()),
+                                param_spans.clone(),
+                            ),
+                        ))),
+                        many(" ".to_matcher()),
+                        ")".to_matcher(),
+                        many(" ".to_matcher()),
+                        optional(bind_result(word_parser.clone(), body.clone())),
+                    ))
+                }
+            },
+            |(name, fn_keyword_span, name_span), (params, param_spans), (body,)| {
+                println!(
+                    "Captured function: name={}, params={:?}, body={:?}",
+                    name, params, body
+                );
+                println!(
+                    "Spans: fn_keyword_span={:?}, name_span={:?}, param_spans={:?}",
+                    fn_keyword_span, name_span, param_spans
+                );
+                format!(
+                    "Function: name={}, params={:?}, body={:?}",
+                    name, params, body
+                )
+            },
         ));
         // let func_parser = Rc::new(Capture::<
         //     (

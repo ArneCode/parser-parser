@@ -4,7 +4,10 @@ use crate::grammar::{
     error_handler::ErrorHandler,
     get_next_id,
     label::MaybeLabel,
-    matcher::Matcher,
+    matcher::{
+        CanImplMatchWithRunner, CanMatchWithRunner, DoImplMatchWithNoMoemoizeBacktrackingRunner,
+        MatchRunner, Matcher,
+    },
 };
 
 pub struct Optional<Match> {
@@ -39,6 +42,24 @@ where
         }
         Ok(())
     }
+}
+
+impl<'a, 'ctx, Match, Runner> CanImplMatchWithRunner<Runner> for Optional<Match>
+where
+    Match: CanMatchWithRunner<Runner>,
+    Runner: MatchRunner<'a, 'ctx>,
+{
+    fn impl_match_with_runner(&self, runner: &mut Runner, pos: &mut usize) -> Result<bool, String> {
+        if runner.run_match(&self.matcher, pos)? {
+            return Ok(true);
+        }
+        Ok(true)
+    }
+}
+
+impl<Match> DoImplMatchWithNoMoemoizeBacktrackingRunner for Optional<Match> where
+    Match: DoImplMatchWithNoMoemoizeBacktrackingRunner
+{
 }
 
 impl<Token, Match> IsCheckable<Token> for Optional<Match>

@@ -6,7 +6,9 @@ use crate::grammar::{
     error_handler::ErrorHandler,
     get_next_id,
     label::MaybeLabel,
-    matcher::Matcher,
+    matcher::{
+        CanImplMatchWithRunner, DoImplMatchWithNoMoemoizeBacktrackingRunner, MatchRunner, Matcher,
+    },
     parser::Parser,
 };
 
@@ -43,9 +45,10 @@ where
         pos: &mut usize,
     ) -> bool {
         if let Ok(output) = self.parser.parse(context, pos)
-            && output == self.expected_output {
-                return true;
-            }
+            && output == self.expected_output
+        {
+            return true;
+        }
         false
     }
 }
@@ -70,6 +73,27 @@ where
             ))
         }
     }
+}
+
+impl<'a, 'ctx, Pars, ParserOutput, Runner> CanImplMatchWithRunner<Runner>
+    for ParserMatcher<Pars, ParserOutput>
+where
+    Runner: MatchRunner<'a, 'ctx>,
+    Pars: Parser<Runner::Token, Output = ParserOutput> + Grammar<Runner::Token>,
+    ParserOutput: PartialEq,
+{
+    fn impl_match_with_runner(&self, runner: &mut Runner, pos: &mut usize) -> Result<bool, String> {
+        if let Ok(output) = self.parser.parse(runner.get_parser_context(), pos)
+            && output == self.expected_output
+        {
+            return Ok(true);
+        }
+        Ok(false)
+    }
+}
+impl<Pars, ParserOutput> DoImplMatchWithNoMoemoizeBacktrackingRunner
+    for ParserMatcher<Pars, ParserOutput>
+{
 }
 
 impl<Pars, ParserOutput> MaybeLabel<String> for ParserMatcher<Pars, ParserOutput>

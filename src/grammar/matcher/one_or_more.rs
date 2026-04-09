@@ -4,7 +4,10 @@ use crate::grammar::{
     error_handler::ErrorHandler,
     get_next_id,
     label::MaybeLabel,
-    matcher::Matcher,
+    matcher::{
+        CanImplMatchWithRunner, CanMatchWithRunner, DoImplMatchWithNoMoemoizeBacktrackingRunner,
+        MatchRunner, Matcher,
+    },
 };
 pub struct OneOrMore<Match> {
     matcher: Match,
@@ -70,6 +73,27 @@ where
         }
         Ok(())
     }
+}
+
+impl<'a, 'ctx, Match, Runner> CanImplMatchWithRunner<Runner> for OneOrMore<Match>
+where
+    Match: CanMatchWithRunner<Runner>,
+    Runner: MatchRunner<'a, 'ctx>,
+{
+    fn impl_match_with_runner(&self, runner: &mut Runner, pos: &mut usize) -> Result<bool, String> {
+        // First match is mandatory — propagate the error if absent.
+        if !runner.run_match(&self.matcher, pos)? {
+            return Ok(false);
+        }
+        // Remaining matches are optional (same as Multiple).
+        while runner.run_match(&self.matcher, pos)? {}
+        Ok(true)
+    }
+}
+
+impl<Match> DoImplMatchWithNoMoemoizeBacktrackingRunner for OneOrMore<Match> where
+    Match: DoImplMatchWithNoMoemoizeBacktrackingRunner
+{
 }
 
 impl<Match, Label> MaybeLabel<Label> for OneOrMore<Match> {}

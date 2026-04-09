@@ -4,7 +4,10 @@ use crate::grammar::{
     error_handler::ErrorHandler,
     get_next_id,
     label::MaybeLabel,
-    matcher::Matcher,
+    matcher::{
+        CanImplMatchWithRunner, CanMatchWithRunner, DoImplMatchWithNoMoemoizeBacktrackingRunner,
+        MatchRunner, Matcher,
+    },
 };
 pub struct Sequence<Tuple> {
     elements: Tuple,
@@ -78,6 +81,38 @@ macro_rules! impl_matcher_for_seq_tuples {
 
                 Ok(())
             }
+        }
+
+        impl<'a, 'ctx, Runner, $head, $($tail),*> CanImplMatchWithRunner<Runner> for Sequence<($head, $($tail,)*)>
+        where
+            $head: CanMatchWithRunner<Runner>,
+            $($tail: CanMatchWithRunner<Runner>,)*
+            Runner: MatchRunner<'a, 'ctx>,
+        {
+            fn impl_match_with_runner(&self, runner: &mut Runner, pos: &mut usize) -> Result<bool, String> {
+
+                #[allow(non_snake_case)]
+                let ($head, $($tail,)*) = &self.elements;
+
+                if !runner.run_match($head, pos)? {
+                    return Ok(false);
+                }
+
+                $(
+                    if !runner.run_match($tail, pos)? {
+                        return Ok(false);
+                    }
+                )*
+
+                Ok(true)
+            }
+        }
+
+        impl<$head, $($tail),*> DoImplMatchWithNoMoemoizeBacktrackingRunner for Sequence<($head, $($tail,)*)>
+        where
+            $head: DoImplMatchWithNoMoemoizeBacktrackingRunner,
+            $($tail: DoImplMatchWithNoMoemoizeBacktrackingRunner,)*
+        {
         }
 
         impl_matcher_for_seq_tuples!($($tail),*);

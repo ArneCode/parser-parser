@@ -4,7 +4,10 @@ use crate::grammar::{
     error_handler::ErrorHandler,
     get_next_id,
     label::MaybeLabel,
-    matcher::Matcher,
+    matcher::{
+        CanImplMatchWithRunner, CanMatchWithRunner, DoImplMatchWithNoMoemoizeBacktrackingRunner,
+        MatchRunner, Matcher,
+    },
 };
 pub struct OneOfMatcher<Tuple> {
     options: Tuple,
@@ -80,6 +83,37 @@ macro_rules! impl_matcher_for_one_of_tuples {
 
                 Err(format!("None of the options matched at position {}", pos))
             }
+        }
+
+        impl<'a, 'ctx, Runner, $head, $($tail),*> CanImplMatchWithRunner<Runner> for OneOfMatcher<($head, $($tail,)*)>
+        where
+            Runner: MatchRunner<'a, 'ctx>,
+            $head: CanMatchWithRunner<Runner> + Grammar<Runner::Token>,
+            $($tail: CanMatchWithRunner<Runner> + Grammar<Runner::Token>,)*
+        {
+            fn impl_match_with_runner(&self, runner: &mut Runner, pos: &mut usize) -> Result<bool, String> {
+                #[allow(non_snake_case)]
+                let ($head, $($tail,)*) = &self.options;
+
+                if runner.run_match($head, pos)? {
+                    return Ok(true);
+                }
+
+                $(
+                    if runner.run_match($tail, pos)? {
+                        return Ok(true);
+                    }
+                )*
+
+                Ok(false)
+            }
+        }
+
+        impl<$head, $($tail),*> DoImplMatchWithNoMoemoizeBacktrackingRunner for OneOfMatcher<($head, $($tail,)*)>
+        where
+            $head: DoImplMatchWithNoMoemoizeBacktrackingRunner,
+            $($tail: DoImplMatchWithNoMoemoizeBacktrackingRunner,)*
+        {
         }
 
         impl_matcher_for_one_of_tuples!($($tail),*);

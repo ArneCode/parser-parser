@@ -1,10 +1,13 @@
 use crate::grammar::{
     Grammar, HasId, IsCheckable,
-    context::{MatcherContext, ParserContext},
+    context::{MatchResult, MatcherContext, ParserContext},
     error_handler::ErrorHandler,
     get_next_id,
     label::MaybeLabel,
-    matcher::Matcher,
+    matcher::{
+        CanImplMatchWithRunner, CanMatchWithRunner, DoImplMatchWithNoMoemoizeBacktrackingRunner,
+        MatchRunner, Matcher, NoMoemoizeBacktrackingRunner,
+    },
 };
 
 pub struct Multiple<Match> {
@@ -38,6 +41,22 @@ where
         }
         Ok(())
     }
+}
+
+impl<'a, 'ctx, Match, Runner> CanImplMatchWithRunner<Runner> for Multiple<Match>
+where
+    Match: CanMatchWithRunner<Runner>,
+    Runner: MatchRunner<'a, 'ctx>,
+{
+    fn impl_match_with_runner(&self, runner: &mut Runner, pos: &mut usize) -> Result<bool, String> {
+        while runner.run_match(&self.matcher, pos)? {}
+        Ok(true)
+    }
+}
+
+impl<Match> DoImplMatchWithNoMoemoizeBacktrackingRunner for Multiple<Match> where
+    Match: DoImplMatchWithNoMoemoizeBacktrackingRunner
+{
 }
 
 impl<T, Match> IsCheckable<T> for Multiple<Match>

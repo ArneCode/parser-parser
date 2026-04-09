@@ -7,7 +7,10 @@ use crate::grammar::{
     error_handler::ErrorHandler,
     get_next_id,
     label::MaybeLabel,
-    matcher::Matcher,
+    matcher::{
+        CanImplMatchWithRunner, CanMatchWithRunner, DoImplMatchWithNoMoemoizeBacktrackingRunner,
+        MatchRunner, Matcher, NoMoemoizeBacktrackingRunner,
+    },
     parser::Parser,
     span::Span,
 };
@@ -15,6 +18,13 @@ use std::{fmt::Debug, marker::PhantomData};
 
 pub trait Property<Value, MatchResult> {
     fn put_in_result(&self, result: &mut MatchResult, value: Value);
+    fn bind_result(&self, value: Value) -> (Value, Self)
+    where
+        Self: Sized,
+        Self: Clone,
+    {
+        (value, self.clone())
+    }
 }
 
 #[derive(Clone, Copy)]
@@ -105,15 +115,25 @@ where
     F: Fn(MResSingle::Output, MResMultiple, MResOptional) -> Out,
 {
     pub fn new<
+        'a,
+        'ctx: 'a,
         GF: Fn(MResSingle::Properties, MResMultiple::Properties, MResOptional::Properties) -> Match,
-        Token,
+        Token: 'ctx,
+        EHandler: ErrorHandler + 'ctx,
     >(
         grammar_factory: GF,
         constructor: F,
     ) -> Self
     where
-        Match:
-            Matcher<Token, (MResSingle, MResMultiple, MResOptional)> + HasId + IsCheckable<Token>,
+        Match: CanMatchWithRunner<
+            NoMoemoizeBacktrackingRunner<
+                'a,
+                'ctx,
+                Token,
+                (MResSingle, MResMultiple, MResOptional),
+                EHandler,
+            >,
+        >, // Matcher<Token, (MResSingle, MResMultiple, MResOptional)> + HasId + IsCheckable<Token>,
     {
         let properties_single = MResSingle::new_properties();
         let properties_multiple = MResMultiple::new_properties();
@@ -181,22 +201,56 @@ where
     }
 }
 
-pub struct ResultBinder<Pars, Prop> {
-    parser: Pars,
-    property: Prop,
+// pub struct BoundResult<Value, MRes, Prop>
+// where
+//     Prop: Property<Value, MRes>,
+// {
+//     property: &'a Prop,
+//     value: Value,
+//     _phantom: PhantomData<MRes>,
+// }
+pub trait BoundResult<MRes> {
+    fn put_in_result(self, result: &mut MRes);
+    fn put_boxed_in_result(self: Box<Self>, result: &mut MRes);
 }
 
-impl<Pars, Prop> ResultBinder<Pars, Prop> {
-    pub fn new(parser: Pars, property: Prop) -> Self {
-        Self { parser, property }
+impl<Value, MRes, Prop> BoundResult<MRes> for (Value, Prop)
+where
+    Prop: Property<Value, MRes>,
+{
+    fn put_in_result(self, result: &mut MRes) {
+        let (value, property) = self;
+        property.put_in_result(result, value);
+    }
+    fn put_boxed_in_result(self: Box<Self>, result: &mut MRes) {
+        (*self).put_in_result(result)
     }
 }
 
-pub fn bind_result<Pars, Prop>(parser: Pars, property: Prop) -> ResultBinder<Pars, Prop> {
+pub struct ResultBinder<Pars, Prop, Token> {
+    parser: Pars,
+    property: Prop,
+    _phantom: PhantomData<Token>,
+}
+
+impl<Pars, Prop, Token> ResultBinder<Pars, Prop, Token> {
+    pub fn new(parser: Pars, property: Prop) -> Self {
+        Self {
+            parser,
+            property,
+            _phantom: PhantomData,
+        }
+    }
+}
+
+pub fn bind_result<Pars, Prop, Token>(
+    parser: Pars,
+    property: Prop,
+) -> ResultBinder<Pars, Prop, Token> {
     ResultBinder::new(parser, property)
 }
 
-impl<Pars, Prop> HasId for ResultBinder<Pars, Prop>
+impl<Pars, Prop, Token> HasId for ResultBinder<Pars, Prop, Token>
 where
     Pars: HasId,
 {
@@ -205,7 +259,7 @@ where
     }
 }
 
-impl<Pars, Prop, Token> IsCheckable<Token> for ResultBinder<Pars, Prop>
+impl<Pars, Prop, Token> IsCheckable<Token> for ResultBinder<Pars, Prop, Token>
 where
     Pars: Grammar<Token>,
 {
@@ -218,7 +272,7 @@ where
     }
 }
 
-impl<Token, MRes, Pars, Prop> Matcher<Token, MRes> for ResultBinder<Pars, Prop>
+impl<Token, MRes, Pars, Prop> Matcher<Token, MRes> for ResultBinder<Pars, Prop, Token>
 where
     Pars: Parser<Token>,
     Prop: Property<Pars::Output, MRes>,
@@ -233,6 +287,28 @@ where
             .put_in_result(&mut context.match_result, result);
         Ok(())
     }
+}
+
+impl<'a, 'ctx, Pars, Prop, Runner, Token> CanImplMatchWithRunner<Runner>
+    for ResultBinder<Pars, Prop, Token>
+where
+    Token: 'ctx,
+    Pars: Parser<Token>,
+    Pars::Output: 'a,
+    Runner: MatchRunner<'a, 'ctx, Token = Token>,
+    Prop: Property<Pars::Output, Runner::MRes> + Clone + 'a,
+{
+    fn impl_match_with_runner(&self, runner: &mut Runner, pos: &mut usize) -> Result<bool, String> {
+        let result = self.parser.parse(runner.get_parser_context(), pos)?;
+        let bound = self.property.bind_result(result);
+        runner.register_result(bound);
+        Ok(true)
+    }
+}
+
+impl<Pars, Prop, Token> DoImplMatchWithNoMoemoizeBacktrackingRunner
+    for ResultBinder<Pars, Prop, Token>
+{
 }
 
 /// Binds the span (start and end positions) of a match to a property in the match result.
@@ -286,6 +362,29 @@ where
             .put_in_result(&mut context.match_result, Span::new(start_pos, end_pos));
         Ok(())
     }
+}
+
+impl<'a, 'ctx, Match, Prop, Runner> CanImplMatchWithRunner<Runner> for SpanBinder<Match, Prop>
+where
+    Match: CanMatchWithRunner<Runner>,
+    Runner: MatchRunner<'a, 'ctx>,
+    Prop: Property<Span, Runner::MRes> + Clone + 'a,
+{
+    fn impl_match_with_runner(&self, runner: &mut Runner, pos: &mut usize) -> Result<bool, String> {
+        let start_pos = *pos;
+        if !runner.run_match(&self.matcher, pos)? {
+            return Ok(false);
+        }
+        let end_pos = *pos;
+        let bound = self.property.bind_result(Span::new(start_pos, end_pos));
+        runner.register_result(bound);
+        Ok(true)
+    }
+}
+
+impl<Match, Prop> DoImplMatchWithNoMoemoizeBacktrackingRunner for SpanBinder<Match, Prop> where
+    Match: DoImplMatchWithNoMoemoizeBacktrackingRunner
+{
 }
 
 impl<Label, Match, Prop> MaybeLabel<Label> for SpanBinder<Match, Prop> {}
@@ -467,4 +566,4 @@ impl_match_results_for_tuple!(
 );
 
 impl<Label, MRes, Match, F> MaybeLabel<Label> for Capture<MRes, Match, F> {}
-impl<Label, Pars, Prop> MaybeLabel<Label> for ResultBinder<Pars, Prop> {}
+impl<Label, Pars, Prop, Token> MaybeLabel<Label> for ResultBinder<Pars, Prop, Token> {}

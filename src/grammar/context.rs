@@ -47,6 +47,16 @@ pub trait MatchResult {
         match_result_multiple: Self::Multiple,
         match_result_optional: Self::Optional,
     ) -> Self;
+    fn new_empty() -> Self
+    where
+        Self: Sized,
+    {
+        Self::new(
+            Self::Single::new(),
+            Self::Multiple::new(),
+            Self::Optional::new(),
+        )
+    }
 
     fn single(&mut self) -> &mut Self::Single;
     fn multiple(&mut self) -> &mut Self::Multiple;
