@@ -28,11 +28,7 @@ impl<T, NodeIn, Pars, CombF> IsCheckable<T> for MultipleParser<Pars, CombF>
 where
     Pars: Parser<T, Output = NodeIn> + Grammar<T>,
 {
-    fn calc_check(
-        &self,
-        context: &mut ParserContext<T, impl ErrorHandler>,
-        pos: &mut usize,
-    ) -> bool {
+    fn calc_check(&self, context: &mut ParserContext<T>, pos: &mut usize) -> bool {
         while self.parser.check(context, pos) {}
         true
     }

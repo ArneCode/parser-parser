@@ -1,49 +1,45 @@
 use crate::grammar::{
-    Grammar, HasId, IsCheckable, context::ParserContext, error_handler::ErrorHandler, get_next_id,
-    label::MaybeLabel, parser::Parser,
+    context::ParserContext,
+    error_handler::{ErrorHandler, ParserError},
+    parser::Parser,
 };
 pub struct TokenParser<CheckF, ParseF> {
     check_fn: CheckF,
     parse_fn: ParseF,
-    id: usize,
 }
 
 impl<CheckF, ParseF> TokenParser<CheckF, ParseF> {
     pub fn new(check_fn: CheckF, parse_fn: ParseF) -> Self {
-        Self {
-            check_fn,
-            parse_fn,
-            id: get_next_id(),
-        }
+        Self { check_fn, parse_fn }
     }
 }
 
-impl<CheckF, ParseF> HasId for TokenParser<CheckF, ParseF> {
-    fn id(&self) -> usize {
-        self.id
-    }
-}
+// impl<CheckF, ParseF> HasId for TokenParser<CheckF, ParseF> {
+//     fn id(&self) -> usize {
+//         self.id
+//     }
+// }
 
-impl<Token, CheckF, ParseF> IsCheckable<Token> for TokenParser<CheckF, ParseF>
-where
-    CheckF: Fn(&Token) -> bool,
-{
-    fn calc_check(
-        &self,
-        context: &mut ParserContext<Token, impl ErrorHandler>,
-        pos: &mut usize,
-    ) -> bool {
-        if *pos < context.tokens.len() {
-            let token = &context.tokens[*pos];
-            *pos += 1; // Advance position on success
-            (self.check_fn)(token)
-        } else {
-            false
-        }
-    }
-}
+// impl<Token, CheckF, ParseF> IsCheckable<Token> for TokenParser<CheckF, ParseF>
+// where
+//     CheckF: Fn(&Token) -> bool,
+// {
+//     fn calc_check(
+//         &self,
+//         context: &mut ParserContext<Token, impl ErrorHandler>,
+//         pos: &mut usize,
+//     ) -> bool {
+//         if *pos < context.tokens.len() {
+//             let token = &context.tokens[*pos];
+//             *pos += 1; // Advance position on success
+//             (self.check_fn)(token)
+//         } else {
+//             false
+//         }
+//     }
+// }
 
-impl<Token, Out, CheckF, ParseF> Parser<Token> for TokenParser<CheckF, ParseF>
+impl<'ctx, Token, Out, CheckF, ParseF> Parser<'ctx, Token> for TokenParser<CheckF, ParseF>
 where
     CheckF: Fn(&Token) -> bool,
     ParseF: Fn(&Token) -> Out,
@@ -52,20 +48,16 @@ where
 
     fn parse(
         &self,
-        context: &mut ParserContext<Token, impl ErrorHandler>,
+        context: &mut ParserContext<Token>,
+        _error_handler: &mut impl ErrorHandler,
         pos: &mut usize,
-    ) -> Result<Self::Output, String> {
-        if self.check_no_advance(context, pos) {
+    ) -> Result<Option<Self::Output>, ParserError> {
+        if *pos < context.tokens.len() && (self.check_fn)(&context.tokens[*pos]) {
             let token = &context.tokens[*pos];
             *pos += 1; // Advance position on success
-            Ok((self.parse_fn)(token))
+            Ok(Some((self.parse_fn)(token)))
         } else {
-            Err(format!(
-                "token did not satisfy check function at position {}",
-                pos
-            ))
+            Ok(None)
         }
     }
 }
-
-impl<CheckF, ParseF, Label> MaybeLabel<Label> for TokenParser<CheckF, ParseF> {}

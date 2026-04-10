@@ -1,25 +1,18 @@
 use crate::grammar::{
-    Grammar, HasId, IsCheckable,
-    context::{MatcherContext, ParserContext},
-    error_handler::ErrorHandler,
-    get_next_id,
-    label::MaybeLabel,
+    context::ParserContext,
+    error_handler::{self, ErrorHandler, ParserError},
     matcher::{
         CanImplMatchWithRunner, CanMatchWithRunner, DoImplMatchWithNoMoemoizeBacktrackingRunner,
-        MatchRunner, Matcher,
+        MatchRunner,
     },
 };
 pub struct OneOrMore<Match> {
     matcher: Match,
-    id: usize,
 }
 
 impl<Match> OneOrMore<Match> {
     pub fn new(matcher: Match) -> Self {
-        Self {
-            matcher,
-            id: get_next_id(),
-        }
+        Self { matcher }
     }
 }
 
@@ -28,65 +21,23 @@ pub fn one_or_more<Match>(matcher: Match) -> OneOrMore<Match> {
     OneOrMore::new(matcher)
 }
 
-impl<Match> HasId for OneOrMore<Match>
-where
-    Match: HasId,
-{
-    fn id(&self) -> usize {
-        self.id
-    }
-}
-
-impl<Token, Match> IsCheckable<Token> for OneOrMore<Match>
-where
-    Match: Grammar<Token>,
-{
-    fn calc_check(
-        &self,
-        context: &mut ParserContext<Token, impl ErrorHandler>,
-        pos: &mut usize,
-    ) -> bool {
-        // Must consume at least one token.
-        if !self.matcher.check(context, pos) {
-            return false;
-        }
-        // Greedily consume the rest (mirrors Multiple).
-        while self.matcher.check(context, pos) {}
-        true
-    }
-}
-
-impl<Token, MRes, Match> Matcher<Token, MRes> for OneOrMore<Match>
-where
-    Match: Matcher<Token, MRes> + Grammar<Token>,
-{
-    fn match_pattern(
-        &self,
-        context: &mut MatcherContext<Token, MRes, impl ErrorHandler>,
-        pos: &mut usize,
-    ) -> Result<(), String> {
-        // First match is mandatory — propagate the error if absent.
-        self.matcher.match_pattern(context, pos)?;
-        // Remaining matches are optional (same as Multiple).
-        while self.matcher.check_no_advance(context.parser_context, pos) {
-            self.matcher.match_pattern(context, pos)?;
-        }
-        Ok(())
-    }
-}
-
 impl<'a, 'ctx, Match, Runner> CanImplMatchWithRunner<Runner> for OneOrMore<Match>
 where
     Match: CanMatchWithRunner<Runner>,
     Runner: MatchRunner<'a, 'ctx>,
 {
-    fn impl_match_with_runner(&self, runner: &mut Runner, pos: &mut usize) -> Result<bool, String> {
+    fn impl_match_with_runner(
+        &self,
+        runner: &mut Runner,
+        error_handler: &mut impl ErrorHandler,
+        pos: &mut usize,
+    ) -> Result<bool, ParserError> {
         // First match is mandatory — propagate the error if absent.
-        if !runner.run_match(&self.matcher, pos)? {
+        if !runner.run_match(&self.matcher, error_handler, pos)? {
             return Ok(false);
         }
         // Remaining matches are optional (same as Multiple).
-        while runner.run_match(&self.matcher, pos)? {}
+        while runner.run_match(&self.matcher, error_handler, pos)? {}
         Ok(true)
     }
 }
@@ -95,5 +46,3 @@ impl<Match> DoImplMatchWithNoMoemoizeBacktrackingRunner for OneOrMore<Match> whe
     Match: DoImplMatchWithNoMoemoizeBacktrackingRunner
 {
 }
-
-impl<Match, Label> MaybeLabel<Label> for OneOrMore<Match> {}

@@ -13,136 +13,170 @@ use std::{
 use crate::grammar::{
     context::ParserContext,
     error_handler::{EmptyErrorHandler, ErrorHandler, MultiErrorHandler},
-    label::MaybeLabel,
     parser::Parser,
 };
 
 static NEXT_ID: AtomicUsize = AtomicUsize::new(0);
-fn get_next_id() -> usize {
-    NEXT_ID.fetch_add(1, atomic::Ordering::Relaxed)
-}
-pub trait HasId {
-    fn id(&self) -> usize;
-}
-// impl HasId for all types that deref to a HasId
-impl<T, H> HasId for T
-where
-    T: Deref<Target = H>,
-    H: HasId,
-{
-    fn id(&self) -> usize {
-        (**self).id()
-    }
-}
-pub trait IsCheckable<Token> {
-    fn calc_check(
-        &self,
-        context: &mut ParserContext<Token, impl ErrorHandler>,
-        pos: &mut usize,
-    ) -> bool;
-}
-// impl IsCheckable for all types that deref to an IsCheckable
-impl<Inner, Outer, Token> IsCheckable<Token> for Outer
-where
-    Outer: Deref<Target = Inner>,
-    Inner: IsCheckable<Token>,
-{
-    fn calc_check(
-        &self,
-        context: &mut ParserContext<Token, impl ErrorHandler>,
-        pos: &mut usize,
-    ) -> bool {
-        (**self).calc_check(context, pos)
-    }
-}
+// fn get_next_id() -> usize {
+//     NEXT_ID.fetch_add(1, atomic::Ordering::Relaxed)
+// }
+// pub trait HasId {
+//     fn id(&self) -> usize;
+// }
+// // impl HasId for all types that deref to a HasId
+// impl<T, H> HasId for T
+// where
+//     T: Deref<Target = H>,
+//     H: HasId,
+// {
+//     fn id(&self) -> usize {
+//         (**self).id()
+//     }
+// }
+// pub trait IsCheckable<Token> {
+//     fn calc_check(
+//         &self,
+//         context: &mut ParserContext<Token, impl ErrorHandler>,
+//         pos: &mut usize,
+//     ) -> bool;
+// }
+// // impl IsCheckable for all types that deref to an IsCheckable
+// impl<Inner, Outer, Token> IsCheckable<Token> for Outer
+// where
+//     Outer: Deref<Target = Inner>,
+//     Inner: IsCheckable<Token>,
+// {
+//     fn calc_check(
+//         &self,
+//         context: &mut ParserContext<Token, impl ErrorHandler>,
+//         pos: &mut usize,
+//     ) -> bool {
+//         (**self).calc_check(context, pos)
+//     }
+// }
 
-pub trait Grammar<Token> {
-    fn check(&self, context: &mut ParserContext<Token, impl ErrorHandler>, pos: &mut usize)
-    -> bool;
-    fn check_no_advance(
-        &self,
-        context: &mut ParserContext<Token, impl ErrorHandler>,
-        pos: &usize,
-    ) -> bool {
-        let mut pos = *pos;
-        self.check(context, &mut pos)
-    }
-}
+// pub trait Grammar<Token> {
+//     fn check(&self, context: &mut ParserContext<Token, impl ErrorHandler>, pos: &mut usize)
+//     -> bool;
+//     fn check_no_advance(
+//         &self,
+//         context: &mut ParserContext<Token, impl ErrorHandler>,
+//         pos: &usize,
+//     ) -> bool {
+//         let mut pos = *pos;
+//         self.check(context, &mut pos)
+//     }
+// }
 
-// impl Grammar for all Parsers / Matchers, using memoization to optimize repeated checks
-impl<G, Token> Grammar<Token> for G
-where
-    G: HasId + IsCheckable<Token> + MaybeLabel<String> + ?Sized,
-{
-    fn check(
-        &self,
-        context: &mut ParserContext<Token, impl ErrorHandler>,
-        pos: &mut usize,
-    ) -> bool {
-        let id = self.id();
-        if let Some(&result) = context.memo_table.get(&(id, *pos)) {
-            if let Some(new_pos) = result {
-                *pos = new_pos; // Update the position to the memoized value
-            }
-            return result.is_some();
-        }
-        let error_idx = context.error_handler.register_start();
-        let old_pos = *pos;
-        let result = self.calc_check(context, pos);
-        context
-            .memo_table
-            .insert((id, old_pos), if result { Some(*pos) } else { None });
-        if !result {
-            context.error_handler.register_error(
-                &self,
-                error_idx,
-                context.match_start,
-                (old_pos, *pos),
-            );
-            *pos = old_pos; // Reset position on failure
-        }
-        result
-    }
-}
+// // impl Grammar for all Parsers / Matchers, using memoization to optimize repeated checks
+// impl<G, Token> Grammar<Token> for G
+// where
+//     G: HasId + IsCheckable<Token> + MaybeLabel<String> + ?Sized,
+// {
+//     fn check(
+//         &self,
+//         context: &mut ParserContext<Token, impl ErrorHandler>,
+//         pos: &mut usize,
+//     ) -> bool {
+//         let id = self.id();
+//         if let Some(&result) = context.memo_table.get(&(id, *pos)) {
+//             if let Some(new_pos) = result {
+//                 *pos = new_pos; // Update the position to the memoized value
+//             }
+//             return result.is_some();
+//         }
+//         let error_idx = context.error_handler.register_start();
+//         let old_pos = *pos;
+//         let result = self.calc_check(context, pos);
+//         context
+//             .memo_table
+//             .insert((id, old_pos), if result { Some(*pos) } else { None });
+//         if !result {
+//             context.error_handler.register_error(
+//                 &self,
+//                 error_idx,
+//                 context.match_start,
+//                 (old_pos, *pos),
+//             );
+//             *pos = old_pos; // Reset position on failure
+//         }
+//         result
+//     }
+// }
 
-#[macro_export]
-macro_rules! bind {
-    ($($tokens:tt)*) => {
-        compile_error!("The `bind!` macro can only be used inside a `capture!` block.");
-    };
-}
+// #[macro_export]
+// macro_rules! bind {
+//     ($($tokens:tt)*) => {
+//         compile_error!("The `bind!` macro can only be used inside a `capture!` block.");
+//     };
+// }
 
-pub fn parse<Pars>(parser: Pars, src: &str) -> Result<Pars::Output, String>
-where
-    Pars: Parser<char> + Grammar<char>,
-{
-    let mut tokens: Vec<char> = src.chars().collect();
-    let mut error_handler = EmptyErrorHandler::default();
-    let mut context = ParserContext::new(&mut tokens, &mut error_handler);
-    let mut pos = 0;
-    if parser.check(&mut context, &mut pos) {
-        pos = 0; // Reset position for actual parsing
-        parser.parse(&mut context, &mut pos)
-    } else {
-        pos = 0; // Reset position for error reporting
-        let mut error_handler = MultiErrorHandler::default();
-        let mut context = ParserContext::new(&mut tokens, &mut error_handler);
-        parser.check(&mut context, &mut pos);
-        error_handler.render_report("call to parse function", src);
-        Err(format!("Parsing failed at position {}", pos))
-    }
-}
-
-pub fn check<Pars>(parser: Pars, src: &str) -> bool
-where
-    Pars: Grammar<char>,
-{
-    let mut tokens: Vec<char> = src.chars().collect();
-    let mut error_handler = EmptyErrorHandler::default();
-    let mut context = ParserContext::new(&mut tokens, &mut error_handler);
-    let mut pos = 0;
-    parser.check(&mut context, &mut pos) && pos == tokens.len()
-}
+// pub fn parse<Pars>(parser: Pars, src: &str) -> Result<Pars::Output, String>
+// where
+//     Pars: Parser<char> + Grammar<char>,
+// {
+//     let mut tokens: Vec<char> = src.chars().collect();
+//     let mut error_handler = EmptyErrorHandler::default();
+//     let mut context = ParserContext::new(&mut tokens, &mut error_handler);
+//     let mut pos = 0;
+//     if parser.check(&mut context, &mut pos) {
+//         pos = 0; // Reset position for actual parsing
+//         parser.parse(&mut context, &mut pos)
+//     } else {
+//         pos = 0; // Reset position for error reporting
+//         let mut error_handler = MultiErrorHandler::default();
+//         let mut context = ParserContext::new(&mut tokens, &mut error_handler);
+//         parser.check(&mut context, &mut pos);
+//         error_handler.render_report("call to parse function", src);
+//         Err(format!("Parsing failed at position {}", pos))
+//     }
+// }
+// pub fn parse<'a, Pars>(parser: Pars, src: &str) -> Result<Pars::Output, String>
+// where
+//     Pars: Parser<'a, char>,
+// {
+//     let mut tokens: Vec<char> = src.chars().collect();
+//     let mut error_handler = EmptyErrorHandler::default();
+//     let mut context = ParserContext::new(&mut tokens);
+//     let mut pos = 0;
+//     if let Some(result) = parser.parse(&mut context, &mut error_handler, &mut pos)? {
+//         if pos == tokens.len() {
+//             Ok(result)
+//         } else {
+//             Err(format!(
+//                 "Parsing failed: Unconsumed input at position {}",
+//                 pos
+//             ))
+//         }
+//     } else {
+//         let mut error_handler = MultiErrorHandler::default();
+//         let mut context = ParserContext::new(&mut tokens);
+//         parser.parse(&mut context, &mut pos);
+//         error_handler.render_report("call to parse function", src);
+//         Err(format!("Parsing failed at position {}", pos))
+//     }
+//     // if parser.check(&mut context, &mut pos) {
+//     //     pos = 0; // Reset position for actual parsing
+//     //     parser.parse(&mut context, &mut pos)
+//     // } else {
+//     //     pos = 0; // Reset position for error reporting
+//     //     let mut error_handler = MultiErrorHandler::default();
+//     //     let mut context = ParserContext::new(&mut tokens, &mut error_handler);
+//     //     parser.check(&mut context, &mut pos);
+//     //     error_handler.render_report("call to parse function", src);
+//     //     Err(format!("Parsing failed at position {}", pos))
+//     // }
+// }
+// pub fn check<Pars>(parser: Pars, src: &str) -> bool
+// where
+//     Pars: Grammar<char>,
+// {
+//     let mut tokens: Vec<char> = src.chars().collect();
+//     let mut error_handler = EmptyErrorHandler::default();
+//     let mut context = ParserContext::new(&mut tokens, &mut error_handler);
+//     let mut pos = 0;
+//     parser.check(&mut context, &mut pos) && pos == tokens.len()
+// }
 
 #[cfg(test)]
 mod tests {
@@ -221,11 +255,11 @@ mod tests {
         // assert_eq!(
         //     number_parser.parse(Rc::new(ParserContext::new(vec!['1', '2', '3'])), &mut 0),
         //     Ok("123".to_string())
-        // );
-        assert!(check(&number_parser, "123"));
-        assert_eq!(parse(&number_parser, "123"), Ok("123".to_string()));
-        println!("{}", parse(&number_parser, "123abc").unwrap());
-        println!("{}", parse(&identifier_parser, "var_name123").unwrap());
+        // // );
+        // assert!(check(&number_parser, "123"));
+        // assert_eq!(parse(&number_parser, "123"), Ok("123".to_string()));
+        // println!("{}", parse(&number_parser, "123abc").unwrap());
+        // println!("{}", parse(&identifier_parser, "var_name123").unwrap());
 
         let func_parser = Rc::new(Capture::<
             (
@@ -355,6 +389,6 @@ mod tests {
         //     Ok("Function: name=main, params=[x, y], body=None".to_string())
         // );
 
-        parse(&func_parser, "fn main(x, y)").unwrap();
+        // parse(&func_parser, "fn main(x, y)").unwrap();
     }
 }

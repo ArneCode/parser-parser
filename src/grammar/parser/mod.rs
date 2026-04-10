@@ -1,36 +1,41 @@
-pub mod multiple;
+// pub mod multiple;
 pub mod one_of;
-pub mod one_or_more;
+// pub mod one_or_more;
 pub mod range_parser;
 pub mod single_token;
 pub mod token_parser;
 use std::ops::Deref;
 
-use crate::grammar::{context::ParserContext, error_handler::ErrorHandler};
+use crate::grammar::{
+    context::ParserContext,
+    error_handler::{self, ErrorHandler, ParserError},
+};
 
-pub trait Parser<Token> {
+pub trait Parser<'ctx, Token> {
     type Output;
     fn parse(
         &self,
-        context: &mut ParserContext<'_, Token, impl ErrorHandler>,
+        context: &mut ParserContext<'ctx, Token>,
+        error_handler: &mut impl ErrorHandler,
         pos: &mut usize,
-    ) -> Result<Self::Output, String>;
+    ) -> Result<Option<Self::Output>, ParserError>;
 }
 
 // impl Parser for all types that deref to a parser
-impl<Inner, Outer, Token> Parser<Token> for Outer
+impl<'ctx, Inner, Outer, Token> Parser<'ctx, Token> for Outer
 where
     Outer: Deref<Target = Inner>,
-    Inner: Parser<Token>,
+    Inner: Parser<'ctx, Token>,
 {
     type Output = Inner::Output;
 
-    fn parse<'ctx>(
+    fn parse(
         &self,
-        context: &mut ParserContext<'ctx, Token, impl ErrorHandler>,
+        context: &mut ParserContext<'ctx, Token>,
+        error_handler: &mut impl ErrorHandler,
         pos: &mut usize,
-    ) -> Result<Self::Output, String> {
-        (**self).parse(context, pos)
+    ) -> Result<Option<Self::Output>, ParserError> {
+        (**self).parse(context, error_handler, pos)
     }
 }
 

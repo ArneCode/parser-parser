@@ -1,20 +1,16 @@
 use crate::grammar::{
-    Grammar, HasId, IsCheckable,
     context::{
-        MatchResult, MatchResultMultiple, MatchResultOptional, MatchResultSingle, MatcherContext,
-        ParserContext,
+        MatchResult, MatchResultMultiple, MatchResultOptional, MatchResultSingle, ParserContext,
     },
-    error_handler::ErrorHandler,
-    get_next_id,
-    label::MaybeLabel,
+    error_handler::{ErrorHandler, ParserError},
     matcher::{
         CanImplMatchWithRunner, CanMatchWithRunner, DoImplMatchWithNoMoemoizeBacktrackingRunner,
-        MatchRunner, Matcher, NoMoemoizeBacktrackingRunner,
+        MatchRunner, NoMoemoizeBacktrackingRunner,
     },
     parser::Parser,
     span::Span,
 };
-use std::{fmt::Debug, marker::PhantomData};
+use std::{fmt::Debug, marker::PhantomData, result};
 
 pub trait Property<Value, MatchResult> {
     fn put_in_result(&self, result: &mut MatchResult, value: Value);
@@ -102,7 +98,6 @@ where
 pub struct Capture<MRes, Match, F> {
     matcher: Match,
     constructor: F,
-    id: usize,
     _phantom: PhantomData<MRes>,
 }
 
@@ -119,20 +114,13 @@ where
         'ctx: 'a,
         GF: Fn(MResSingle::Properties, MResMultiple::Properties, MResOptional::Properties) -> Match,
         Token: 'ctx,
-        EHandler: ErrorHandler + 'ctx,
     >(
         grammar_factory: GF,
         constructor: F,
     ) -> Self
     where
         Match: CanMatchWithRunner<
-            NoMoemoizeBacktrackingRunner<
-                'a,
-                'ctx,
-                Token,
-                (MResSingle, MResMultiple, MResOptional),
-                EHandler,
-            >,
+            NoMoemoizeBacktrackingRunner<'a, 'ctx, Token, (MResSingle, MResMultiple, MResOptional)>,
         >, // Matcher<Token, (MResSingle, MResMultiple, MResOptional)> + HasId + IsCheckable<Token>,
     {
         let properties_single = MResSingle::new_properties();
@@ -141,74 +129,46 @@ where
         Self {
             matcher: grammar_factory(properties_single, properties_multiple, properties_optional),
             constructor,
-            id: get_next_id(),
             _phantom: PhantomData,
         }
     }
 }
 
-impl<Token, Out, MResSingle, MResMultiple, MResOptional, Match, F> Parser<Token>
+impl<'ctx, Token, Out, MResSingle, MResMultiple, MResOptional, Match, F> Parser<'ctx, Token>
     for Capture<(MResSingle, MResMultiple, MResOptional), Match, F>
 where
     MResSingle: MatchResultSingle,
     MResMultiple: MatchResultMultiple,
     MResOptional: MatchResultOptional,
-    Match: Matcher<Token, (MResSingle, MResMultiple, MResOptional)> + HasId + IsCheckable<Token>,
+    Token: 'ctx,
+    Match: for<'a> CanMatchWithRunner<
+        NoMoemoizeBacktrackingRunner<'a, 'ctx, Token, (MResSingle, MResMultiple, MResOptional)>,
+    >,
     F: Fn(MResSingle::Output, MResMultiple, MResOptional) -> Out,
 {
     type Output = Out;
 
-    fn parse<'ctx>(
+    fn parse(
         &self,
-        context: &mut ParserContext<'ctx, Token, impl ErrorHandler>,
+        context: &mut ParserContext<'ctx, Token>,
+        error_handler: &mut impl ErrorHandler,
         pos: &mut usize,
-    ) -> Result<Self::Output, String> {
+    ) -> Result<Option<Self::Output>, ParserError> {
         let old_match_start = context.match_start;
         context.match_start = *pos;
-        let mut context = MatcherContext::new(
-            context,
-            MResSingle::new(),
-            MResMultiple::new(),
-            MResOptional::new(),
-        );
-        self.matcher.match_pattern(&mut context, pos)?;
-        let (res_single, res_multiple, res_optional) = context.match_result;
-        let result = (self.constructor)(res_single.to_output(), res_multiple, res_optional);
-        context.parser_context.match_start = old_match_start;
-        Ok(result)
+        let mut runner = NoMoemoizeBacktrackingRunner::new(context);
+        if runner.run_match(&self.matcher, error_handler, pos)? {
+            let (res_single, res_multiple, res_optional) = runner.get_match_result();
+            let result = (self.constructor)(res_single.to_output(), res_multiple, res_optional);
+            context.match_start = old_match_start;
+            Ok(Some(result))
+        } else {
+            drop(runner);
+            context.match_start = old_match_start;
+            Ok(None)
+        }
     }
 }
-
-impl<T, MRes, Match, F> IsCheckable<T> for Capture<MRes, Match, F>
-where
-    Match: Grammar<T>,
-{
-    fn calc_check(
-        &self,
-        context: &mut ParserContext<T, impl ErrorHandler>,
-        pos: &mut usize,
-    ) -> bool {
-        self.matcher.check(context, pos)
-    }
-}
-
-impl<MRes, Match, F> HasId for Capture<MRes, Match, F>
-where
-    Match: HasId,
-{
-    fn id(&self) -> usize {
-        self.id
-    }
-}
-
-// pub struct BoundResult<Value, MRes, Prop>
-// where
-//     Prop: Property<Value, MRes>,
-// {
-//     property: &'a Prop,
-//     value: Value,
-//     _phantom: PhantomData<MRes>,
-// }
 pub trait BoundResult<MRes> {
     fn put_in_result(self, result: &mut MRes);
     fn put_boxed_in_result(self: Box<Self>, result: &mut MRes);
@@ -250,59 +210,70 @@ pub fn bind_result<Pars, Prop, Token>(
     ResultBinder::new(parser, property)
 }
 
-impl<Pars, Prop, Token> HasId for ResultBinder<Pars, Prop, Token>
-where
-    Pars: HasId,
-{
-    fn id(&self) -> usize {
-        self.parser.id()
-    }
-}
+// impl<Pars, Prop, Token> HasId for ResultBinder<Pars, Prop, Token>
+// where
+//     Pars: HasId,
+// {
+//     fn id(&self) -> usize {
+//         self.parser.id()
+//     }
+// }
 
-impl<Pars, Prop, Token> IsCheckable<Token> for ResultBinder<Pars, Prop, Token>
-where
-    Pars: Grammar<Token>,
-{
-    fn calc_check(
-        &self,
-        context: &mut ParserContext<Token, impl ErrorHandler>,
-        pos: &mut usize,
-    ) -> bool {
-        self.parser.check(context, pos)
-    }
-}
+// impl<Pars, Prop, Token> IsCheckable<Token> for ResultBinder<Pars, Prop, Token>
+// where
+//     Pars: Grammar<Token>,
+// {
+//     fn calc_check(
+//         &self,
+//         context: &mut ParserContext<Token, impl ErrorHandler>,
+//         pos: &mut usize,
+//     ) -> bool {
+//         self.parser.check(context, pos)
+//     }
+// }
 
-impl<Token, MRes, Pars, Prop> Matcher<Token, MRes> for ResultBinder<Pars, Prop, Token>
-where
-    Pars: Parser<Token>,
-    Prop: Property<Pars::Output, MRes>,
-{
-    fn match_pattern(
-        &self,
-        context: &mut MatcherContext<Token, MRes, impl ErrorHandler>,
-        pos: &mut usize,
-    ) -> Result<(), String> {
-        let result = self.parser.parse(context.parser_context, pos)?;
-        self.property
-            .put_in_result(&mut context.match_result, result);
-        Ok(())
-    }
-}
+// impl<Token, MRes, Pars, Prop> Matcher<Token, MRes> for ResultBinder<Pars, Prop, Token>
+// where
+//     Pars: Parser<Token>,
+//     Prop: Property<Pars::Output, MRes>,
+// {
+//     fn match_pattern(
+//         &self,
+//         context: &mut MatcherContext<Token, MRes, impl ErrorHandler>,
+//         pos: &mut usize,
+//     ) -> Result<(), String> {
+//         let result = self.parser.parse(context.parser_context, pos)?;
+//         self.property
+//             .put_in_result(&mut context.match_result, result);
+//         Ok(())
+//     }
+// }
 
 impl<'a, 'ctx, Pars, Prop, Runner, Token> CanImplMatchWithRunner<Runner>
     for ResultBinder<Pars, Prop, Token>
 where
     Token: 'ctx,
-    Pars: Parser<Token>,
+    Pars: Parser<'ctx, Token>,
     Pars::Output: 'a,
     Runner: MatchRunner<'a, 'ctx, Token = Token>,
     Prop: Property<Pars::Output, Runner::MRes> + Clone + 'a,
 {
-    fn impl_match_with_runner(&self, runner: &mut Runner, pos: &mut usize) -> Result<bool, String> {
-        let result = self.parser.parse(runner.get_parser_context(), pos)?;
-        let bound = self.property.bind_result(result);
-        runner.register_result(bound);
-        Ok(true)
+    fn impl_match_with_runner(
+        &self,
+        runner: &mut Runner,
+        error_handler: &mut impl ErrorHandler,
+        pos: &mut usize,
+    ) -> Result<bool, ParserError> {
+        if let Some(result) = self
+            .parser
+            .parse(runner.get_parser_context(), error_handler, pos)?
+        {
+            let bound = self.property.bind_result(result);
+            runner.register_result(bound);
+            Ok(true)
+        } else {
+            Ok(false)
+        }
     }
 }
 
@@ -324,45 +295,45 @@ impl<Match, Prop> SpanBinder<Match, Prop> {
 pub fn bind_span<Match, Prop>(matcher: Match, property: Prop) -> SpanBinder<Match, Prop> {
     SpanBinder::new(matcher, property)
 }
-impl<Match, Prop> HasId for SpanBinder<Match, Prop>
-where
-    Match: HasId,
-{
-    fn id(&self) -> usize {
-        self.matcher.id()
-    }
-}
-impl<Token, Match, Prop> IsCheckable<Token> for SpanBinder<Match, Prop>
-where
-    Match: Grammar<Token>,
-{
-    fn calc_check(
-        &self,
-        context: &mut ParserContext<Token, impl ErrorHandler>,
-        pos: &mut usize,
-    ) -> bool {
-        self.matcher.check(context, pos)
-    }
-}
+// impl<Match, Prop> HasId for SpanBinder<Match, Prop>
+// where
+//     Match: HasId,
+// {
+//     fn id(&self) -> usize {
+//         self.matcher.id()
+//     }
+// }
+// impl<Token, Match, Prop> IsCheckable<Token> for SpanBinder<Match, Prop>
+// where
+//     Match: Grammar<Token>,
+// {
+//     fn calc_check(
+//         &self,
+//         context: &mut ParserContext<Token, impl ErrorHandler>,
+//         pos: &mut usize,
+//     ) -> bool {
+//         self.matcher.check(context, pos)
+//     }
+// }
 
-impl<Token, MRes, Match, Prop> Matcher<Token, MRes> for SpanBinder<Match, Prop>
-where
-    Match: Matcher<Token, MRes> + HasId,
-    Prop: Property<Span, MRes>,
-{
-    fn match_pattern(
-        &self,
-        context: &mut MatcherContext<Token, MRes, impl ErrorHandler>,
-        pos: &mut usize,
-    ) -> Result<(), String> {
-        let start_pos = *pos;
-        self.matcher.match_pattern(context, pos)?;
-        let end_pos = *pos;
-        self.property
-            .put_in_result(&mut context.match_result, Span::new(start_pos, end_pos));
-        Ok(())
-    }
-}
+// impl<Token, MRes, Match, Prop> Matcher<Token, MRes> for SpanBinder<Match, Prop>
+// where
+//     Match: Matcher<Token, MRes> + HasId,
+//     Prop: Property<Span, MRes>,
+// {
+//     fn match_pattern(
+//         &self,
+//         context: &mut MatcherContext<Token, MRes, impl ErrorHandler>,
+//         pos: &mut usize,
+//     ) -> Result<(), String> {
+//         let start_pos = *pos;
+//         self.matcher.match_pattern(context, pos)?;
+//         let end_pos = *pos;
+//         self.property
+//             .put_in_result(&mut context.match_result, Span::new(start_pos, end_pos));
+//         Ok(())
+//     }
+// }
 
 impl<'a, 'ctx, Match, Prop, Runner> CanImplMatchWithRunner<Runner> for SpanBinder<Match, Prop>
 where
@@ -370,9 +341,14 @@ where
     Runner: MatchRunner<'a, 'ctx>,
     Prop: Property<Span, Runner::MRes> + Clone + 'a,
 {
-    fn impl_match_with_runner(&self, runner: &mut Runner, pos: &mut usize) -> Result<bool, String> {
+    fn impl_match_with_runner(
+        &self,
+        runner: &mut Runner,
+        error_handler: &mut impl ErrorHandler,
+        pos: &mut usize,
+    ) -> Result<bool, ParserError> {
         let start_pos = *pos;
-        if !runner.run_match(&self.matcher, pos)? {
+        if !runner.run_match(&self.matcher, error_handler, pos)? {
             return Ok(false);
         }
         let end_pos = *pos;
@@ -386,8 +362,6 @@ impl<Match, Prop> DoImplMatchWithNoMoemoizeBacktrackingRunner for SpanBinder<Mat
     Match: DoImplMatchWithNoMoemoizeBacktrackingRunner
 {
 }
-
-impl<Label, Match, Prop> MaybeLabel<Label> for SpanBinder<Match, Prop> {}
 
 impl MatchResultSingle for () {
     type Properties = ();
@@ -564,6 +538,3 @@ impl_match_results_for_tuple!(
     (T10, 10),
     (T11, 11)
 );
-
-impl<Label, MRes, Match, F> MaybeLabel<Label> for Capture<MRes, Match, F> {}
-impl<Label, Pars, Prop, Token> MaybeLabel<Label> for ResultBinder<Pars, Prop, Token> {}
