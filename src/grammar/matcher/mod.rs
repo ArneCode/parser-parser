@@ -1,4 +1,5 @@
 // pub mod any_token;
+pub mod error_contextualizer;
 pub mod multiple;
 // pub mod negative_lookahead;
 pub mod one_of;
@@ -13,6 +14,7 @@ use crate::grammar::{
     capture::BoundResult,
     context::{MatchResult, ParserContext},
     error_handler::{ErrorHandler, ParserError},
+    matcher::error_contextualizer::ErrorContextualizer,
 };
 
 pub trait ToMatcher {
@@ -27,6 +29,12 @@ pub trait CanMatchWithRunner<Runner> {
         error_handler: &mut impl ErrorHandler,
         pos: &mut usize,
     ) -> Result<bool, ParserError>;
+    fn add_error_info<Pars, F>(self, error_parser: Pars) -> ErrorContextualizer<Self, Pars, F>
+    where
+        Self: Sized,
+    {
+        ErrorContextualizer::new(self, error_parser)
+    }
 }
 pub trait MatchRunner<'a, 'ctx> {
     type Token: 'ctx;
