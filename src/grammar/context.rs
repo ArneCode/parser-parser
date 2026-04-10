@@ -1,11 +1,12 @@
 use std::collections::HashMap;
 
-use crate::grammar::error_handler::ErrorHandler;
+use crate::grammar::error_handler::ParserError;
 
 pub struct ParserContext<'a, T> {
     pub tokens: &'a mut Vec<T>,
     pub memo_table: HashMap<(usize, usize), Option<usize>>,
     pub match_start: usize,
+    pub error_sink: Vec<ParserError>,
 }
 
 impl<'a, T> ParserContext<'a, T> {
@@ -14,6 +15,7 @@ impl<'a, T> ParserContext<'a, T> {
             tokens,
             memo_table: HashMap::new(),
             match_start: 0,
+            error_sink: Vec::new(),
         }
     }
 }
@@ -96,33 +98,3 @@ where
         &mut self.2
     }
 }
-
-// pub struct MatcherContext<'a, 'ctx, Token, MRes> {
-//     pub parser_context: &'a mut ParserContext<'ctx, Token>,
-//     pub match_result: MRes,
-// }
-
-// impl<'a, 'ctx, T, MResSingle, MResMultiple, MResOptional, EHandler: ErrorHandler>
-//     MatcherContext<'a, 'ctx, T, (MResSingle, MResMultiple, MResOptional), EHandler>
-// where
-//     MResSingle: MatchResultSingle,
-//     MResMultiple: MatchResultMultiple,
-//     MResOptional: MatchResultOptional,
-// {
-//     pub fn new(
-//         parser_context: &'a mut ParserContext<'ctx, T>,
-//         match_result_single: MResSingle,
-//         match_result_multiple: MResMultiple,
-//         match_result_optional: MResOptional,
-//     ) -> Self {
-//         let match_result = MatchResult::new(
-//             match_result_single,
-//             match_result_multiple,
-//             match_result_optional,
-//         );
-//         Self {
-//             parser_context,
-//             match_result,
-//         }
-//     }
-// }
