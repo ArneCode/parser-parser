@@ -1,8 +1,6 @@
-use std::fmt::Debug;
 
 use crate::grammar::{
-    context::ParserContext,
-    error_handler::{self, ErrorHandler, ParserError},
+    error_handler::{ErrorHandler, ParserError},
     matcher::{CanImplMatchWithRunner, DoImplMatchWithNoMoemoizeBacktrackingRunner, MatchRunner},
     parser::Parser,
 };

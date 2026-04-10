@@ -5,16 +5,9 @@ pub mod label;
 pub mod matcher;
 pub mod parser;
 pub mod span;
-use std::{
-    ops::Deref,
-    sync::atomic::{self, AtomicUsize},
-};
+use std::sync::atomic::AtomicUsize;
 
-use crate::grammar::{
-    context::ParserContext,
-    error_handler::{EmptyErrorHandler, ErrorHandler, MultiErrorHandler},
-    parser::Parser,
-};
+use crate::grammar::error_handler::ErrorHandler;
 
 static NEXT_ID: AtomicUsize = AtomicUsize::new(0);
 // fn get_next_id() -> usize {

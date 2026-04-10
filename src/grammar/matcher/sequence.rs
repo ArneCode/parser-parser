@@ -1,5 +1,4 @@
 use crate::grammar::{
-    context::ParserContext,
     error_handler::{ErrorHandler, ParserError},
     matcher::{
         CanImplMatchWithRunner, CanMatchWithRunner, DoImplMatchWithNoMoemoizeBacktrackingRunner,

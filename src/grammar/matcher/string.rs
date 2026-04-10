@@ -1,6 +1,5 @@
 use crate::grammar::{
-    context::ParserContext,
-    error_handler::{self, ErrorHandler, ParserError},
+    error_handler::{ErrorHandler, ParserError},
     matcher::{
         CanImplMatchWithRunner, DoImplMatchWithNoMoemoizeBacktrackingRunner, MatchRunner, ToMatcher,
     },
@@ -41,7 +40,7 @@ where
     fn impl_match_with_runner(
         &self,
         runner: &mut Runner,
-        error_handler: &mut impl ErrorHandler,
+        _error_handler: &mut impl ErrorHandler,
         pos: &mut usize,
     ) -> Result<bool, ParserError> {
         let context = runner.get_parser_context();

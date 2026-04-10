@@ -3,7 +3,7 @@ use std::{collections::HashSet, fmt::Display};
 use ariadne::{Color, Label, Report, ReportKind, Source};
 
 pub trait ErrorHandler {
-    #[must_use]
+    
     type Indexer;
 
     fn new(start_pos: usize) -> Self
@@ -26,7 +26,7 @@ pub struct EmptyErrorHandler {}
 impl ErrorHandler for EmptyErrorHandler {
     type Indexer = ();
 
-    fn new(start_pos: usize) -> Self
+    fn new(_start_pos: usize) -> Self
     where
         Self: Sized,
     {
@@ -35,8 +35,8 @@ impl ErrorHandler for EmptyErrorHandler {
 
     fn register_start(&mut self, _pos: usize) -> Self::Indexer {}
     fn register_error<L: Display>(&mut self, _label: L, _idx: Self::Indexer, _match_start: usize) {}
-    fn register_success(&mut self, idx: Self::Indexer) {}
-    fn register_watermark(&mut self, pos: usize) {}
+    fn register_success(&mut self, _idx: Self::Indexer) {}
+    fn register_watermark(&mut self, _pos: usize) {}
 }
 
 pub struct MultiErrorHandler {
@@ -94,11 +94,10 @@ impl ErrorHandler for MultiErrorHandler {
                 idx.slice_idx
             );
         }
-        if let Some((start, end)) = self.slice_stack.pop() {
-            if let Some(slice) = self.slice_stack.last_mut() {
+        if let Some((_start, end)) = self.slice_stack.pop()
+            && let Some(slice) = self.slice_stack.last_mut() {
                 slice.1 = slice.1.max(end);
             }
-        }
     }
 
     fn register_error<L: Display + 'static>(
@@ -271,7 +270,7 @@ impl ParserError {
         &self,
         source_id: &'s str,
         source_text: &str,
-    ) -> ariadne::ReportBuilder<(&'s str, std::ops::Range<usize>)> {
+    ) -> ariadne::ReportBuilder<'_, (&'s str, std::ops::Range<usize>)> {
         let span_range = self.span.0..self.span.1;
 
         let mut report = Report::build(ReportKind::Error, (source_id, span_range.clone()))

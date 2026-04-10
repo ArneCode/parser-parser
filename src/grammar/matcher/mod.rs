@@ -8,12 +8,11 @@ pub mod parser_matcher;
 // pub mod positive_lookahead;
 pub mod sequence;
 pub mod string;
-use std::ops::Deref;
 
 use crate::grammar::{
     capture::BoundResult,
     context::{MatchResult, ParserContext},
-    error_handler::{self, ErrorHandler, ParserError},
+    error_handler::{ErrorHandler, ParserError},
 };
 
 pub trait ToMatcher {
