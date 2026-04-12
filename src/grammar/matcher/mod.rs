@@ -34,6 +34,7 @@ pub trait ToMatcher {
 pub trait Matcher<Runner> {
     /// whether this matcher will always either succeed or fail without writing to the matchresult
     const CAN_MATCH_DIRECTLY: bool;
+    const CAN_MATCH_DIRECTLY_ASSUMING_NO_FAIL: bool = Self::CAN_MATCH_DIRECTLY;
     const HAS_PROPERTY: bool;
     const CAN_FAIL: bool;
     fn match_with_runner(

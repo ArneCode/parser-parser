@@ -51,6 +51,7 @@ macro_rules! impl_matcher_for_seq_tuples {
                     !can_fail_after_prop
                 }
             };
+            const CAN_MATCH_DIRECTLY_ASSUMING_NO_FAIL: bool = $head::CAN_MATCH_DIRECTLY_ASSUMING_NO_FAIL  $(&& $tail::CAN_MATCH_DIRECTLY_ASSUMING_NO_FAIL)*;
             const HAS_PROPERTY: bool = $head::HAS_PROPERTY  $(|| $tail::HAS_PROPERTY)*;
             const CAN_FAIL: bool = $head::CAN_FAIL  $(|| $tail::CAN_FAIL)*;
 
