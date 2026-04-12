@@ -1,7 +1,6 @@
-
 use crate::grammar::{
     error_handler::{ErrorHandler, ParserError},
-    matcher::{CanImplMatchWithRunner, DoImplMatchWithNoMoemoizeBacktrackingRunner, MatchRunner},
+    matcher::{MatchRunner, Matcher},
     parser::Parser,
 };
 
@@ -19,14 +18,17 @@ impl<Pars, ParserOutput> ParserMatcher<Pars, ParserOutput> {
     }
 }
 
-impl<'a, 'ctx, Pars, ParserOutput, Runner> CanImplMatchWithRunner<Runner>
-    for ParserMatcher<Pars, ParserOutput>
+impl<'a, 'ctx, Pars, ParserOutput, Runner> Matcher<Runner> for ParserMatcher<Pars, ParserOutput>
 where
     Runner: MatchRunner<'a, 'ctx>,
     Pars: Parser<'ctx, Runner::Token, Output = ParserOutput>,
     ParserOutput: PartialEq,
 {
-    fn impl_match_with_runner(
+    const CAN_MATCH_DIRECTLY: bool = true;
+    const HAS_PROPERTY: bool = false;
+    const CAN_FAIL: bool = Pars::CAN_FAIL;
+
+    fn match_with_runner(
         &self,
         runner: &mut Runner,
         error_handler: &mut impl ErrorHandler,
@@ -41,8 +43,4 @@ where
         }
         Ok(false)
     }
-}
-impl<Pars, ParserOutput> DoImplMatchWithNoMoemoizeBacktrackingRunner
-    for ParserMatcher<Pars, ParserOutput>
-{
 }

@@ -3,7 +3,7 @@ use std::fmt::Display;
 use crate::grammar::{
     context::ParserContext,
     error_handler::{ErrorHandler, ParserError},
-    matcher::{CanImplMatchWithRunner, CanMatchWithRunner, MatchRunner},
+    matcher::{MatchRunner, Matcher},
     parser::Parser,
 };
 
@@ -18,13 +18,17 @@ impl<L, I> Labeled<L, I> {
     }
 }
 
-impl<'a, 'ctx, L, I, Runner> CanImplMatchWithRunner<Runner> for Labeled<L, I>
+impl<'a, 'ctx, L, I, Runner> Matcher<Runner> for Labeled<L, I>
 where
-    I: CanMatchWithRunner<Runner>,
+    I: Matcher<Runner>,
     Runner: MatchRunner<'a, 'ctx>,
     L: Display + Clone + 'static,
 {
-    fn impl_match_with_runner(
+    const CAN_MATCH_DIRECTLY: bool = I::CAN_MATCH_DIRECTLY;
+    const HAS_PROPERTY: bool = I::HAS_PROPERTY;
+    const CAN_FAIL: bool = I::CAN_FAIL;
+
+    fn match_with_runner(
         &self,
         runner: &mut Runner,
         error_handler: &mut impl ErrorHandler,
@@ -51,6 +55,7 @@ where
     L: Display + Clone + 'static,
 {
     type Output = I::Output;
+    const CAN_FAIL: bool = I::CAN_FAIL;
 
     fn parse(
         &self,

@@ -52,6 +52,7 @@ macro_rules! impl_parser_for_one_of_tuples {
             $($tail: Parser<'ctx, Token, Output = Output>,)*
         {
             type Output = Output;
+            const CAN_FAIL: bool = $head::CAN_FAIL  $(&& $tail::CAN_FAIL)*;
             fn parse(&self, context: &mut ParserContext<'ctx, Token>, error_handler: &mut impl ErrorHandler, pos: &mut usize) -> Result<Option<Output>, ParserError> {
 
                 #[allow(non_snake_case)]

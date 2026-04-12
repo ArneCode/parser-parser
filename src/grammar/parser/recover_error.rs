@@ -1,7 +1,7 @@
 use crate::grammar::{
     context::ParserContext,
     error_handler::ErrorHandler,
-    matcher::{CanMatchWithRunner, MatchRunner, NoMoemoizeBacktrackingRunner},
+    matcher::{MatchRunner, Matcher, NoMemoizeBacktrackingRunner},
     parser::Parser,
 };
 
@@ -26,10 +26,11 @@ impl<'ctx, Pars, Match, Output, Token> Parser<'ctx, Token> for ErrorRecoverer<Pa
 where
     Pars: Parser<'ctx, Token, Output = Output>,
     Token: 'ctx,
-    Match: for<'a> CanMatchWithRunner<NoMoemoizeBacktrackingRunner<'a, 'ctx, Token, ((), (), ())>>,
+    Match: for<'a> Matcher<NoMemoizeBacktrackingRunner<'a, 'ctx, Token, ((), (), ())>>,
     Output: Clone,
 {
     type Output = Output;
+    const CAN_FAIL: bool = Pars::CAN_FAIL;
 
     fn parse(
         &self,
@@ -41,7 +42,7 @@ where
         match self.happy.parse(context, error_handler, pos) {
             Err(e) => {
                 *pos = start_pos;
-                let mut runner = NoMoemoizeBacktrackingRunner::new(context);
+                let mut runner = NoMemoizeBacktrackingRunner::new(context);
                 if runner
                     .run_match(&self.recover_matcher, error_handler, pos)
                     .unwrap_or(false)

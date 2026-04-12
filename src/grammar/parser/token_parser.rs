@@ -45,6 +45,7 @@ where
     ParseF: Fn(&Token) -> Out,
 {
     type Output = Out;
+    const CAN_FAIL: bool = true;
 
     fn parse(
         &self,

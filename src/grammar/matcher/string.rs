@@ -1,8 +1,6 @@
 use crate::grammar::{
     error_handler::{ErrorHandler, ParserError},
-    matcher::{
-        CanImplMatchWithRunner, DoImplMatchWithNoMoemoizeBacktrackingRunner, MatchRunner, ToMatcher,
-    },
+    matcher::{MatchRunner, Matcher, ToMatcher},
 };
 
 pub struct StringMatcher {
@@ -33,11 +31,15 @@ impl ToMatcher for &str {
     }
 }
 
-impl<'a, 'ctx, Runner> CanImplMatchWithRunner<Runner> for StringMatcher
+impl<'a, 'ctx, Runner> Matcher<Runner> for StringMatcher
 where
     Runner: MatchRunner<'a, 'ctx, Token = char>,
 {
-    fn impl_match_with_runner(
+    const CAN_MATCH_DIRECTLY: bool = true;
+    const HAS_PROPERTY: bool = false;
+    const CAN_FAIL: bool = true;
+
+    fn match_with_runner(
         &self,
         runner: &mut Runner,
         _error_handler: &mut impl ErrorHandler,
@@ -58,8 +60,6 @@ where
         }
     }
 }
-
-impl DoImplMatchWithNoMoemoizeBacktrackingRunner for StringMatcher {}
 
 // impl MaybeLabel<String> for StringMatcher {
 //     fn maybe_label(&self) -> Option<String> {

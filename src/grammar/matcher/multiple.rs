@@ -1,10 +1,7 @@
 use crate::grammar::{
-    context::MatchResult,
+    capture::CanNotFail,
     error_handler::{ErrorHandler, ParserError},
-    matcher::{
-        CanImplMatchWithRunner, CanMatchWithRunner, DoImplMatchWithNoMoemoizeBacktrackingRunner,
-        MatchRunner,
-    },
+    matcher::{MatchRunner, Matcher},
 };
 
 pub struct Multiple<Match> {
@@ -21,12 +18,17 @@ pub fn many<Match>(matcher: Match) -> Multiple<Match> {
     Multiple::new(matcher)
 }
 
-impl<'a, 'ctx, Match, Runner> CanImplMatchWithRunner<Runner> for Multiple<Match>
+// impl<Match> Matcher for Multiple<Match> where Match: Matcher {}
+
+impl<'a, 'ctx, Match, Runner> Matcher<Runner> for Multiple<Match>
 where
-    Match: CanMatchWithRunner<Runner>,
+    Match: Matcher<Runner>,
     Runner: MatchRunner<'a, 'ctx>,
 {
-    fn impl_match_with_runner(
+    const CAN_MATCH_DIRECTLY: bool = Match::CAN_MATCH_DIRECTLY;
+    const HAS_PROPERTY: bool = Match::HAS_PROPERTY;
+    const CAN_FAIL: bool = false;
+    fn match_with_runner(
         &self,
         runner: &mut Runner,
         error_handler: &mut impl ErrorHandler,
@@ -37,7 +39,4 @@ where
     }
 }
 
-impl<Match> DoImplMatchWithNoMoemoizeBacktrackingRunner for Multiple<Match> where
-    Match: DoImplMatchWithNoMoemoizeBacktrackingRunner
-{
-}
+impl<Match> CanNotFail for Multiple<Match> {}

@@ -1,4 +1,5 @@
 // pub mod any_token;
+pub mod commit_matcher;
 pub mod error_contextualizer;
 pub mod multiple;
 // pub mod negative_lookahead;
@@ -22,7 +23,19 @@ pub trait ToMatcher {
     fn to_matcher(&self) -> Self::MatcherType;
 }
 
-pub trait CanMatchWithRunner<Runner> {
+// pub struct Bool<const VALUE: bool>;
+// pub trait BoolTrait {
+//     const VALUE: bool;
+// }
+// impl<const VALUE: bool> BoolTrait for Bool<VALUE> {
+//     const VALUE: bool = VALUE;
+// }
+
+pub trait Matcher<Runner> {
+    /// whether this matcher will always either succeed or fail without writing to the matchresult
+    const CAN_MATCH_DIRECTLY: bool;
+    const HAS_PROPERTY: bool;
+    const CAN_FAIL: bool;
     fn match_with_runner(
         &self,
         runner: &mut Runner,
@@ -40,14 +53,14 @@ pub trait MatchRunner<'a, 'ctx> {
     type Token: 'ctx;
     type MRes: MatchResult;
 
-    fn run_match<Matcher, EHandler: ErrorHandler>(
+    fn run_match<Match, EHandler: ErrorHandler>(
         &mut self,
-        matcher: &Matcher,
+        matcher: &Match,
         error_handler: &mut EHandler,
         pos: &mut usize,
     ) -> Result<bool, ParserError>
     where
-        Matcher: CanMatchWithRunner<Self>,
+        Match: Matcher<Self>,
         Self: Sized;
 
     fn register_result<Res: BoundResult<Self::MRes> + 'a>(&mut self, result: Res);
@@ -57,8 +70,8 @@ pub trait MatchRunner<'a, 'ctx> {
     fn get_parser_context<'b>(&'b mut self) -> &'b mut ParserContext<'ctx, Self::Token>;
 }
 
-impl<'a, 'ctx, Token, MRes> NoMoemoizeBacktrackingRunner<'a, 'ctx, Token, MRes> {
-    pub fn new(parser_context: &'a mut ParserContext<'ctx, Token>) -> Self {
+impl<'a, 'ctx, Token, MRes> NoMemoizeBacktrackingRunner<'a, 'ctx, Token, MRes> {
+    pub const fn new(parser_context: &'a mut ParserContext<'ctx, Token>) -> Self {
         Self {
             parser_context,
             stack: Vec::new(),
@@ -66,26 +79,26 @@ impl<'a, 'ctx, Token, MRes> NoMoemoizeBacktrackingRunner<'a, 'ctx, Token, MRes> 
     }
 }
 
-pub struct NoMoemoizeBacktrackingRunner<'a, 'ctx, Token, MRes> {
+pub struct NoMemoizeBacktrackingRunner<'a, 'ctx, Token, MRes> {
     parser_context: &'a mut ParserContext<'ctx, Token>,
     stack: Vec<Box<dyn BoundResult<MRes> + 'a>>,
 }
 impl<'a, 'ctx, Token, MRes> MatchRunner<'a, 'ctx>
-    for NoMoemoizeBacktrackingRunner<'a, 'ctx, Token, MRes>
+    for NoMemoizeBacktrackingRunner<'a, 'ctx, Token, MRes>
 where
     MRes: MatchResult,
 {
     type Token = Token;
     type MRes = MRes;
 
-    fn run_match<Matcher, EHandler: ErrorHandler>(
+    fn run_match<Match, EHandler: ErrorHandler>(
         &mut self,
-        matcher: &Matcher,
+        matcher: &Match,
         error_handler: &mut EHandler,
         pos: &mut usize,
     ) -> Result<bool, ParserError>
     where
-        Matcher: CanMatchWithRunner<Self>,
+        Match: Matcher<Self>,
         Self: Sized,
     {
         let old_pos = *pos;
@@ -116,30 +129,102 @@ where
     }
 }
 
-pub trait CanImplMatchWithRunner<Runner> {
-    fn impl_match_with_runner(
-        &self,
-        runner: &mut Runner,
-        error_handler: &mut impl ErrorHandler,
-        pos: &mut usize,
-    ) -> Result<bool, ParserError>;
+// pub trait Matcher<Runner> {
+//     const CAN_MATCH_DIRECTLY: bool;
+//     const HAS_PROPERTY: bool;
+//     const CAN_FAIL: bool;
+//     fn match_with_runner(
+//         &self,
+//         runner: &mut Runner,
+//         error_handler: &mut impl ErrorHandler,
+//         pos: &mut usize,
+//     ) -> Result<bool, ParserError>;
+// }
+
+// pub trait DoImplMatchWithNoMoemoizeBacktrackingRunner {}
+
+// impl<'a, 'ctx, T, Token, MRes>
+//     CanMatchWithRunner<NoMoemoizeBacktrackingRunner<'a, 'ctx, Token, MRes>> for T
+// where
+//     T: DoImplMatchWithNoMoemoizeBacktrackingRunner
+//         + Matcher<NoMoemoizeBacktrackingRunner<'a, 'ctx, Token, MRes>>
+//         + Matcher,
+//     MRes: MatchResult,
+// {
+//     fn match_with_runner(
+//         &self,
+//         runner: &mut NoMoemoizeBacktrackingRunner<'a, 'ctx, Token, MRes>,
+//         error_handler: &mut impl ErrorHandler,
+//         pos: &mut usize,
+//     ) -> Result<bool, ParserError> {
+//         self.match_with_runner(runner, error_handler, pos)
+//     }
+// }
+
+pub struct DirectMatchRunner<'a, 'ctx, Token, MRes> {
+    parser_context: &'a mut ParserContext<'ctx, Token>,
+    result: MRes,
 }
 
-pub trait DoImplMatchWithNoMoemoizeBacktrackingRunner {}
-
-impl<'a, 'ctx, T, Token, MRes>
-    CanMatchWithRunner<NoMoemoizeBacktrackingRunner<'a, 'ctx, Token, MRes>> for T
+impl<'a, 'ctx, Token, MRes> MatchRunner<'a, 'ctx> for DirectMatchRunner<'a, 'ctx, Token, MRes>
 where
-    T: DoImplMatchWithNoMoemoizeBacktrackingRunner
-        + CanImplMatchWithRunner<NoMoemoizeBacktrackingRunner<'a, 'ctx, Token, MRes>>,
     MRes: MatchResult,
 {
-    fn match_with_runner(
-        &self,
-        runner: &mut NoMoemoizeBacktrackingRunner<'a, 'ctx, Token, MRes>,
-        error_handler: &mut impl ErrorHandler,
+    type Token = Token;
+    type MRes = MRes;
+
+    fn run_match<Match, EHandler: ErrorHandler>(
+        &mut self,
+        matcher: &Match,
+        error_handler: &mut EHandler,
         pos: &mut usize,
-    ) -> Result<bool, ParserError> {
-        self.impl_match_with_runner(runner, error_handler, pos)
+    ) -> Result<bool, ParserError>
+    where
+        Match: Matcher<Self>,
+        Self: Sized,
+    {
+        let old_pos = *pos;
+        if matcher.match_with_runner(self, error_handler, pos)? {
+            Ok(true)
+        } else {
+            *pos = old_pos;
+            Ok(false)
+        }
+    }
+
+    fn register_result<Res: BoundResult<Self::MRes> + 'a>(&mut self, result: Res) {
+        result.put_in_result(&mut self.result);
+    }
+
+    fn get_match_result(self) -> Self::MRes {
+        self.result
+    }
+
+    fn get_parser_context<'b>(&'b mut self) -> &'b mut ParserContext<'ctx, Self::Token> {
+        self.parser_context
     }
 }
+
+impl<'a, 'ctx, Token, MRes> DirectMatchRunner<'a, 'ctx, Token, MRes> {
+    pub fn new(parser_context: &'a mut ParserContext<'ctx, Token>, result: MRes) -> Self {
+        Self {
+            parser_context,
+            result,
+        }
+    }
+}
+
+// impl<'a, 'ctx, T, Token, MRes> CanMatchWithRunner<DirectMatchRunner<'a, 'ctx, Token, MRes>> for T
+// where
+//     T: Matcher<DirectMatchRunner<'a, 'ctx, Token, MRes>> + Matcher<CanMatchDirectly = Bool<true>>,
+//     MRes: MatchResult,
+// {
+//     fn match_with_runner(
+//         &self,
+//         runner: &mut DirectMatchRunner<'a, 'ctx, Token, MRes>,
+//         error_handler: &mut impl ErrorHandler,
+//         pos: &mut usize,
+//     ) -> Result<bool, ParserError> {
+//         self.match_with_runner(runner, error_handler, pos)
+//     }
+// }

@@ -15,6 +15,8 @@ use crate::grammar::{
 
 pub trait Parser<'ctx, Token> {
     type Output;
+    const CAN_FAIL: bool;
+
     fn parse(
         &self,
         context: &mut ParserContext<'ctx, Token>,
@@ -40,6 +42,7 @@ where
     Inner: Parser<'ctx, Token>,
 {
     type Output = Inner::Output;
+    const CAN_FAIL: bool = Inner::CAN_FAIL;
 
     fn parse(
         &self,

@@ -181,7 +181,7 @@ mod tests {
         capture::{Capture, bind_result, bind_span},
         matcher::{
             ToMatcher, multiple::many, one_or_more::one_or_more, optional::optional,
-            parser_matcher::ParserMatcher, sequence::seq,
+            parser_matcher::ParserMatcher,
         },
         parser::{
             Parser, one_of::OneOfParser, range_parser::RangeParser,
@@ -199,11 +199,11 @@ mod tests {
         ));
         let word_parser = Rc::new(capture!(
             {
-                seq((
+                (
                     bind!(letter_parser.clone(),
                 *letters),
                     many(bind!(letter_parser.clone(), *letters)),
-                ))
+                )
             } => {
                 letters.into_iter().collect::<String>()
             }
@@ -216,10 +216,10 @@ mod tests {
 
         let number_parser = capture!(
             {
-                seq((
+                (
                     bind!(&digit_parser, *digits),//,
                     many(bind!(&digit_parser, *digits)),
-                ))
+                )
             } => {
                 println!("Captured digits: {:?}", digits);
                 digits.into_iter().collect::<String>()
@@ -228,7 +228,7 @@ mod tests {
 
         let identifier_parser = capture!(
         {
-            seq((
+            (
                 bind!(OneOfParser::new((RangeParser::new('a'..='z'), RangeParser::new('A'..='Z'))), *tokens),
                 many(bind!(
                     OneOfParser::new((
@@ -239,7 +239,7 @@ mod tests {
                     )),
                     *tokens
                 )),
-            ))
+            )
         }   => {
                     tokens.into_iter().collect::<String>()
                 }
@@ -269,7 +269,7 @@ mod tests {
         >::new(
             |(name, fn_keyword_span, name_span), (params, param_spans), (body,)| {
                 {
-                    seq((
+                    (
                         bind_span(
                             ParserMatcher::new(&identifier_parser, "fn".to_string()),
                             fn_keyword_span.clone(),
@@ -286,7 +286,7 @@ mod tests {
                             bind_result(word_parser.clone(), params.clone()),
                             param_spans.clone(),
                         ),
-                        many(seq((
+                        many((
                             many(" ".to_matcher()),
                             ",".to_matcher(),
                             many(" ".to_matcher()),
@@ -294,12 +294,12 @@ mod tests {
                                 bind_result(word_parser.clone(), params.clone()),
                                 param_spans.clone(),
                             ),
-                        ))),
+                        )),
                         many(" ".to_matcher()),
                         ")".to_matcher(),
                         many(" ".to_matcher()),
                         optional(bind_result(word_parser.clone(), body.clone())),
-                    ))
+                    )
                 }
             },
             |(name, fn_keyword_span, name_span), (params, param_spans), (body,)| {

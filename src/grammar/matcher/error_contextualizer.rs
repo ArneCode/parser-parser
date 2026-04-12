@@ -2,7 +2,7 @@ use std::marker::PhantomData;
 
 use crate::grammar::{
     error_handler::{ErrorHandler, ParserError},
-    matcher::{CanImplMatchWithRunner, CanMatchWithRunner, MatchRunner},
+    matcher::{MatchRunner, Matcher},
     parser::Parser,
 };
 
@@ -23,15 +23,18 @@ impl<Matcher, Pars, F> ErrorContextualizer<Matcher, Pars, F> {
 }
 
 //TODO: ensure that Pars cannot error with trait CanNotError
-impl<'a, 'ctx, Matcher, Pars, F, Runner> CanImplMatchWithRunner<Runner>
-    for ErrorContextualizer<Matcher, Pars, F>
+impl<'a, 'ctx, Match, Pars, F, Runner> Matcher<Runner> for ErrorContextualizer<Match, Pars, F>
 where
     Runner: MatchRunner<'a, 'ctx>,
-    Matcher: CanMatchWithRunner<Runner>,
+    Match: Matcher<Runner>,
     Pars: Parser<'ctx, Runner::Token, Output = F>,
     F: Fn(&mut ParserError) -> (),
 {
-    fn impl_match_with_runner(
+    const CAN_MATCH_DIRECTLY: bool = Match::CAN_MATCH_DIRECTLY;
+    const HAS_PROPERTY: bool = Match::HAS_PROPERTY;
+    const CAN_FAIL: bool = Match::CAN_FAIL;
+
+    fn match_with_runner(
         &self,
         runner: &mut Runner,
         error_handler: &mut impl ErrorHandler,

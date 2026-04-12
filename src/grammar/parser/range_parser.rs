@@ -23,6 +23,7 @@ where
     Range: Debug,
 {
     type Output = Token;
+    const CAN_FAIL: bool = true;
 
     fn parse(
         &self,

@@ -3,10 +3,7 @@ use crate::grammar::{
         MatchResult, MatchResultMultiple, MatchResultOptional, MatchResultSingle, ParserContext,
     },
     error_handler::{ErrorHandler, ParserError},
-    matcher::{
-        CanImplMatchWithRunner, CanMatchWithRunner, DoImplMatchWithNoMoemoizeBacktrackingRunner,
-        MatchRunner, NoMoemoizeBacktrackingRunner,
-    },
+    matcher::{DirectMatchRunner, MatchRunner, Matcher, NoMemoizeBacktrackingRunner},
     parser::Parser,
     span::Span,
 };
@@ -119,8 +116,8 @@ where
         constructor: F,
     ) -> Self
     where
-        Match: CanMatchWithRunner<
-            NoMoemoizeBacktrackingRunner<'a, 'ctx, Token, (MResSingle, MResMultiple, MResOptional)>,
+        Match: Matcher<
+            NoMemoizeBacktrackingRunner<'a, 'ctx, Token, (MResSingle, MResMultiple, MResOptional)>,
         >, // Matcher<Token, (MResSingle, MResMultiple, MResOptional)> + HasId + IsCheckable<Token>,
     {
         let properties_single = MResSingle::new_properties();
@@ -141,12 +138,17 @@ where
     MResMultiple: MatchResultMultiple,
     MResOptional: MatchResultOptional,
     Token: 'ctx,
-    Match: for<'a> CanMatchWithRunner<
-        NoMoemoizeBacktrackingRunner<'a, 'ctx, Token, (MResSingle, MResMultiple, MResOptional)>,
-    >,
+    Match: for<'a> Matcher<
+            NoMemoizeBacktrackingRunner<'a, 'ctx, Token, (MResSingle, MResMultiple, MResOptional)>,
+        > + for<'a> Matcher<
+            DirectMatchRunner<'a, 'ctx, Token, (MResSingle, MResMultiple, MResOptional)>,
+        >,
     F: Fn(MResSingle::Output, MResMultiple, MResOptional) -> Out,
 {
     type Output = Out;
+    const CAN_FAIL: bool = <Match as Matcher<
+        DirectMatchRunner<'_, '_, Token, (MResSingle, MResMultiple, MResOptional)>,
+    >>::CAN_FAIL;
 
     fn parse(
         &self,
@@ -154,18 +156,40 @@ where
         error_handler: &mut impl ErrorHandler,
         pos: &mut usize,
     ) -> Result<Option<Self::Output>, ParserError> {
+        // TODO: match_start logic is a bit wrong, maybe remove overall?
         let old_match_start = context.match_start;
         context.match_start = *pos;
-        let mut runner = NoMoemoizeBacktrackingRunner::new(context);
-        if runner.run_match(&self.matcher, error_handler, pos)? {
-            let (res_single, res_multiple, res_optional) = runner.get_match_result();
-            let result = (self.constructor)(res_single.to_output(), res_multiple, res_optional);
-            context.match_start = old_match_start;
-            Ok(Some(result))
+        if {
+            <Match as Matcher<
+                DirectMatchRunner<'_, '_, Token, (MResSingle, MResMultiple, MResOptional)>,
+            >>::CAN_MATCH_DIRECTLY
+        } {
+            let mut runner = DirectMatchRunner::new(
+                context,
+                (MResSingle::new(), MResMultiple::new(), MResOptional::new()),
+            );
+            if runner.run_match(&self.matcher, error_handler, pos)? {
+                let (res_single, res_multiple, res_optional) = runner.get_match_result();
+                let result = (self.constructor)(res_single.to_output(), res_multiple, res_optional);
+                context.match_start = old_match_start;
+                Ok(Some(result))
+            } else {
+                drop(runner);
+                context.match_start = old_match_start;
+                Ok(None)
+            }
         } else {
-            drop(runner);
-            context.match_start = old_match_start;
-            Ok(None)
+            let mut runner = NoMemoizeBacktrackingRunner::new(context);
+            if runner.run_match(&self.matcher, error_handler, pos)? {
+                let (res_single, res_multiple, res_optional) = runner.get_match_result();
+                let result = (self.constructor)(res_single.to_output(), res_multiple, res_optional);
+                context.match_start = old_match_start;
+                Ok(Some(result))
+            } else {
+                drop(runner);
+                context.match_start = old_match_start;
+                Ok(None)
+            }
         }
     }
 }
@@ -210,47 +234,7 @@ pub fn bind_result<Pars, Prop, Token>(
     ResultBinder::new(parser, property)
 }
 
-// impl<Pars, Prop, Token> HasId for ResultBinder<Pars, Prop, Token>
-// where
-//     Pars: HasId,
-// {
-//     fn id(&self) -> usize {
-//         self.parser.id()
-//     }
-// }
-
-// impl<Pars, Prop, Token> IsCheckable<Token> for ResultBinder<Pars, Prop, Token>
-// where
-//     Pars: Grammar<Token>,
-// {
-//     fn calc_check(
-//         &self,
-//         context: &mut ParserContext<Token, impl ErrorHandler>,
-//         pos: &mut usize,
-//     ) -> bool {
-//         self.parser.check(context, pos)
-//     }
-// }
-
-// impl<Token, MRes, Pars, Prop> Matcher<Token, MRes> for ResultBinder<Pars, Prop, Token>
-// where
-//     Pars: Parser<Token>,
-//     Prop: Property<Pars::Output, MRes>,
-// {
-//     fn match_pattern(
-//         &self,
-//         context: &mut MatcherContext<Token, MRes, impl ErrorHandler>,
-//         pos: &mut usize,
-//     ) -> Result<(), String> {
-//         let result = self.parser.parse(context.parser_context, pos)?;
-//         self.property
-//             .put_in_result(&mut context.match_result, result);
-//         Ok(())
-//     }
-// }
-
-impl<'a, 'ctx, Pars, Prop, Runner, Token> CanImplMatchWithRunner<Runner>
-    for ResultBinder<Pars, Prop, Token>
+impl<'a, 'ctx, Pars, Prop, Runner, Token> Matcher<Runner> for ResultBinder<Pars, Prop, Token>
 where
     Token: 'ctx,
     Pars: Parser<'ctx, Token>,
@@ -258,7 +242,11 @@ where
     Runner: MatchRunner<'a, 'ctx, Token = Token>,
     Prop: Property<Pars::Output, Runner::MRes> + Clone + 'a,
 {
-    fn impl_match_with_runner(
+    const CAN_MATCH_DIRECTLY: bool = true;
+    const HAS_PROPERTY: bool = true;
+    const CAN_FAIL: bool = Pars::CAN_FAIL;
+
+    fn match_with_runner(
         &self,
         runner: &mut Runner,
         error_handler: &mut impl ErrorHandler,
@@ -277,11 +265,6 @@ where
     }
 }
 
-impl<Pars, Prop, Token> DoImplMatchWithNoMoemoizeBacktrackingRunner
-    for ResultBinder<Pars, Prop, Token>
-{
-}
-
 /// Binds the span (start and end positions) of a match to a property in the match result.
 pub struct SpanBinder<Match, Prop> {
     matcher: Match,
@@ -295,53 +278,18 @@ impl<Match, Prop> SpanBinder<Match, Prop> {
 pub fn bind_span<Match, Prop>(matcher: Match, property: Prop) -> SpanBinder<Match, Prop> {
     SpanBinder::new(matcher, property)
 }
-// impl<Match, Prop> HasId for SpanBinder<Match, Prop>
-// where
-//     Match: HasId,
-// {
-//     fn id(&self) -> usize {
-//         self.matcher.id()
-//     }
-// }
-// impl<Token, Match, Prop> IsCheckable<Token> for SpanBinder<Match, Prop>
-// where
-//     Match: Grammar<Token>,
-// {
-//     fn calc_check(
-//         &self,
-//         context: &mut ParserContext<Token, impl ErrorHandler>,
-//         pos: &mut usize,
-//     ) -> bool {
-//         self.matcher.check(context, pos)
-//     }
-// }
 
-// impl<Token, MRes, Match, Prop> Matcher<Token, MRes> for SpanBinder<Match, Prop>
-// where
-//     Match: Matcher<Token, MRes> + HasId,
-//     Prop: Property<Span, MRes>,
-// {
-//     fn match_pattern(
-//         &self,
-//         context: &mut MatcherContext<Token, MRes, impl ErrorHandler>,
-//         pos: &mut usize,
-//     ) -> Result<(), String> {
-//         let start_pos = *pos;
-//         self.matcher.match_pattern(context, pos)?;
-//         let end_pos = *pos;
-//         self.property
-//             .put_in_result(&mut context.match_result, Span::new(start_pos, end_pos));
-//         Ok(())
-//     }
-// }
-
-impl<'a, 'ctx, Match, Prop, Runner> CanImplMatchWithRunner<Runner> for SpanBinder<Match, Prop>
+impl<'a, 'ctx, Match, Prop, Runner> Matcher<Runner> for SpanBinder<Match, Prop>
 where
-    Match: CanMatchWithRunner<Runner>,
+    Match: Matcher<Runner>,
     Runner: MatchRunner<'a, 'ctx>,
     Prop: Property<Span, Runner::MRes> + Clone + 'a,
 {
-    fn impl_match_with_runner(
+    const CAN_MATCH_DIRECTLY: bool = Match::CAN_MATCH_DIRECTLY;
+    const HAS_PROPERTY: bool = true;
+    const CAN_FAIL: bool = Match::CAN_FAIL;
+
+    fn match_with_runner(
         &self,
         runner: &mut Runner,
         error_handler: &mut impl ErrorHandler,
@@ -356,11 +304,6 @@ where
         runner.register_result(bound);
         Ok(true)
     }
-}
-
-impl<Match, Prop> DoImplMatchWithNoMoemoizeBacktrackingRunner for SpanBinder<Match, Prop> where
-    Match: DoImplMatchWithNoMoemoizeBacktrackingRunner
-{
 }
 
 impl MatchResultSingle for () {
@@ -538,3 +481,10 @@ impl_match_results_for_tuple!(
     (T10, 10),
     (T11, 11)
 );
+pub trait HasProperty {}
+pub trait HasNoProperty {}
+pub trait CanNotFail {}
+
+impl<Match, Prop> HasNoProperty for SpanBinder<Match, Prop> {}
+
+impl<Pars, Prop, Token> HasProperty for ResultBinder<Pars, Prop, Token> {}

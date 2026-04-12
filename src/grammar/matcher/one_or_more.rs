@@ -1,9 +1,6 @@
 use crate::grammar::{
     error_handler::{ErrorHandler, ParserError},
-    matcher::{
-        CanImplMatchWithRunner, CanMatchWithRunner, DoImplMatchWithNoMoemoizeBacktrackingRunner,
-        MatchRunner,
-    },
+    matcher::{MatchRunner, Matcher},
 };
 pub struct OneOrMore<Match> {
     matcher: Match,
@@ -20,12 +17,16 @@ pub fn one_or_more<Match>(matcher: Match) -> OneOrMore<Match> {
     OneOrMore::new(matcher)
 }
 
-impl<'a, 'ctx, Match, Runner> CanImplMatchWithRunner<Runner> for OneOrMore<Match>
+impl<'a, 'ctx, Match, Runner> Matcher<Runner> for OneOrMore<Match>
 where
-    Match: CanMatchWithRunner<Runner>,
+    Match: Matcher<Runner>,
     Runner: MatchRunner<'a, 'ctx>,
 {
-    fn impl_match_with_runner(
+    const CAN_MATCH_DIRECTLY: bool = Match::CAN_MATCH_DIRECTLY;
+    const HAS_PROPERTY: bool = Match::HAS_PROPERTY;
+    const CAN_FAIL: bool = false;
+
+    fn match_with_runner(
         &self,
         runner: &mut Runner,
         error_handler: &mut impl ErrorHandler,
@@ -39,9 +40,4 @@ where
         while runner.run_match(&self.matcher, error_handler, pos)? {}
         Ok(true)
     }
-}
-
-impl<Match> DoImplMatchWithNoMoemoizeBacktrackingRunner for OneOrMore<Match> where
-    Match: DoImplMatchWithNoMoemoizeBacktrackingRunner
-{
 }

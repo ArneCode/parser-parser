@@ -61,7 +61,7 @@ impl<Token> SingleTokenParser<Token> {
 // }
 impl<'ctx, Token: PartialEq + Clone + Debug> Parser<'ctx, Token> for SingleTokenParser<Token> {
     type Output = Token;
-
+    const CAN_FAIL: bool = true;
     fn parse(
         &self,
         context: &mut ParserContext<'ctx, Token>,
