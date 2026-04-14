@@ -1,6 +1,7 @@
-// pub mod multiple;
+pub mod multiple;
 pub mod one_of;
 // pub mod one_or_more;
+pub mod deferred;
 pub mod range_parser;
 pub mod recover_error;
 pub mod single_token;
@@ -9,7 +10,7 @@ use std::ops::Deref;
 
 use crate::grammar::{
     context::ParserContext,
-    error_handler::{ErrorHandler, ParserError},
+    error_handler::{ErrorHandler, ErrorHandlerChoice, ParserError},
     parser::recover_error::ErrorRecoverer,
 };
 
@@ -32,6 +33,34 @@ pub trait Parser<'ctx, Token> {
         Self: Sized,
     {
         ErrorRecoverer::new(self, recover_matcher, recover_output)
+    }
+}
+pub(crate) trait ParserObjSafe<'ctx, Token> {
+    type Output;
+    fn parse(
+        &self,
+        context: &mut ParserContext<'ctx, Token>,
+        error_handler: ErrorHandlerChoice<'_>,
+        pos: &mut usize,
+    ) -> Result<Option<Self::Output>, ParserError>;
+}
+
+impl<'ctx, Token, P> ParserObjSafe<'ctx, Token> for P
+where
+    P: Parser<'ctx, Token>,
+{
+    type Output = P::Output;
+
+    fn parse(
+        &self,
+        context: &mut ParserContext<'ctx, Token>,
+        error_handler: ErrorHandlerChoice<'_>,
+        pos: &mut usize,
+    ) -> Result<Option<Self::Output>, ParserError> {
+        match error_handler {
+            ErrorHandlerChoice::Empty(handler) => self.parse(context, handler, pos),
+            ErrorHandlerChoice::Multi(handler) => self.parse(context, handler, pos),
+        }
     }
 }
 

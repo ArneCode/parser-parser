@@ -2,8 +2,13 @@ use std::{collections::HashSet, fmt::Display};
 
 use ariadne::{Color, Label, Report, ReportKind, Source};
 
+use crate::grammar::{context::ParserContext, parser::Parser};
+pub(crate) enum ErrorHandlerChoice<'a> {
+    Empty(&'a mut EmptyErrorHandler),
+    Multi(&'a mut MultiErrorHandler),
+}
+
 pub trait ErrorHandler {
-    
     type Indexer;
 
     fn new(start_pos: usize) -> Self
@@ -19,6 +24,7 @@ pub trait ErrorHandler {
     );
     fn register_success(&mut self, idx: Self::Indexer);
     fn register_watermark(&mut self, pos: usize);
+    fn to_choice(&mut self) -> ErrorHandlerChoice<'_>;
 }
 #[derive(Default)]
 pub struct EmptyErrorHandler {}
@@ -37,6 +43,9 @@ impl ErrorHandler for EmptyErrorHandler {
     fn register_error<L: Display>(&mut self, _label: L, _idx: Self::Indexer, _match_start: usize) {}
     fn register_success(&mut self, _idx: Self::Indexer) {}
     fn register_watermark(&mut self, _pos: usize) {}
+    fn to_choice(&mut self) -> ErrorHandlerChoice<'_> {
+        ErrorHandlerChoice::Empty(self)
+    }
 }
 
 pub struct MultiErrorHandler {
@@ -95,9 +104,10 @@ impl ErrorHandler for MultiErrorHandler {
             );
         }
         if let Some((_start, end)) = self.slice_stack.pop()
-            && let Some(slice) = self.slice_stack.last_mut() {
-                slice.1 = slice.1.max(end);
-            }
+            && let Some(slice) = self.slice_stack.last_mut()
+        {
+            slice.1 = slice.1.max(end);
+        }
     }
 
     fn register_error<L: Display + 'static>(
@@ -145,6 +155,9 @@ impl ErrorHandler for MultiErrorHandler {
         if match_start == failure_slice.0 {
             self.errors_at_match_start.push(error_idx);
         }
+    }
+    fn to_choice(&mut self) -> ErrorHandlerChoice<'_> {
+        ErrorHandlerChoice::Multi(self)
     }
 }
 

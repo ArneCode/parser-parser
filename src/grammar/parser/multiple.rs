@@ -1,55 +1,53 @@
 use crate::grammar::{
-    Grammar, HasId, IsCheckable, context::ParserContext, error_handler::ErrorHandler, get_next_id,
+    context::ParserContext,
+    error_handler::{ErrorHandler, ParserError},
     parser::Parser,
 };
 pub struct MultipleParser<Pars, CombF> {
     parser: Pars,
     combine_fn: CombF,
-    id: usize,
 }
 
 impl<Pars, CombF> MultipleParser<Pars, CombF> {
     pub fn new(parser: Pars, combine_fn: CombF) -> Self {
-        Self {
-            parser,
-            combine_fn,
-            id: get_next_id(),
-        }
+        Self { parser, combine_fn }
     }
 }
 
-impl<Pars, CombF> HasId for MultipleParser<Pars, CombF> {
-    fn id(&self) -> usize {
-        self.id
-    }
-}
+// impl<Pars, CombF> HasId for MultipleParser<Pars, CombF> {
+//     fn id(&self) -> usize {
+//         self.id
+//     }
+// }
 
-impl<T, NodeIn, Pars, CombF> IsCheckable<T> for MultipleParser<Pars, CombF>
+// impl<T, NodeIn, Pars, CombF> IsCheckable<T> for MultipleParser<Pars, CombF>
+// where
+//     Pars: Parser<T, Output = NodeIn> + Grammar<T>,
+// {
+//     fn calc_check(&self, context: &mut ParserContext<T>, pos: &mut usize) -> bool {
+//         while self.parser.check(context, pos) {}
+//         true
+//     }
+// }
+
+impl<'ctx, T, NodeIn, NodeOut, Pars, CombF> Parser<'ctx, T> for MultipleParser<Pars, CombF>
 where
-    Pars: Parser<T, Output = NodeIn> + Grammar<T>,
-{
-    fn calc_check(&self, context: &mut ParserContext<T>, pos: &mut usize) -> bool {
-        while self.parser.check(context, pos) {}
-        true
-    }
-}
-
-impl<T, NodeIn, NodeOut, Pars, CombF> Parser<T> for MultipleParser<Pars, CombF>
-where
-    Pars: Parser<T, Output = NodeIn> + Grammar<T>,
+    Pars: Parser<'ctx, T, Output = NodeIn>,
     CombF: Fn(Vec<NodeIn>) -> NodeOut,
 {
     type Output = NodeOut;
+    const CAN_FAIL: bool = Pars::CAN_FAIL;
 
-    fn parse<'ctx>(
+    fn parse(
         &self,
-        context: &mut ParserContext<'ctx, T, impl ErrorHandler>,
+        context: &mut ParserContext<'ctx, T>,
+        error_handler: &mut impl ErrorHandler,
         pos: &mut usize,
-    ) -> Result<Self::Output, String> {
+    ) -> Result<Option<Self::Output>, ParserError> {
         let mut results = Vec::new();
-        while self.parser.check_no_advance(context, pos) {
-            results.push(self.parser.parse(context, pos)?);
+        while let Some(result) = self.parser.parse(context, error_handler, pos)? {
+            results.push(result);
         }
-        Ok((self.combine_fn)(results))
+        Ok(Some((self.combine_fn)(results)))
     }
 }

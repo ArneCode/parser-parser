@@ -173,7 +173,7 @@ static NEXT_ID: AtomicUsize = AtomicUsize::new(0);
 
 #[cfg(test)]
 mod tests {
-    use std::{ops::RangeBounds, rc::Rc, vec};
+    use std::{ops::RangeBounds, process::Output, rc::Rc, vec};
 
     use macros::capture;
 
@@ -184,7 +184,7 @@ mod tests {
             parser_matcher::ParserMatcher,
         },
         parser::{
-            Parser, one_of::OneOfParser, range_parser::RangeParser,
+            Parser, ParserObjSafe, one_of::OneOfParser, range_parser::RangeParser,
             single_token::SingleTokenParser, token_parser::TokenParser,
         },
     };
@@ -317,6 +317,7 @@ mod tests {
                 )
             },
         ));
+        let func_parser: Box<dyn ParserObjSafe<char, Output = String>> = Box::new(func_parser);
         // let func_parser = Rc::new(Capture::<
         //     (
         //         (

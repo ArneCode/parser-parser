@@ -184,6 +184,13 @@ where
         Match: Matcher<Self>,
         Self: Sized,
     {
+        const {
+            if !Match::CAN_MATCH_DIRECTLY {
+                panic!(
+                    "Matcher cannot be run with DirectMatchRunner because it cannot match directly"
+                );
+            }
+        }
         let old_pos = *pos;
         if matcher.match_with_runner(self, error_handler, pos)? {
             Ok(true)
