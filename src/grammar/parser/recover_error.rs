@@ -22,11 +22,11 @@ impl<Pars, Match, Output> ErrorRecoverer<Pars, Match, Output> {
 }
 
 //TODO: ensure that Match cannot error with trait CanNotError
-impl<'ctx, Pars, Match, Output, Token> Parser<'ctx, Token> for ErrorRecoverer<Pars, Match, Output>
+impl<Pars, Match, Output, Token> Parser<Token> for ErrorRecoverer<Pars, Match, Output>
 where
-    Pars: Parser<'ctx, Token, Output = Output>,
-    Token: 'ctx,
-    Match: for<'a> Matcher<NoMemoizeBacktrackingRunner<'a, 'ctx, Token, ((), (), ())>>,
+    Pars: Parser<Token, Output = Output>,
+    // Token: 'ctx,
+    Match: for<'a, 'ctx> Matcher<NoMemoizeBacktrackingRunner<'a, 'ctx, Token, ((), (), ())>>,
     Output: Clone,
 {
     type Output = Output;
@@ -34,7 +34,7 @@ where
 
     fn parse(
         &self,
-        context: &mut ParserContext<'ctx, Token>,
+        context: &mut ParserContext<Token>,
         error_handler: &mut impl ErrorHandler,
         pos: &mut usize,
     ) -> Result<Option<Self::Output>, crate::grammar::error_handler::ParserError> {

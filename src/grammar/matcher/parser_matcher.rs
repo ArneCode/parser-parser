@@ -21,7 +21,7 @@ impl<Pars, ParserOutput> ParserMatcher<Pars, ParserOutput> {
 impl<'a, 'ctx, Pars, ParserOutput, Runner> Matcher<Runner> for ParserMatcher<Pars, ParserOutput>
 where
     Runner: MatchRunner<'a, 'ctx>,
-    Pars: Parser<'ctx, Runner::Token, Output = ParserOutput>,
+    Pars: Parser<Runner::Token, Output = ParserOutput>,
     ParserOutput: PartialEq,
 {
     const CAN_MATCH_DIRECTLY: bool = true;

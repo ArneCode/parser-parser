@@ -30,9 +30,9 @@ impl<Pars, CombF> MultipleParser<Pars, CombF> {
 //     }
 // }
 
-impl<'ctx, T, NodeIn, NodeOut, Pars, CombF> Parser<'ctx, T> for MultipleParser<Pars, CombF>
+impl<T, NodeIn, NodeOut, Pars, CombF> Parser<T> for MultipleParser<Pars, CombF>
 where
-    Pars: Parser<'ctx, T, Output = NodeIn>,
+    Pars: Parser<T, Output = NodeIn>,
     CombF: Fn(Vec<NodeIn>) -> NodeOut,
 {
     type Output = NodeOut;
@@ -40,7 +40,7 @@ where
 
     fn parse(
         &self,
-        context: &mut ParserContext<'ctx, T>,
+        context: &mut ParserContext<T>,
         error_handler: &mut impl ErrorHandler,
         pos: &mut usize,
     ) -> Result<Option<Self::Output>, ParserError> {

@@ -131,17 +131,17 @@ where
     }
 }
 
-impl<'ctx, Token, Out, MResSingle, MResMultiple, MResOptional, Match, F> Parser<'ctx, Token>
+impl<Token, Out, MResSingle, MResMultiple, MResOptional, Match, F> Parser<Token>
     for Capture<(MResSingle, MResMultiple, MResOptional), Match, F>
 where
     MResSingle: MatchResultSingle,
     MResMultiple: MatchResultMultiple,
     MResOptional: MatchResultOptional,
-    Token: 'ctx,
-    Match: for<'a> Matcher<
-            NoMemoizeBacktrackingRunner<'a, 'ctx, Token, (MResSingle, MResMultiple, MResOptional)>,
-        > + for<'a> Matcher<
-            DirectMatchRunner<'a, 'ctx, Token, (MResSingle, MResMultiple, MResOptional)>,
+    // Token: 'ctx,
+    Match: for<'a, 'b> Matcher<
+            NoMemoizeBacktrackingRunner<'a, 'b, Token, (MResSingle, MResMultiple, MResOptional)>,
+        > + for<'a, 'b> Matcher<
+            DirectMatchRunner<'a, 'b, Token, (MResSingle, MResMultiple, MResOptional)>,
         >,
     F: Fn(MResSingle::Output, MResMultiple, MResOptional) -> Out,
 {
@@ -150,7 +150,7 @@ where
         DirectMatchRunner<'_, '_, Token, (MResSingle, MResMultiple, MResOptional)>,
     >>::CAN_FAIL;
 
-    fn parse(
+    fn parse<'ctx>(
         &self,
         context: &mut ParserContext<'ctx, Token>,
         error_handler: &mut impl ErrorHandler,
@@ -234,10 +234,9 @@ pub fn bind_result<Pars, Prop, Token>(
     ResultBinder::new(parser, property)
 }
 
-impl<'a, 'ctx, Pars, Prop, Runner, Token> Matcher<Runner> for ResultBinder<Pars, Prop, Token>
+impl<'a, 'ctx, Pars, Prop, Runner, Token: 'ctx> Matcher<Runner> for ResultBinder<Pars, Prop, Token>
 where
-    Token: 'ctx,
-    Pars: Parser<'ctx, Token>,
+    Pars: Parser<Token>,
     Pars::Output: 'a,
     Runner: MatchRunner<'a, 'ctx, Token = Token>,
     Prop: Property<Pars::Output, Runner::MRes> + Clone + 'a,

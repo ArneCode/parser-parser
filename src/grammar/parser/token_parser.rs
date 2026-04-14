@@ -39,7 +39,7 @@ impl<CheckF, ParseF> TokenParser<CheckF, ParseF> {
 //     }
 // }
 
-impl<'ctx, Token, Out, CheckF, ParseF> Parser<'ctx, Token> for TokenParser<CheckF, ParseF>
+impl<Token, Out, CheckF, ParseF> Parser<Token> for TokenParser<CheckF, ParseF>
 where
     CheckF: Fn(&Token) -> bool,
     ParseF: Fn(&Token) -> Out,

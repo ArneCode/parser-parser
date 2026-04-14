@@ -16,7 +16,7 @@ impl<Range> RangeParser<Range> {
     }
 }
 
-impl<'ctx, Token, Range> Parser<'ctx, Token> for RangeParser<Range>
+impl<Token, Range> Parser<Token> for RangeParser<Range>
 where
     Range: RangeBounds<Token>,
     Token: PartialOrd + Clone,

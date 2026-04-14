@@ -14,11 +14,11 @@ use crate::grammar::{
     parser::recover_error::ErrorRecoverer,
 };
 
-pub trait Parser<'ctx, Token> {
+pub trait Parser<Token> {
     type Output;
     const CAN_FAIL: bool;
 
-    fn parse(
+    fn parse<'ctx>(
         &self,
         context: &mut ParserContext<'ctx, Token>,
         error_handler: &mut impl ErrorHandler,
@@ -35,9 +35,9 @@ pub trait Parser<'ctx, Token> {
         ErrorRecoverer::new(self, recover_matcher, recover_output)
     }
 }
-pub(crate) trait ParserObjSafe<'ctx, Token> {
+pub(crate) trait ParserObjSafe<Token> {
     type Output;
-    fn parse(
+    fn parse<'ctx>(
         &self,
         context: &mut ParserContext<'ctx, Token>,
         error_handler: ErrorHandlerChoice<'_>,
@@ -45,13 +45,13 @@ pub(crate) trait ParserObjSafe<'ctx, Token> {
     ) -> Result<Option<Self::Output>, ParserError>;
 }
 
-impl<'ctx, Token, P> ParserObjSafe<'ctx, Token> for P
+impl<Token, P> ParserObjSafe<Token> for P
 where
-    P: Parser<'ctx, Token>,
+    P: Parser<Token>,
 {
     type Output = P::Output;
 
-    fn parse(
+    fn parse<'ctx>(
         &self,
         context: &mut ParserContext<'ctx, Token>,
         error_handler: ErrorHandlerChoice<'_>,
@@ -65,15 +65,15 @@ where
 }
 
 // impl Parser for all types that deref to a parser
-impl<'ctx, Inner, Outer, Token> Parser<'ctx, Token> for Outer
+impl<Inner, Outer, Token> Parser<Token> for Outer
 where
     Outer: Deref<Target = Inner>,
-    Inner: Parser<'ctx, Token>,
+    Inner: Parser<Token>,
 {
     type Output = Inner::Output;
     const CAN_FAIL: bool = Inner::CAN_FAIL;
 
-    fn parse(
+    fn parse<'ctx>(
         &self,
         context: &mut ParserContext<'ctx, Token>,
         error_handler: &mut impl ErrorHandler,

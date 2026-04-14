@@ -6,11 +6,11 @@ use crate::grammar::{
     parser::{Parser, ParserObjSafe},
 };
 
-pub struct Deferred<'ctx, Token, Output> {
-    parser: OnceCell<Box<dyn ParserObjSafe<'ctx, Token, Output = Output>>>,
+pub struct Deferred<Token, Output> {
+    parser: OnceCell<Box<dyn ParserObjSafe<Token, Output = Output>>>,
 }
 
-impl<'ctx, Token, Output> Deferred<'ctx, Token, Output> {
+impl<Token, Output> Deferred<Token, Output> {
     fn new() -> Self {
         Self {
             parser: OnceCell::new(),
@@ -19,7 +19,7 @@ impl<'ctx, Token, Output> Deferred<'ctx, Token, Output> {
 
     fn set_parser<P>(&self, parser: P) -> Result<(), &'static str>
     where
-        P: Parser<'ctx, Token, Output = Output> + 'static,
+        P: Parser<Token, Output = Output> + 'static,
     {
         self.parser
             .set(Box::new(parser))
@@ -27,13 +27,13 @@ impl<'ctx, Token, Output> Deferred<'ctx, Token, Output> {
     }
 }
 
-impl<'ctx, Token, Output> Parser<'ctx, Token> for Deferred<'ctx, Token, Output> {
+impl<Token, Output> Parser<Token> for Deferred<Token, Output> {
     type Output = Output;
     const CAN_FAIL: bool = true;
 
     fn parse(
         &self,
-        context: &mut ParserContext<'ctx, Token>,
+        context: &mut ParserContext<Token>,
         error_handler: &mut impl ErrorHandler,
         pos: &mut usize,
     ) -> Result<Option<Self::Output>, ParserError> {
@@ -45,10 +45,10 @@ impl<'ctx, Token, Output> Parser<'ctx, Token> for Deferred<'ctx, Token, Output> 
     }
 }
 
-pub fn recursive<'ctx, Token, Output, F, Pars>(parser_fn: F) -> Deferred<'ctx, Token, Output>
+pub fn recursive<'ctx, Token, Output, F, Pars>(parser_fn: F) -> Deferred<Token, Output>
 where
-    F: FnOnce(&Deferred<'ctx, Token, Output>) -> Pars,
-    Pars: Parser<'ctx, Token, Output = Output> + 'static,
+    F: FnOnce(&Deferred<Token, Output>) -> Pars,
+    Pars: Parser<Token, Output = Output> + 'static,
 {
     let deferred = Deferred::new();
     let parser = parser_fn(&deferred);

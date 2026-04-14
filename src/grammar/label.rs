@@ -49,15 +49,15 @@ where
     }
 }
 
-impl<'ctx, L, I, Token> Parser<'ctx, Token> for Labeled<L, I>
+impl<L, I, Token> Parser<Token> for Labeled<L, I>
 where
-    I: Parser<'ctx, Token>,
+    I: Parser<Token>,
     L: Display + Clone + 'static,
 {
     type Output = I::Output;
     const CAN_FAIL: bool = I::CAN_FAIL;
 
-    fn parse(
+    fn parse<'ctx>(
         &self,
         context: &mut ParserContext<'ctx, Token>,
         error_handler: &mut impl ErrorHandler,

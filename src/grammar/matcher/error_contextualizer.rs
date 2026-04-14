@@ -27,7 +27,7 @@ impl<'a, 'ctx, Match, Pars, F, Runner> Matcher<Runner> for ErrorContextualizer<M
 where
     Runner: MatchRunner<'a, 'ctx>,
     Match: Matcher<Runner>,
-    Pars: Parser<'ctx, Runner::Token, Output = F>,
+    Pars: Parser<Runner::Token, Output = F>,
     F: Fn(&mut ParserError) -> (),
 {
     const CAN_MATCH_DIRECTLY: bool = Match::CAN_MATCH_DIRECTLY;
