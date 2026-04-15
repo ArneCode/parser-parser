@@ -6,3 +6,4 @@ edition = "2024"
 [dependencies]
 ariadne = "0.6.0"
 macros = { path = "./macros" }
+miette = { version = "7", features = ["fancy"] }

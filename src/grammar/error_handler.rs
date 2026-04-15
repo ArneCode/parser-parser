@@ -1,6 +1,7 @@
 use std::{collections::HashSet, fmt::Display};
 
 use ariadne::{Color, Label, Report, ReportKind, Source};
+use miette::{GraphicalReportHandler, LabeledSpan, MietteDiagnostic, NamedSource, Report as MietteReport};
 
 pub(crate) enum ErrorHandlerChoice<'a> {
     Empty(&'a mut EmptyErrorHandler),
@@ -242,6 +243,10 @@ impl ParserError {
     // ── rendering ─────────────────────────────────────────────────────────────
 
     pub fn eprint(&self, source_id: &str, source_text: &str) {
+        self.eprint_ariadne(source_id, source_text);
+    }
+
+    pub fn eprint_ariadne(&self, source_id: &str, source_text: &str) {
         self.build_report(source_id, source_text)
             .finish()
             .eprint((source_id, Source::from(source_text)))
@@ -249,10 +254,26 @@ impl ParserError {
     }
 
     pub fn write(&self, source_id: &str, source_text: &str, sink: impl std::io::Write) {
+        self.write_ariadne(source_id, source_text, sink);
+    }
+
+    pub fn write_ariadne(&self, source_id: &str, source_text: &str, sink: impl std::io::Write) {
         self.build_report(source_id, source_text)
             .finish()
             .write((source_id, Source::from(source_text)), sink)
             .unwrap();
+    }
+
+    pub fn eprint_miette(&self, source_id: &str, source_text: &str) {
+        let mut output = String::new();
+        self.render_miette_into(&mut output, source_id, source_text);
+        eprint!("{}", output);
+    }
+
+    pub fn write_miette(&self, source_id: &str, source_text: &str, mut sink: impl std::io::Write) {
+        let mut output = String::new();
+        self.render_miette_into(&mut output, source_id, source_text);
+        sink.write_all(output.as_bytes()).unwrap();
     }
 
     // ── private helpers ───────────────────────────────────────────────────────
@@ -312,6 +333,36 @@ impl ParserError {
         }
 
         report
+    }
+
+    fn render_miette_into(&self, out: &mut String, source_id: &str, source_text: &str) {
+        let main_label = LabeledSpan::new_primary_with_span(
+            Some(self.main_message(source_text)),
+            self.span.0..self.span.1,
+        );
+        let extra_labels = self
+            .annotations
+            .extra_labels
+            .iter()
+            .map(|label| LabeledSpan::at(label.span.0..label.span.1, label.message.clone()));
+        let labels: Vec<LabeledSpan> = std::iter::once(main_label).chain(extra_labels).collect();
+
+        let mut diag = MietteDiagnostic::new("Syntax Error").with_labels(labels);
+        let combined_help = self
+            .annotations
+            .notes
+            .iter()
+            .map(|note| format!("note: {}", note))
+            .chain(self.annotations.help.iter().cloned())
+            .collect::<Vec<_>>()
+            .join("\n");
+        if !combined_help.is_empty() {
+            diag = diag.with_help(combined_help);
+        }
+
+        let report = MietteReport::new(diag).with_source_code(NamedSource::new(source_id, source_text.to_string()));
+        let handler = GraphicalReportHandler::new().with_context_lines(1);
+        handler.render_report(out, report.as_ref()).unwrap();
     }
 }
 

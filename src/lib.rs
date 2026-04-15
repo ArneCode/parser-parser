@@ -194,13 +194,10 @@ mod tests {
             match result {
                 Ok((val, _)) => {
                     let serialized = val.serialize();
-                    println!(
-                        "File: {}, Parsed: {:?}, Serialized: {}",
-                        file_name, val, serialized
-                    );
+                    println!("File: {}, Serialized: {}", file_name, serialized);
                 }
                 Err(err) => {
-                    err.eprint(&file_name, &content);
+                    err.eprint_ariadne(&file_name, &content);
                 }
             }
             // match result {
