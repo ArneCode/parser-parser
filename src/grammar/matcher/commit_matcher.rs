@@ -1,6 +1,5 @@
 use crate::grammar::{
-    error_handler::{ErrorHandler, MultiErrorHandler, ParserError},
-    matcher::{MatchRunner, Matcher},
+    context::MatchResult, error_handler::{ErrorHandler, MultiErrorHandler, ParserError}, matcher::{MatchRunner, Matcher, NoMemoizeBacktrackingRunner}
 };
 
 pub struct CommitMatcher<CommitOn, ThenMatch> {
@@ -21,6 +20,7 @@ impl<Token, MRes, CommitOn, ThenMatch> Matcher<Token, MRes> for CommitMatcher<Co
 where
     CommitOn: Matcher<Token, MRes>,
     ThenMatch: Matcher<Token, MRes>,
+    MRes: MatchResult,
 {
     const CAN_MATCH_DIRECTLY: bool =
         CommitOn::CAN_MATCH_DIRECTLY && ThenMatch::CAN_MATCH_DIRECTLY_ASSUMING_NO_FAIL;
@@ -36,6 +36,7 @@ where
     where
         Runner: MatchRunner<'a, 'ctx, Token = Token, MRes = MRes>,
         'ctx: 'a,
+        Token: 'ctx,
     {
         if runner.run_match(&self.commit_on, error_handler, pos)? {
             if runner.run_match(&self.then_matcher, error_handler, pos)? {
@@ -43,6 +44,8 @@ where
             }
 
             let mut error_handler = MultiErrorHandler::new(*pos);
+            // starting new runner to find the error. we can't use the same runner again because then the properties of the match result will be written twice.
+            let mut runner: NoMemoizeBacktrackingRunner<'_, '_, Token, MRes> = NoMemoizeBacktrackingRunner::new(runner.get_parser_context());
             runner.run_match(&self.then_matcher, &mut error_handler, pos)?;
             let err = error_handler.to_parser_error();
             return Err(err);
