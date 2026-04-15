@@ -17,23 +17,26 @@ impl<Commit, Match> CommitMatcher<Commit, Match> {
     }
 }
 
-impl<'a, 'ctx, CommitOn, ThenMatch, Runner> Matcher<Runner> for CommitMatcher<CommitOn, ThenMatch>
+impl<Token, MRes, CommitOn, ThenMatch> Matcher<Token, MRes> for CommitMatcher<CommitOn, ThenMatch>
 where
-    CommitOn: Matcher<Runner>,
-    ThenMatch: Matcher<Runner>,
-    Runner: MatchRunner<'a, 'ctx>,
+    CommitOn: Matcher<Token, MRes>,
+    ThenMatch: Matcher<Token, MRes>,
 {
     const CAN_MATCH_DIRECTLY: bool =
         CommitOn::CAN_MATCH_DIRECTLY && ThenMatch::CAN_MATCH_DIRECTLY_ASSUMING_NO_FAIL;
     const HAS_PROPERTY: bool = CommitOn::HAS_PROPERTY || ThenMatch::HAS_PROPERTY;
     const CAN_FAIL: bool = CommitOn::CAN_FAIL;
 
-    fn match_with_runner(
-        &self,
+    fn match_with_runner<'a, 'ctx, Runner>(
+        &'a self,
         runner: &mut Runner,
         error_handler: &mut impl ErrorHandler,
         pos: &mut usize,
-    ) -> Result<bool, ParserError> {
+    ) -> Result<bool, ParserError>
+    where
+        Runner: MatchRunner<'a, 'ctx, Token = Token, MRes = MRes>,
+        'ctx: 'a,
+    {
         if runner.run_match(&self.commit_on, error_handler, pos)? {
             if runner.run_match(&self.then_matcher, error_handler, pos)? {
                 return Ok(true);

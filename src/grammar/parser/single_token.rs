@@ -81,3 +81,25 @@ impl<Token: PartialEq + Clone + Debug> Parser<Token> for SingleTokenParser<Token
 }
 
 // impl<Token, Label> MaybeLabel<Label> for SingleTokenParser<Token> {}
+
+impl Parser<char> for char {
+    type Output = char;
+    const CAN_FAIL: bool = true;
+
+    fn parse(
+        &self,
+        context: &mut ParserContext<char>,
+        _error_handler: &mut impl ErrorHandler,
+        pos: &mut usize,
+    ) -> Result<Option<Self::Output>, ParserError> {
+        if *pos < context.tokens.len() {
+            let token = &context.tokens[*pos];
+            if token == self {
+                *pos += 1; // Advance position on success
+                return Ok(Some(*self));
+            }
+        }
+
+        Ok(None)
+    }
+}

@@ -1,73 +1,32 @@
 use crate::grammar::{
-    HasId, IsCheckable,
-    context::{MatcherContext, ParserContext},
-    error_handler::ErrorHandler,
-    get_next_id,
-    label::MaybeLabel,
-    matcher::Matcher,
+    context::ParserContext,
+    error_handler::{ErrorHandler, ParserError},
+    matcher::{MatchRunner, Matcher},
 };
-pub struct AnyToken {
-    id: usize,
-}
-
-impl Default for AnyToken {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl AnyToken {
-    pub fn new() -> Self {
-        Self { id: get_next_id() }
-    }
-}
-
-/// `.`  — match any single token without inspecting its value.
-pub fn any_token() -> AnyToken {
-    AnyToken::new()
-}
-
-impl HasId for AnyToken {
-    fn id(&self) -> usize {
-        self.id
-    }
-}
-
-impl<Token> IsCheckable<Token> for AnyToken {
-    fn calc_check(
-        &self,
-        context: &mut ParserContext<Token, impl ErrorHandler>,
-        pos: &mut usize,
-    ) -> bool {
-        if *pos < context.tokens.len() {
-            *pos += 1;
-            true
-        } else {
-            false
-        }
-    }
-}
+pub struct AnyToken;
 
 impl<Token, MRes> Matcher<Token, MRes> for AnyToken {
-    fn match_pattern(
-        &self,
-        context: &mut MatcherContext<Token, MRes, impl ErrorHandler>,
-        pos: &mut usize,
-    ) -> Result<(), String> {
-        if *pos < context.parser_context.tokens.len() {
-            *pos += 1;
-            Ok(())
-        } else {
-            Err(format!(
-                "expected any token at position {} but reached end of input",
-                pos
-            ))
-        }
-    }
-}
+    const CAN_MATCH_DIRECTLY: bool = true;
+    const HAS_PROPERTY: bool = false;
+    const CAN_FAIL: bool = true;
 
-impl MaybeLabel<String> for AnyToken {
-    fn maybe_label(&self) -> Option<String> {
-        Some("any_token".to_string())
+    fn match_with_runner<'a, 'ctx, Runner>(
+        &'a self,
+        runner: &mut Runner,
+        _error_handler: &mut impl ErrorHandler,
+        pos: &mut usize,
+    ) -> Result<bool, ParserError>
+    where
+        Runner: MatchRunner<'a, 'ctx, Token = Token, MRes = MRes>,
+        'ctx: 'a,
+        Token: 'ctx,
+    {
+        let context = runner.get_parser_context();
+        if *pos < context.tokens.len() {
+            *pos += 1; // Advance position
+            Ok(true)
+        } else {
+            Ok(false)
+        }
     }
 }

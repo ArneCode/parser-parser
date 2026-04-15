@@ -6,7 +6,7 @@ pub mod range_parser;
 pub mod recover_error;
 pub mod single_token;
 pub mod token_parser;
-use std::ops::Deref;
+use std::{ops::Deref, rc::Rc};
 
 use crate::grammar::{
     context::ParserContext,
@@ -65,9 +65,40 @@ where
 }
 
 // impl Parser for all types that deref to a parser
-impl<Inner, Outer, Token> Parser<Token> for Outer
+impl<Inner, Token> Parser<Token> for &Inner
 where
-    Outer: Deref<Target = Inner>,
+    Inner: Parser<Token>,
+{
+    type Output = Inner::Output;
+    const CAN_FAIL: bool = Inner::CAN_FAIL;
+
+    fn parse<'ctx>(
+        &self,
+        context: &mut ParserContext<'ctx, Token>,
+        error_handler: &mut impl ErrorHandler,
+        pos: &mut usize,
+    ) -> Result<Option<Self::Output>, ParserError> {
+        (**self).parse(context, error_handler, pos)
+    }
+}
+impl<Inner, Token> Parser<Token> for Rc<Inner>
+where
+    Inner: Parser<Token>,
+{
+    type Output = Inner::Output;
+    const CAN_FAIL: bool = Inner::CAN_FAIL;
+
+    fn parse<'ctx>(
+        &self,
+        context: &mut ParserContext<'ctx, Token>,
+        error_handler: &mut impl ErrorHandler,
+        pos: &mut usize,
+    ) -> Result<Option<Self::Output>, ParserError> {
+        (**self).parse(context, error_handler, pos)
+    }
+}
+impl<Inner, Token> Parser<Token> for Box<Inner>
+where
     Inner: Parser<Token>,
 {
     type Output = Inner::Output;

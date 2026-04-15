@@ -18,22 +18,26 @@ impl<L, I> Labeled<L, I> {
     }
 }
 
-impl<'a, 'ctx, L, I, Runner> Matcher<Runner> for Labeled<L, I>
+impl<Token, MRes, L, I> Matcher<Token, MRes> for Labeled<L, I>
 where
-    I: Matcher<Runner>,
-    Runner: MatchRunner<'a, 'ctx>,
+    I: Matcher<Token, MRes>,
     L: Display + Clone + 'static,
 {
     const CAN_MATCH_DIRECTLY: bool = I::CAN_MATCH_DIRECTLY;
     const HAS_PROPERTY: bool = I::HAS_PROPERTY;
     const CAN_FAIL: bool = I::CAN_FAIL;
 
-    fn match_with_runner(
-        &self,
+    fn match_with_runner<'a, 'ctx, Runner>(
+        &'a self,
         runner: &mut Runner,
         error_handler: &mut impl ErrorHandler,
         pos: &mut usize,
-    ) -> Result<bool, ParserError> {
+    ) -> Result<bool, ParserError>
+    where
+        Runner: MatchRunner<'a, 'ctx, Token = Token, MRes = MRes>,
+        'ctx: 'a,
+        Token: 'ctx,
+    {
         let idx = error_handler.register_start(*pos);
         if runner.run_match(&self.inner, error_handler, pos)? {
             error_handler.register_success(idx);

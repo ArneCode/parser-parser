@@ -3,20 +3,23 @@ use std::collections::HashMap;
 use crate::grammar::error_handler::ParserError;
 
 pub struct ParserContext<'a, T> {
-    pub tokens: &'a mut Vec<T>,
+    pub tokens: &'a Vec<T>,
     pub memo_table: HashMap<(usize, usize), Option<usize>>,
     pub match_start: usize,
     pub error_sink: Vec<ParserError>,
 }
 
 impl<'a, T> ParserContext<'a, T> {
-    pub fn new(tokens: &'a mut Vec<T>) -> Self {
+    pub fn new(tokens: &'a Vec<T>) -> Self {
         Self {
             tokens,
             memo_table: HashMap::new(),
             match_start: 0,
             error_sink: Vec::new(),
         }
+    }
+    pub fn get_errors(self) -> Vec<ParserError> {
+        self.error_sink
     }
 }
 

@@ -5,9 +5,19 @@ pub mod label;
 pub mod matcher;
 pub mod parser;
 pub mod span;
+use crate::Capture;
+use crate::grammar::capture::bind_result;
+use crate::grammar::{
+    context::ParserContext,
+    error_handler::{EmptyErrorHandler, ErrorHandler, ParserError},
+    matcher::{
+        any_token::AnyToken, commit_matcher::commit_on, negative_lookahead::negative_lookahead,
+    },
+    parser::Parser,
+};
+use macros::capture;
+use std::rc::Rc;
 use std::sync::atomic::AtomicUsize;
-
-use crate::grammar::error_handler::ErrorHandler;
 
 static NEXT_ID: AtomicUsize = AtomicUsize::new(0);
 // fn get_next_id() -> usize {
@@ -124,6 +134,35 @@ static NEXT_ID: AtomicUsize = AtomicUsize::new(0);
 //         Err(format!("Parsing failed at position {}", pos))
 //     }
 // }
+pub fn parse<Pars>(parser: Pars, src: &str) -> Result<(Pars::Output, Vec<ParserError>), ParserError>
+where
+    Pars: Parser<char>,
+{
+    let mut tokens: Vec<char> = src.chars().collect();
+    let mut error_handler = EmptyErrorHandler::default();
+    let mut context = ParserContext::new(&mut tokens);
+    let mut pos = 0;
+    let parser = Rc::new(parser);
+
+    let parser = Capture::<((::std::option::Option<_>,), (), ()), _, _>::new(
+        |(result,), (), ()| {
+            {
+                commit_on(
+                    (),
+                    (
+                        bind_result(parser.clone(), result.clone()),
+                        negative_lookahead(AnyToken),
+                    ),
+                )
+            }
+        },
+        |(result,), (), ()| result,
+    );
+    let result = parser
+        .parse(&mut context, &mut error_handler, &mut pos)?
+        .unwrap();
+    Ok((result, context.get_errors()))
+}
 // pub fn parse<'a, Pars>(parser: Pars, src: &str) -> Result<Pars::Output, String>
 // where
 //     Pars: Parser<'a, char>,
@@ -180,12 +219,12 @@ mod tests {
     use crate::grammar::{
         capture::{Capture, bind_result, bind_span},
         matcher::{
-            ToMatcher, multiple::many, one_or_more::one_or_more, optional::optional,
-            parser_matcher::ParserMatcher,
+            ToMatcher, multiple::many, one_of::one_of, one_or_more::one_or_more,
+            optional::optional, parser_matcher::ParserMatcher,
         },
         parser::{
-            Parser, ParserObjSafe, one_of::OneOfParser, range_parser::RangeParser,
-            single_token::SingleTokenParser, token_parser::TokenParser,
+            Parser, ParserObjSafe, range_parser::RangeParser, single_token::SingleTokenParser,
+            token_parser::TokenParser,
         },
     };
 
@@ -229,9 +268,9 @@ mod tests {
         let identifier_parser = capture!(
         {
             (
-                bind!(OneOfParser::new((RangeParser::new('a'..='z'), RangeParser::new('A'..='Z'))), *tokens),
+                bind!(one_of((RangeParser::new('a'..='z'), RangeParser::new('A'..='Z'))), *tokens),
                 many(bind!(
-                    OneOfParser::new((
+                    one_of((
                         RangeParser::new('a'..='z'),
                         RangeParser::new('A'..='Z'),
                         RangeParser::new('0'..='9'),

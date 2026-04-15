@@ -18,22 +18,26 @@ impl<Pars, ParserOutput> ParserMatcher<Pars, ParserOutput> {
     }
 }
 
-impl<'a, 'ctx, Pars, ParserOutput, Runner> Matcher<Runner> for ParserMatcher<Pars, ParserOutput>
+impl<Token, MRes, Pars, ParserOutput> Matcher<Token, MRes> for ParserMatcher<Pars, ParserOutput>
 where
-    Runner: MatchRunner<'a, 'ctx>,
-    Pars: Parser<Runner::Token, Output = ParserOutput>,
+    Pars: Parser<Token, Output = ParserOutput>,
     ParserOutput: PartialEq,
 {
     const CAN_MATCH_DIRECTLY: bool = true;
     const HAS_PROPERTY: bool = false;
     const CAN_FAIL: bool = Pars::CAN_FAIL;
 
-    fn match_with_runner(
-        &self,
+    fn match_with_runner<'a, 'ctx, Runner>(
+        &'a self,
         runner: &mut Runner,
         error_handler: &mut impl ErrorHandler,
         pos: &mut usize,
-    ) -> Result<bool, ParserError> {
+    ) -> Result<bool, ParserError>
+    where
+        Runner: MatchRunner<'a, 'ctx, Token = Token, MRes = MRes>,
+        'ctx: 'a,
+        Token: 'ctx,
+    {
         if let Some(output) = self
             .parser
             .parse(runner.get_parser_context(), error_handler, pos)?

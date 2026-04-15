@@ -3,17 +3,17 @@ use crate::grammar::{
     error_handler::{ErrorHandler, ParserError},
     parser::Parser,
 };
-pub struct OneOfParser<Tuple> {
+pub struct OneOf<Tuple> {
     options: Tuple,
 }
 
-impl<Tuple> OneOfParser<Tuple> {
+impl<Tuple> OneOf<Tuple> {
     pub fn new(options: Tuple) -> Self {
         Self { options }
     }
 }
 
-// impl<Tuple> HasId for OneOfParser<Tuple> {
+// impl<Tuple> HasId for OneOf<Tuple> {
 //     fn id(&self) -> usize {
 //         self.id
 //     }
@@ -22,7 +22,7 @@ impl<Tuple> OneOfParser<Tuple> {
 macro_rules! impl_parser_for_one_of_tuples {
     () => {};
     ($head:ident $(,$tail:ident)*) => {
-        // impl<Token, $head, $($tail),*> IsCheckable<Token> for OneOfParser<($head, $($tail,)*)>
+        // impl<Token, $head, $($tail),*> IsCheckable<Token> for OneOf<($head, $($tail,)*)>
         // where
         //     $head: Grammar<Token>,
         //     $($tail: Grammar<Token>,)*
@@ -46,7 +46,7 @@ macro_rules! impl_parser_for_one_of_tuples {
         //     }
         // }
 
-        impl<Token, Output, $head, $($tail),*> Parser<Token> for OneOfParser<($head, $($tail,)*)>
+        impl<Token, Output, $head, $($tail),*> Parser<Token> for OneOf<($head, $($tail,)*)>
         where
             $head: Parser<Token, Output = Output>,
             $($tail: Parser<Token, Output = Output>,)*

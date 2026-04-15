@@ -25,16 +25,15 @@ impl<Pars, Match, Output> ErrorRecoverer<Pars, Match, Output> {
 impl<Pars, Match, Output, Token> Parser<Token> for ErrorRecoverer<Pars, Match, Output>
 where
     Pars: Parser<Token, Output = Output>,
-    // Token: 'ctx,
-    Match: for<'a, 'ctx> Matcher<NoMemoizeBacktrackingRunner<'a, 'ctx, Token, ((), (), ())>>,
+    Match: Matcher<Token, ((), (), ())>,
     Output: Clone,
 {
     type Output = Output;
     const CAN_FAIL: bool = Pars::CAN_FAIL;
 
-    fn parse(
+    fn parse<'ctx>(
         &self,
-        context: &mut ParserContext<Token>,
+        context: &mut ParserContext<'ctx, Token>,
         error_handler: &mut impl ErrorHandler,
         pos: &mut usize,
     ) -> Result<Option<Self::Output>, crate::grammar::error_handler::ParserError> {

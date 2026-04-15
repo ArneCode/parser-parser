@@ -116,9 +116,7 @@ where
         constructor: F,
     ) -> Self
     where
-        Match: Matcher<
-            NoMemoizeBacktrackingRunner<'a, 'ctx, Token, (MResSingle, MResMultiple, MResOptional)>,
-        >, // Matcher<Token, (MResSingle, MResMultiple, MResOptional)> + HasId + IsCheckable<Token>,
+        Match: Matcher<Token, (MResSingle, MResMultiple, MResOptional)>,
     {
         let properties_single = MResSingle::new_properties();
         let properties_multiple = MResMultiple::new_properties();
@@ -138,17 +136,11 @@ where
     MResMultiple: MatchResultMultiple,
     MResOptional: MatchResultOptional,
     // Token: 'ctx,
-    Match: for<'a, 'b> Matcher<
-            NoMemoizeBacktrackingRunner<'a, 'b, Token, (MResSingle, MResMultiple, MResOptional)>,
-        > + for<'a, 'b> Matcher<
-            DirectMatchRunner<'a, 'b, Token, (MResSingle, MResMultiple, MResOptional)>,
-        >,
+    Match: Matcher<Token, (MResSingle, MResMultiple, MResOptional)>,
     F: Fn(MResSingle::Output, MResMultiple, MResOptional) -> Out,
 {
     type Output = Out;
-    const CAN_FAIL: bool = <Match as Matcher<
-        DirectMatchRunner<'_, '_, Token, (MResSingle, MResMultiple, MResOptional)>,
-    >>::CAN_FAIL;
+    const CAN_FAIL: bool = Match::CAN_FAIL;
 
     fn parse<'ctx>(
         &self,
@@ -159,11 +151,7 @@ where
         // TODO: match_start logic is a bit wrong, maybe remove overall?
         let old_match_start = context.match_start;
         context.match_start = *pos;
-        if {
-            <Match as Matcher<
-                DirectMatchRunner<'_, '_, Token, (MResSingle, MResMultiple, MResOptional)>,
-            >>::CAN_MATCH_DIRECTLY
-        } {
+        if { Match::CAN_MATCH_DIRECTLY } {
             let mut runner = DirectMatchRunner::new(
                 context,
                 (MResSingle::new(), MResMultiple::new(), MResOptional::new()),
@@ -234,23 +222,26 @@ pub fn bind_result<Pars, Prop, Token>(
     ResultBinder::new(parser, property)
 }
 
-impl<'a, 'ctx, Pars, Prop, Runner, Token: 'ctx> Matcher<Runner> for ResultBinder<Pars, Prop, Token>
+impl<Pars, Prop, Token, MRes> Matcher<Token, MRes> for ResultBinder<Pars, Prop, Token>
 where
     Pars: Parser<Token>,
-    Pars::Output: 'a,
-    Runner: MatchRunner<'a, 'ctx, Token = Token>,
-    Prop: Property<Pars::Output, Runner::MRes> + Clone + 'a,
+    Prop: Property<Pars::Output, MRes> + Clone,
 {
     const CAN_MATCH_DIRECTLY: bool = true;
     const HAS_PROPERTY: bool = true;
     const CAN_FAIL: bool = Pars::CAN_FAIL;
 
-    fn match_with_runner(
-        &self,
+    fn match_with_runner<'a, 'ctx, Runner>(
+        &'a self,
         runner: &mut Runner,
         error_handler: &mut impl ErrorHandler,
         pos: &mut usize,
-    ) -> Result<bool, ParserError> {
+    ) -> Result<bool, ParserError>
+    where
+        Runner: MatchRunner<'a, 'ctx, Token = Token, MRes = MRes>,
+        'ctx: 'a,
+        Token: 'ctx,
+    {
         if let Some(result) = self
             .parser
             .parse(runner.get_parser_context(), error_handler, pos)?
@@ -278,22 +269,25 @@ pub fn bind_span<Match, Prop>(matcher: Match, property: Prop) -> SpanBinder<Matc
     SpanBinder::new(matcher, property)
 }
 
-impl<'a, 'ctx, Match, Prop, Runner> Matcher<Runner> for SpanBinder<Match, Prop>
+impl<Token, MRes, Match, Prop> Matcher<Token, MRes> for SpanBinder<Match, Prop>
 where
-    Match: Matcher<Runner>,
-    Runner: MatchRunner<'a, 'ctx>,
-    Prop: Property<Span, Runner::MRes> + Clone + 'a,
+    Match: Matcher<Token, MRes>,
+    Prop: Property<Span, MRes> + Clone,
 {
     const CAN_MATCH_DIRECTLY: bool = Match::CAN_MATCH_DIRECTLY;
     const HAS_PROPERTY: bool = true;
     const CAN_FAIL: bool = Match::CAN_FAIL;
 
-    fn match_with_runner(
-        &self,
+    fn match_with_runner<'a, 'ctx, Runner>(
+        &'a self,
         runner: &mut Runner,
         error_handler: &mut impl ErrorHandler,
         pos: &mut usize,
-    ) -> Result<bool, ParserError> {
+    ) -> Result<bool, ParserError>
+    where
+        Runner: MatchRunner<'a, 'ctx, Token = Token, MRes = MRes>,
+        'ctx: 'a,
+    {
         let start_pos = *pos;
         if !runner.run_match(&self.matcher, error_handler, pos)? {
             return Ok(false);
@@ -339,7 +333,8 @@ macro_rules! impl_match_results_for_tuple {
     ( $(($T:ident, $idx:tt)),+ ) => {
 
         impl<$($T),+> MatchResultSingle for ($(Option<$T>,)+)
-        where $($T: Debug),+ {
+        // where $($T: Debug),+
+        {
             type Properties = (
                 $(SingleProperty<fn(&mut Self) -> &mut Option<$T>>,)+
             );

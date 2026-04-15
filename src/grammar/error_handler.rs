@@ -27,7 +27,7 @@ pub trait ErrorHandler {
     fn to_choice(&mut self) -> ErrorHandlerChoice<'_>;
 }
 #[derive(Default)]
-pub struct EmptyErrorHandler {}
+pub struct EmptyErrorHandler;
 
 impl ErrorHandler for EmptyErrorHandler {
     type Indexer = ();
@@ -349,5 +349,55 @@ impl MultiErrorHandler {
             expected,
             annotations: ParserErrorAnnotations::default(),
         }
+    }
+}
+
+impl Display for ParserError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let expected_msg = match self.expected.len() {
+            0 => "unexpected token".to_string(),
+            1 => format!("expected {}", self.expected[0]),
+            _ => {
+                // Sorting for consistent output
+                let mut sorted = self.expected.clone();
+                sorted.sort();
+                format!("expected one of {}", sorted.join(", "))
+            }
+        };
+
+        // Output format: "expected one of String, Number at 10..15"
+        write!(f, "{} at {}..{}", expected_msg, self.span.0, self.span.1)
+    }
+}
+
+use std::fmt::{Debug, Formatter};
+
+impl Debug for ExtraLabel {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ExtraLabel")
+            .field("span", &self.span)
+            .field("message", &self.message)
+            .field("color", &format_args!("{:?}", self.color))
+            .finish()
+    }
+}
+
+impl Debug for ParserErrorAnnotations {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ParserErrorAnnotations")
+            .field("notes", &self.notes)
+            .field("help", &self.help)
+            .field("extra_labels", &self.extra_labels)
+            .finish()
+    }
+}
+
+impl Debug for ParserError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ParserError")
+            .field("span", &self.span)
+            .field("expected", &self.expected)
+            .field("annotations", &self.annotations)
+            .finish()
     }
 }

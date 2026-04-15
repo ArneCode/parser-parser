@@ -17,11 +17,10 @@ use crate::grammar::{
 macro_rules! impl_matcher_for_seq_tuples {
     () => {};
     ($head:ident $(,$tail:ident)*) => {
-        impl<'a, 'ctx, Runner, $head, $($tail),*> Matcher<Runner> for ($head, $($tail,)*)
+        impl<Token, MRes, $head, $($tail),*> Matcher<Token, MRes> for ($head, $($tail,)*)
         where
-            $head: Matcher<Runner>,
-            $($tail: Matcher<Runner>,)*
-            Runner: MatchRunner<'a, 'ctx>,
+            $head: Matcher<Token, MRes>,
+            $($tail: Matcher<Token, MRes>,)*
         {
             const CAN_MATCH_DIRECTLY: bool = {
                 if !($head::CAN_MATCH_DIRECTLY $(&& $tail::CAN_MATCH_DIRECTLY)*) {
@@ -55,7 +54,11 @@ macro_rules! impl_matcher_for_seq_tuples {
             const HAS_PROPERTY: bool = $head::HAS_PROPERTY  $(|| $tail::HAS_PROPERTY)*;
             const CAN_FAIL: bool = $head::CAN_FAIL  $(|| $tail::CAN_FAIL)*;
 
-            fn match_with_runner(&self, runner: &mut Runner, error_handler: &mut impl ErrorHandler, pos: &mut usize) -> Result<bool, ParserError> {
+            fn match_with_runner<'a, 'ctx, Runner>(&'a self, runner: &mut Runner, error_handler: &mut impl ErrorHandler, pos: &mut usize) -> Result<bool, ParserError>
+            where
+                Runner: MatchRunner<'a, 'ctx, Token = Token, MRes = MRes>,
+                'ctx: 'a,
+            {
 
                 #[allow(non_snake_case)]
                 let ($head, $($tail,)*) = &self;

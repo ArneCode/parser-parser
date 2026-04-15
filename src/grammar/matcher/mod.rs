@@ -1,15 +1,17 @@
-// pub mod any_token;
+pub mod any_token;
 pub mod commit_matcher;
 pub mod error_contextualizer;
 pub mod multiple;
-// pub mod negative_lookahead;
+pub mod negative_lookahead;
 pub mod one_of;
 pub mod one_or_more;
 pub mod optional;
 pub mod parser_matcher;
-// pub mod positive_lookahead;
+pub mod positive_lookahead;
 pub mod sequence;
 pub mod string;
+
+use std::{ops::Deref, rc::Rc};
 
 use crate::grammar::{
     capture::BoundResult,
@@ -31,18 +33,22 @@ pub trait ToMatcher {
 //     const VALUE: bool = VALUE;
 // }
 
-pub trait Matcher<Runner> {
+pub trait Matcher<Token, MRes> {
     /// whether this matcher will always either succeed or fail without writing to the matchresult
     const CAN_MATCH_DIRECTLY: bool;
     const CAN_MATCH_DIRECTLY_ASSUMING_NO_FAIL: bool = Self::CAN_MATCH_DIRECTLY;
     const HAS_PROPERTY: bool;
     const CAN_FAIL: bool;
-    fn match_with_runner(
-        &self,
+    fn match_with_runner<'a, 'ctx, Runner>(
+        &'a self,
         runner: &mut Runner,
         error_handler: &mut impl ErrorHandler,
         pos: &mut usize,
-    ) -> Result<bool, ParserError>;
+    ) -> Result<bool, ParserError>
+    where
+        Runner: MatchRunner<'a, 'ctx, Token = Token, MRes = MRes>,
+        'ctx: 'a,
+        Token: 'ctx;
     fn add_error_info<Pars, F>(self, error_parser: Pars) -> ErrorContextualizer<Self, Pars, F>
     where
         Self: Sized,
@@ -50,18 +56,65 @@ pub trait Matcher<Runner> {
         ErrorContextualizer::new(self, error_parser)
     }
 }
+
+impl<Token, MRes, Inner> Matcher<Token, MRes> for &Inner
+where
+    Inner: Matcher<Token, MRes>,
+{
+    const CAN_MATCH_DIRECTLY: bool = Inner::CAN_MATCH_DIRECTLY;
+    const HAS_PROPERTY: bool = Inner::HAS_PROPERTY;
+    const CAN_FAIL: bool = Inner::CAN_FAIL;
+
+    fn match_with_runner<'a, 'ctx, Runner>(
+        &'a self,
+        runner: &mut Runner,
+        error_handler: &mut impl ErrorHandler,
+        pos: &mut usize,
+    ) -> Result<bool, ParserError>
+    where
+        Runner: MatchRunner<'a, 'ctx, Token = Token, MRes = MRes>,
+        'ctx: 'a,
+        Token: 'ctx,
+    {
+        self.deref().match_with_runner(runner, error_handler, pos)
+    }
+}
+
+impl<Token, MRes, Inner> Matcher<Token, MRes> for Rc<Inner>
+where
+    Inner: Matcher<Token, MRes>,
+{
+    const CAN_MATCH_DIRECTLY: bool = Inner::CAN_MATCH_DIRECTLY;
+    const HAS_PROPERTY: bool = Inner::HAS_PROPERTY;
+    const CAN_FAIL: bool = Inner::CAN_FAIL;
+
+    fn match_with_runner<'a, 'ctx, Runner>(
+        &'a self,
+        runner: &mut Runner,
+        error_handler: &mut impl ErrorHandler,
+        pos: &mut usize,
+    ) -> Result<bool, ParserError>
+    where
+        Runner: MatchRunner<'a, 'ctx, Token = Token, MRes = MRes>,
+        'ctx: 'a,
+        Token: 'ctx,
+    {
+        self.deref().match_with_runner(runner, error_handler, pos)
+    }
+}
+
 pub trait MatchRunner<'a, 'ctx> {
     type Token: 'ctx;
     type MRes: MatchResult;
 
     fn run_match<Match, EHandler: ErrorHandler>(
         &mut self,
-        matcher: &Match,
+        matcher: &'a Match,
         error_handler: &mut EHandler,
         pos: &mut usize,
     ) -> Result<bool, ParserError>
     where
-        Match: Matcher<Self>,
+        Match: Matcher<Self::Token, Self::MRes>,
         Self: Sized;
 
     fn register_result<Res: BoundResult<Self::MRes> + 'a>(&mut self, result: Res);
@@ -94,12 +147,12 @@ where
 
     fn run_match<Match, EHandler: ErrorHandler>(
         &mut self,
-        matcher: &Match,
+        matcher: &'a Match,
         error_handler: &mut EHandler,
         pos: &mut usize,
     ) -> Result<bool, ParserError>
     where
-        Match: Matcher<Self>,
+        Match: Matcher<Self::Token, Self::MRes>,
         Self: Sized,
     {
         let old_pos = *pos;
@@ -176,21 +229,19 @@ where
 
     fn run_match<Match, EHandler: ErrorHandler>(
         &mut self,
-        matcher: &Match,
+        matcher: &'a Match,
         error_handler: &mut EHandler,
         pos: &mut usize,
     ) -> Result<bool, ParserError>
     where
-        Match: Matcher<Self>,
+        Match: Matcher<Self::Token, Self::MRes>,
         Self: Sized,
     {
-        const {
-            if !Match::CAN_MATCH_DIRECTLY {
-                panic!(
-                    "Matcher cannot be run with DirectMatchRunner because it cannot match directly"
-                );
-            }
+        // const {
+        if !Match::CAN_MATCH_DIRECTLY {
+            panic!("Matcher cannot be run with DirectMatchRunner because it cannot match directly");
         }
+        // }
         let old_pos = *pos;
         if matcher.match_with_runner(self, error_handler, pos)? {
             Ok(true)
@@ -236,3 +287,23 @@ impl<'a, 'ctx, Token, MRes> DirectMatchRunner<'a, 'ctx, Token, MRes> {
 //         self.match_with_runner(runner, error_handler, pos)
 //     }
 // }
+
+impl<Token, MRes> Matcher<Token, MRes> for () {
+    const CAN_MATCH_DIRECTLY: bool = true;
+    const HAS_PROPERTY: bool = false;
+    const CAN_FAIL: bool = false;
+
+    fn match_with_runner<'a, 'ctx, Runner>(
+        &'a self,
+        _runner: &mut Runner,
+        _error_handler: &mut impl ErrorHandler,
+        _pos: &mut usize,
+    ) -> Result<bool, ParserError>
+    where
+        Runner: MatchRunner<'a, 'ctx, Token = Token, MRes = MRes>,
+        'ctx: 'a,
+        Token: 'ctx,
+    {
+        Ok(true)
+    }
+}
