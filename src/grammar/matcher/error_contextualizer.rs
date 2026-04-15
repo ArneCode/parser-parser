@@ -27,7 +27,7 @@ impl<Token, MRes, Match, Pars, F> Matcher<Token, MRes> for ErrorContextualizer<M
 where
     Match: Matcher<Token, MRes>,
     Pars: Parser<Token, Output = F>,
-    F: Fn(&mut ParserError) -> (),
+    F: Fn(&mut ParserError),
 {
     const CAN_MATCH_DIRECTLY: bool = Match::CAN_MATCH_DIRECTLY;
     const HAS_PROPERTY: bool = Match::HAS_PROPERTY;
@@ -49,15 +49,12 @@ where
             Ok(false) => Ok(false),
             Err(mut e) => {
                 let mut start_pos = *pos;
-                match self.error_parser.parse(
+                if let Ok(Some(f)) = self.error_parser.parse(
                     runner.get_parser_context(),
                     error_handler,
                     &mut start_pos,
                 ) {
-                    Ok(Some(f)) => {
-                        f(&mut e);
-                    }
-                    _ => {}
+                    f(&mut e);
                 }
                 Err(e)
             }

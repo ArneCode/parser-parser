@@ -1,4 +1,4 @@
-use crate::grammar::{context::ParserContext, error_handler::ErrorHandler, matcher::Matcher};
+use crate::grammar::{error_handler::ErrorHandler, matcher::Matcher};
 pub struct PositiveLookahead<Check> {
     checker: Check,
 }

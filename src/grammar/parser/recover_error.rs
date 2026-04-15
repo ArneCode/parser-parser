@@ -50,7 +50,7 @@ where
                     context.error_sink.push(e);
                     return Ok(Some(self.recover_output.clone()));
                 }
-                return Err(e);
+                Err(e)
             }
             Ok(output) => Ok(output),
         }

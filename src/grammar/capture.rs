@@ -7,7 +7,7 @@ use crate::grammar::{
     parser::Parser,
     span::Span,
 };
-use std::{fmt::Debug, marker::PhantomData};
+use std::marker::PhantomData;
 
 pub trait Property<Value, MatchResult> {
     fn put_in_result(&self, result: &mut MatchResult, value: Value);
@@ -151,7 +151,7 @@ where
         // TODO: match_start logic is a bit wrong, maybe remove overall?
         let old_match_start = context.match_start;
         context.match_start = *pos;
-        if { Match::CAN_MATCH_DIRECTLY } {
+        if Match::CAN_MATCH_DIRECTLY  {
             let mut runner = DirectMatchRunner::new(
                 context,
                 (MResSingle::new(), MResMultiple::new(), MResOptional::new()),

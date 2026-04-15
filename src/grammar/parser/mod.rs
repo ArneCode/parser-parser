@@ -6,7 +6,7 @@ pub mod range_parser;
 pub mod recover_error;
 pub mod single_token;
 pub mod token_parser;
-use std::{ops::Deref, rc::Rc};
+use std::rc::Rc;
 
 use crate::grammar::{
     context::ParserContext,

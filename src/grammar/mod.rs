@@ -9,138 +9,21 @@ use crate::Capture;
 use crate::grammar::capture::bind_result;
 use crate::grammar::{
     context::ParserContext,
-    error_handler::{EmptyErrorHandler, ErrorHandler, ParserError},
+    error_handler::{EmptyErrorHandler, ParserError},
     matcher::{
         any_token::AnyToken, commit_matcher::commit_on, negative_lookahead::negative_lookahead,
     },
     parser::Parser,
 };
-use macros::capture;
 use std::rc::Rc;
-use std::sync::atomic::AtomicUsize;
 
-static NEXT_ID: AtomicUsize = AtomicUsize::new(0);
-// fn get_next_id() -> usize {
-//     NEXT_ID.fetch_add(1, atomic::Ordering::Relaxed)
-// }
-// pub trait HasId {
-//     fn id(&self) -> usize;
-// }
-// // impl HasId for all types that deref to a HasId
-// impl<T, H> HasId for T
-// where
-//     T: Deref<Target = H>,
-//     H: HasId,
-// {
-//     fn id(&self) -> usize {
-//         (**self).id()
-//     }
-// }
-// pub trait IsCheckable<Token> {
-//     fn calc_check(
-//         &self,
-//         context: &mut ParserContext<Token, impl ErrorHandler>,
-//         pos: &mut usize,
-//     ) -> bool;
-// }
-// // impl IsCheckable for all types that deref to an IsCheckable
-// impl<Inner, Outer, Token> IsCheckable<Token> for Outer
-// where
-//     Outer: Deref<Target = Inner>,
-//     Inner: IsCheckable<Token>,
-// {
-//     fn calc_check(
-//         &self,
-//         context: &mut ParserContext<Token, impl ErrorHandler>,
-//         pos: &mut usize,
-//     ) -> bool {
-//         (**self).calc_check(context, pos)
-//     }
-// }
-
-// pub trait Grammar<Token> {
-//     fn check(&self, context: &mut ParserContext<Token, impl ErrorHandler>, pos: &mut usize)
-//     -> bool;
-//     fn check_no_advance(
-//         &self,
-//         context: &mut ParserContext<Token, impl ErrorHandler>,
-//         pos: &usize,
-//     ) -> bool {
-//         let mut pos = *pos;
-//         self.check(context, &mut pos)
-//     }
-// }
-
-// // impl Grammar for all Parsers / Matchers, using memoization to optimize repeated checks
-// impl<G, Token> Grammar<Token> for G
-// where
-//     G: HasId + IsCheckable<Token> + MaybeLabel<String> + ?Sized,
-// {
-//     fn check(
-//         &self,
-//         context: &mut ParserContext<Token, impl ErrorHandler>,
-//         pos: &mut usize,
-//     ) -> bool {
-//         let id = self.id();
-//         if let Some(&result) = context.memo_table.get(&(id, *pos)) {
-//             if let Some(new_pos) = result {
-//                 *pos = new_pos; // Update the position to the memoized value
-//             }
-//             return result.is_some();
-//         }
-//         let error_idx = context.error_handler.register_start();
-//         let old_pos = *pos;
-//         let result = self.calc_check(context, pos);
-//         context
-//             .memo_table
-//             .insert((id, old_pos), if result { Some(*pos) } else { None });
-//         if !result {
-//             context.error_handler.register_error(
-//                 &self,
-//                 error_idx,
-//                 context.match_start,
-//                 (old_pos, *pos),
-//             );
-//             *pos = old_pos; // Reset position on failure
-//         }
-//         result
-//     }
-// }
-
-// #[macro_export]
-// macro_rules! bind {
-//     ($($tokens:tt)*) => {
-//         compile_error!("The `bind!` macro can only be used inside a `capture!` block.");
-//     };
-// }
-
-// pub fn parse<Pars>(parser: Pars, src: &str) -> Result<Pars::Output, String>
-// where
-//     Pars: Parser<char> + Grammar<char>,
-// {
-//     let mut tokens: Vec<char> = src.chars().collect();
-//     let mut error_handler = EmptyErrorHandler::default();
-//     let mut context = ParserContext::new(&mut tokens, &mut error_handler);
-//     let mut pos = 0;
-//     if parser.check(&mut context, &mut pos) {
-//         pos = 0; // Reset position for actual parsing
-//         parser.parse(&mut context, &mut pos)
-//     } else {
-//         pos = 0; // Reset position for error reporting
-//         let mut error_handler = MultiErrorHandler::default();
-//         let mut context = ParserContext::new(&mut tokens, &mut error_handler);
-//         parser.check(&mut context, &mut pos);
-//         error_handler.render_report("call to parse function", src);
-//         Err(format!("Parsing failed at position {}", pos))
-//     }
-// }
 pub fn parse<Pars>(parser: Pars, src: &str) -> Result<(Pars::Output, Vec<ParserError>), ParserError>
 where
     Pars: Parser<char>,
 {
-    let mut tokens: Vec<char> = src.chars().collect();
-    let mut error_handler = EmptyErrorHandler::default();
-    let mut context = ParserContext::new(&mut tokens);
+    let tokens: Vec<char> = src.chars().collect();
+    let mut error_handler = EmptyErrorHandler;
+    let mut context = ParserContext::new(&tokens);
     let mut pos = 0;
     let parser = Rc::new(parser);
 
@@ -150,7 +33,7 @@ where
                 commit_on(
                     (),
                     (
-                        bind_result(parser.clone(), result.clone()),
+                        bind_result(parser.clone(), result),
                         negative_lookahead(AnyToken),
                     ),
                 )
@@ -163,56 +46,10 @@ where
         .unwrap();
     Ok((result, context.get_errors()))
 }
-// pub fn parse<'a, Pars>(parser: Pars, src: &str) -> Result<Pars::Output, String>
-// where
-//     Pars: Parser<'a, char>,
-// {
-//     let mut tokens: Vec<char> = src.chars().collect();
-//     let mut error_handler = EmptyErrorHandler::default();
-//     let mut context = ParserContext::new(&mut tokens);
-//     let mut pos = 0;
-//     if let Some(result) = parser.parse(&mut context, &mut error_handler, &mut pos)? {
-//         if pos == tokens.len() {
-//             Ok(result)
-//         } else {
-//             Err(format!(
-//                 "Parsing failed: Unconsumed input at position {}",
-//                 pos
-//             ))
-//         }
-//     } else {
-//         let mut error_handler = MultiErrorHandler::default();
-//         let mut context = ParserContext::new(&mut tokens);
-//         parser.parse(&mut context, &mut pos);
-//         error_handler.render_report("call to parse function", src);
-//         Err(format!("Parsing failed at position {}", pos))
-//     }
-//     // if parser.check(&mut context, &mut pos) {
-//     //     pos = 0; // Reset position for actual parsing
-//     //     parser.parse(&mut context, &mut pos)
-//     // } else {
-//     //     pos = 0; // Reset position for error reporting
-//     //     let mut error_handler = MultiErrorHandler::default();
-//     //     let mut context = ParserContext::new(&mut tokens, &mut error_handler);
-//     //     parser.check(&mut context, &mut pos);
-//     //     error_handler.render_report("call to parse function", src);
-//     //     Err(format!("Parsing failed at position {}", pos))
-//     // }
-// }
-// pub fn check<Pars>(parser: Pars, src: &str) -> bool
-// where
-//     Pars: Grammar<char>,
-// {
-//     let mut tokens: Vec<char> = src.chars().collect();
-//     let mut error_handler = EmptyErrorHandler::default();
-//     let mut context = ParserContext::new(&mut tokens, &mut error_handler);
-//     let mut pos = 0;
-//     parser.check(&mut context, &mut pos) && pos == tokens.len()
-// }
 
 #[cfg(test)]
 mod tests {
-    use std::{ops::RangeBounds, process::Output, rc::Rc, vec};
+    use std::rc::Rc;
 
     use macros::capture;
 
@@ -223,7 +60,7 @@ mod tests {
             optional::optional, parser_matcher::ParserMatcher,
         },
         parser::{
-            Parser, ParserObjSafe, range_parser::RangeParser, single_token::SingleTokenParser,
+            ParserObjSafe, range_parser::RangeParser, single_token::SingleTokenParser,
             token_parser::TokenParser,
         },
     };

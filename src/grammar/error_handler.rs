@@ -2,7 +2,6 @@ use std::{collections::HashSet, fmt::Display};
 
 use ariadne::{Color, Label, Report, ReportKind, Source};
 
-use crate::grammar::{context::ParserContext, parser::Parser};
 pub(crate) enum ErrorHandlerChoice<'a> {
     Empty(&'a mut EmptyErrorHandler),
     Multi(&'a mut MultiErrorHandler),

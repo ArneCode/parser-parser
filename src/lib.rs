@@ -47,14 +47,14 @@ fn get_json_grammar() -> impl Parser<char, Output = JsonValue> {
 
         // --- Primitives ---
 
-        let null = capture!({ ("null", ws.clone()) } => { JsonValue::Null });
+        let null = capture!(("null", ws.clone())  => JsonValue::Null );
 
-        let bool_false = capture!({ ("false", ws.clone()) } => { JsonValue::Boolean(false) });
-        let bool_true = capture!({ ("true", ws.clone()) } => { JsonValue::Boolean(true) });
+        let bool_false = capture!(("false", ws.clone())  => JsonValue::Boolean(false) );
+        let bool_true = capture!(("true", ws.clone())  => JsonValue::Boolean(true) );
         let boolean = one_of((bool_true, bool_false));
 
         // Simplified number parser (matches digits)
-        let number = capture!({(
+        let number = capture!((
             optional(bind!('-', *digits)),
             one_of((
                 bind!('0', *digits),
@@ -72,13 +72,13 @@ fn get_json_grammar() -> impl Parser<char, Output = JsonValue> {
                 many(bind!('0'..='9', *digits))
             ))
         )
-        } => {
+         => {
             let s: String = digits.into_iter().collect();
             JsonValue::Number(s.parse().unwrap_or(0.0))
         });
 
         let character = Rc::new(TokenParser::new(|c| *c != '"' && *c != '\\', |x| *x));
-        let string = Rc::new(capture!({
+        let raw_string = Rc::new(capture!({
             (
                 '"',
                 many(one_of((
@@ -114,12 +114,12 @@ fn get_json_grammar() -> impl Parser<char, Output = JsonValue> {
             (
                 '{', ws.clone(),
                 optional((
-                    bind!(string.clone(), *keys), ':', ws.clone(),
+                    bind!(raw_string.clone(), *keys), ':', ws.clone(),
                     bind!(element.clone(), *values)
                 )),
                 many((
                     ',', ws.clone(),
-                    bind!(string.clone(), *keys), ':', ws.clone(),
+                    bind!(raw_string.clone(), *keys), ':', ws.clone(),
                     bind!(element.clone(), *values)
                 )),
                 '}', ws.clone()
@@ -134,7 +134,7 @@ fn get_json_grammar() -> impl Parser<char, Output = JsonValue> {
         one_of((
             object,
             array,
-            capture!({ bind!(string.clone(), s) } => JsonValue::String(s)),
+            capture!( bind!(raw_string.clone(), s)  => JsonValue::String(s)),
             number,
             boolean,
             null,
@@ -143,7 +143,7 @@ fn get_json_grammar() -> impl Parser<char, Output = JsonValue> {
 }
 #[cfg(test)]
 mod tests {
-    use crate::grammar::{context::ParserContext, error_handler::EmptyErrorHandler, parse};
+    use crate::grammar::parse;
 
     use super::*;
     use std::fs;
