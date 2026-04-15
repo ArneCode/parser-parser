@@ -169,10 +169,33 @@ impl VisitMut for BindVisitor {
                         self.register_span(span_id.clone(), span_kind);
                         // wrap: bind_span( bind_result(parser, id), span_id )
                         parse_quote! {
-                            bind_span(bind_result(#parser, #id.clone()), #span_id.clone())
+                            bind_span(
+                                crate::grammar::capture::bind_result_with_debug(
+                                    #parser,
+                                    #id.clone(),
+                                    crate::grammar::capture::BindDebugInfo {
+                                        property_name: stringify!(#id),
+                                        file: file!(),
+                                        line: line!(),
+                                        column: column!(),
+                                    }
+                                ),
+                                #span_id.clone()
+                            )
                         }
                     } else {
-                        parse_quote! { bind_result(#parser, #id.clone()) }
+                        parse_quote! {
+                            crate::grammar::capture::bind_result_with_debug(
+                                #parser,
+                                #id.clone(),
+                                crate::grammar::capture::BindDebugInfo {
+                                    property_name: stringify!(#id),
+                                    file: file!(),
+                                    line: line!(),
+                                    column: column!(),
+                                }
+                            )
+                        }
                     };
                     return;
                 }

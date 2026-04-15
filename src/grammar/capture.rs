@@ -7,17 +7,41 @@ use crate::grammar::{
     parser::Parser,
     // span::Span,
 };
+use std::panic::Location;
 use std::marker::PhantomData;
 
 pub trait Property<Value, MatchResult> {
-    fn put_in_result(&self, result: &mut MatchResult, value: Value);
-    fn bind_result(&self, value: Value) -> (Value, Self)
+    fn put_in_result(&self, result: &mut MatchResult, value: Value, debug: Option<BindDebugInfo>);
+    fn bind_result(&self, value: Value) -> BoundValue<Value, Self>
     where
         Self: Sized,
         Self: Clone,
     {
-        (value, self.clone())
+        BoundValue {
+            value,
+            property: self.clone(),
+            debug: None,
+        }
     }
+    fn bind_result_with_debug(&self, value: Value, debug: BindDebugInfo) -> BoundValue<Value, Self>
+    where
+        Self: Sized,
+        Self: Clone,
+    {
+        BoundValue {
+            value,
+            property: self.clone(),
+            debug: Some(debug),
+        }
+    }
+}
+
+#[derive(Clone, Copy)]
+pub struct BindDebugInfo {
+    pub property_name: &'static str,
+    pub file: &'static str,
+    pub line: u32,
+    pub column: u32,
 }
 
 #[derive(Clone, Copy)]
@@ -36,9 +60,15 @@ where
     MRes: MatchResult,
     F: Fn(&mut MRes::Single) -> &mut Option<V>,
 {
-    fn put_in_result(&self, result: &mut MRes, value: V) {
+    fn put_in_result(&self, result: &mut MRes, value: V, debug: Option<BindDebugInfo>) {
         let property_slot = (self.setter)(result.single());
         if property_slot.is_some() {
+            if let Some(debug) = debug {
+                panic!(
+                    "SingleProperty '{}' already set (bind! at {}:{}:{})",
+                    debug.property_name, debug.file, debug.line, debug.column
+                );
+            }
             panic!("SingleProperty already set");
         }
         *property_slot = Some(value);
@@ -61,7 +91,7 @@ where
     MRes: MatchResult,
     F: Fn(&mut MRes::Multiple) -> &mut Vec<V>,
 {
-    fn put_in_result(&self, result: &mut MRes, value: V) {
+    fn put_in_result(&self, result: &mut MRes, value: V, _debug: Option<BindDebugInfo>) {
         let property_slot = (self.setter)(result.multiple());
         property_slot.push(value);
     }
@@ -83,9 +113,15 @@ where
     MRes: MatchResult,
     F: Fn(&mut MRes::Optional) -> &mut Option<V>,
 {
-    fn put_in_result(&self, result: &mut MRes, value: V) {
+    fn put_in_result(&self, result: &mut MRes, value: V, debug: Option<BindDebugInfo>) {
         let property_slot = (self.setter)(result.optional());
         if property_slot.is_some() {
+            if let Some(debug) = debug {
+                panic!(
+                    "OptionalProperty '{}' already set (bind! at {}:{}:{})",
+                    debug.property_name, debug.file, debug.line, debug.column
+                );
+            }
             panic!("OptionalProperty already set");
         }
         *property_slot = Some(value);
@@ -186,13 +222,18 @@ pub trait BoundResult<MRes> {
     fn put_boxed_in_result(self: Box<Self>, result: &mut MRes);
 }
 
-impl<Value, MRes, Prop> BoundResult<MRes> for (Value, Prop)
+pub struct BoundValue<Value, Prop> {
+    value: Value,
+    property: Prop,
+    debug: Option<BindDebugInfo>,
+}
+
+impl<Value, MRes, Prop> BoundResult<MRes> for BoundValue<Value, Prop>
 where
     Prop: Property<Value, MRes>,
 {
     fn put_in_result(self, result: &mut MRes) {
-        let (value, property) = self;
-        property.put_in_result(result, value);
+        self.property.put_in_result(result, self.value, self.debug);
     }
     fn put_boxed_in_result(self: Box<Self>, result: &mut MRes) {
         (*self).put_in_result(result)
@@ -202,14 +243,16 @@ where
 pub struct ResultBinder<Pars, Prop, Token> {
     parser: Pars,
     property: Prop,
+    debug: Option<BindDebugInfo>,
     _phantom: PhantomData<Token>,
 }
 
 impl<Pars, Prop, Token> ResultBinder<Pars, Prop, Token> {
-    pub fn new(parser: Pars, property: Prop) -> Self {
+    pub fn new(parser: Pars, property: Prop, debug: Option<BindDebugInfo>) -> Self {
         Self {
             parser,
             property,
+            debug,
             _phantom: PhantomData,
         }
     }
@@ -219,7 +262,33 @@ pub fn bind_result<Pars, Prop, Token>(
     parser: Pars,
     property: Prop,
 ) -> ResultBinder<Pars, Prop, Token> {
-    ResultBinder::new(parser, property)
+    bind_result_with_unknown_debug(parser, property)
+}
+
+#[track_caller]
+pub fn bind_result_with_unknown_debug<Pars, Prop, Token>(
+    parser: Pars,
+    property: Prop,
+) -> ResultBinder<Pars, Prop, Token> {
+    let location = Location::caller();
+    ResultBinder::new(
+        parser,
+        property,
+        Some(BindDebugInfo {
+            property_name: "<unknown>",
+            file: location.file(),
+            line: location.line(),
+            column: location.column(),
+        }),
+    )
+}
+
+pub fn bind_result_with_debug<Pars, Prop, Token>(
+    parser: Pars,
+    property: Prop,
+    debug: BindDebugInfo,
+) -> ResultBinder<Pars, Prop, Token> {
+    ResultBinder::new(parser, property, Some(debug))
 }
 
 impl<Pars, Prop, Token, MRes> Matcher<Token, MRes> for ResultBinder<Pars, Prop, Token>
@@ -246,7 +315,11 @@ where
             .parser
             .parse(runner.get_parser_context(), error_handler, pos)?
         {
-            let bound = self.property.bind_result(result);
+            let bound = if let Some(debug) = self.debug {
+                self.property.bind_result_with_debug(result, debug)
+            } else {
+                self.property.bind_result(result)
+            };
             runner.register_result(bound);
             Ok(true)
         } else {
