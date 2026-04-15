@@ -5,7 +5,7 @@ use crate::grammar::{
     error_handler::{ErrorHandler, ParserError},
     matcher::{DirectMatchRunner, MatchRunner, Matcher, NoMemoizeBacktrackingRunner},
     parser::Parser,
-    span::Span,
+    // span::Span,
 };
 use std::marker::PhantomData;
 
@@ -151,7 +151,7 @@ where
         // TODO: match_start logic is a bit wrong, maybe remove overall?
         let old_match_start = context.match_start;
         context.match_start = *pos;
-        if Match::CAN_MATCH_DIRECTLY  {
+        if Match::CAN_MATCH_DIRECTLY {
             let mut runner = DirectMatchRunner::new(
                 context,
                 (MResSingle::new(), MResMultiple::new(), MResOptional::new()),
@@ -272,7 +272,7 @@ pub fn bind_span<Match, Prop>(matcher: Match, property: Prop) -> SpanBinder<Matc
 impl<Token, MRes, Match, Prop> Matcher<Token, MRes> for SpanBinder<Match, Prop>
 where
     Match: Matcher<Token, MRes>,
-    Prop: Property<Span, MRes> + Clone,
+    Prop: Property<(usize, usize), MRes> + Clone,
 {
     const CAN_MATCH_DIRECTLY: bool = Match::CAN_MATCH_DIRECTLY;
     const HAS_PROPERTY: bool = true;
@@ -293,7 +293,7 @@ where
             return Ok(false);
         }
         let end_pos = *pos;
-        let bound = self.property.bind_result(Span::new(start_pos, end_pos));
+        let bound = self.property.bind_result((start_pos, end_pos));
         runner.register_result(bound);
         Ok(true)
     }

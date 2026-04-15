@@ -18,6 +18,7 @@ use crate::grammar::{
     context::{MatchResult, ParserContext},
     error_handler::{ErrorHandler, ParserError},
     matcher::error_contextualizer::ErrorContextualizer,
+    parser::Parser,
 };
 
 pub trait ToMatcher {
@@ -41,9 +42,11 @@ pub trait Matcher<Token, MRes> {
         Runner: MatchRunner<'a, 'ctx, Token = Token, MRes = MRes>,
         'ctx: 'a,
         Token: 'ctx;
-    fn add_error_info<Pars, F>(self, error_parser: Pars) -> ErrorContextualizer<Self, Pars, F>
+    fn add_error_info<Pars, F>(self, error_parser: Pars) -> ErrorContextualizer<Self, Pars, F, MRes>
     where
         Self: Sized,
+        Pars: Parser<Token, Output = F>,
+        F: Fn(&mut ParserError),
     {
         ErrorContextualizer::new(self, error_parser)
     }

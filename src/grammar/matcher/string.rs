@@ -111,9 +111,14 @@ impl<MRes> Matcher<char, MRes> for char {
         'ctx: 'a,
     {
         let context = runner.get_parser_context();
-        if *pos < context.tokens.len() && context.tokens[*pos] == *self {
+
+        if *pos < context.tokens.len() {
             *pos += 1; // Advance position
-            Ok(true)
+            if context.tokens[*pos - 1] == *self {
+                Ok(true)
+            } else {
+                Ok(false)
+            }
         } else {
             Ok(false)
         }

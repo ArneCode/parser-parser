@@ -3,8 +3,12 @@ use std::{collections::HashMap, rc::Rc};
 use macros::capture;
 
 use crate::grammar::{
-    capture::{Capture, bind_result},
-    matcher::{multiple::many, one_of::one_of, optional::optional},
+    capture::{Capture, bind_result, bind_span},
+    error_handler::ParserError,
+    label::WithLabel,
+    matcher::{
+        Matcher, commit_matcher::commit_on, multiple::many, one_of::one_of, optional::optional,
+    },
     parser::{Parser, deferred::recursive, token_parser::TokenParser},
 };
 #[derive(Debug, Clone, PartialEq)]
@@ -43,6 +47,7 @@ pub mod grammar;
 
 fn get_json_grammar() -> impl Parser<char, Output = JsonValue> {
     recursive(|element| {
+        let element = Rc::new(element.with_label("element"));
         let ws = Rc::new(many(one_of((' ', '\t', '\n', '\r'))));
 
         // --- Primitives ---
@@ -103,7 +108,7 @@ fn get_json_grammar() -> impl Parser<char, Output = JsonValue> {
                     ',', ws.clone(),
                     bind!(element.clone(), *elements)
                 )),
-                ']', ws.clone()
+                ']'.with_label("]"), ws.clone()
             )
         } =>  {
             JsonValue::Array(elements)
@@ -111,19 +116,35 @@ fn get_json_grammar() -> impl Parser<char, Output = JsonValue> {
 
         // Object: { "key": value, ... }
         let object = capture!({
-            (
-                '{', ws.clone(),
+
+                commit_on('{'.with_label("{"),
+                (
+                ws.clone(),
                 optional((
                     bind!(raw_string.clone(), *keys), ':', ws.clone(),
                     bind!(element.clone(), *values)
                 )),
-                many((
-                    ',', ws.clone(),
-                    bind!(raw_string.clone(), *keys), ':', ws.clone(),
-                    bind!(element.clone(), *values)
-                )),
-                '}', ws.clone()
-            )
+                many(
+                    commit_on(
+                        ',', (
+                            ws.clone(),
+                            (
+                                bind!(raw_string.clone(), *keys), ':', ws.clone(),
+                                bind!(element.clone(), *values)).with_label("key-value pair"
+                            )
+                        )
+                    ).add_error_info(
+                        capture!((
+                            bind_span!(",",comma),
+                            ws.clone(),
+                            '}') => move |err: &mut ParserError|{
+                            err.add_extra_label(comma,"trailing comma",ariadne::Color::Blue);
+                        }),
+                    ),
+                ),
+                '}'.with_label("}"), ws.clone()
+                )
+                )
         } => {
             let map: HashMap<String, JsonValue> = keys.into_iter().zip(values).collect();
             JsonValue::Object(map)

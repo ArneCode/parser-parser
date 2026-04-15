@@ -4,7 +4,7 @@ pub mod error_handler;
 pub mod label;
 pub mod matcher;
 pub mod parser;
-pub mod span;
+// pub mod span;
 use crate::Capture;
 use crate::grammar::capture::bind_result;
 use crate::grammar::{
@@ -134,10 +134,10 @@ mod tests {
             (
                 (
                     ::std::option::Option<_>,
-                    ::std::option::Option<span::Span>,
-                    ::std::option::Option<span::Span>,
+                    ::std::option::Option<(usize, usize)>,
+                    ::std::option::Option<(usize, usize)>,
                 ),
-                (::std::vec::Vec<_>, ::std::vec::Vec<span::Span>),
+                (::std::vec::Vec<_>, ::std::vec::Vec<(usize, usize)>),
                 (::std::option::Option<_>,),
             ),
             _,

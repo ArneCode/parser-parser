@@ -6,13 +6,13 @@ use crate::grammar::{
     parser::Parser,
 };
 
-pub struct ErrorContextualizer<Matcher, Pars, F> {
+pub struct ErrorContextualizer<Matcher, Pars, F, MRes> {
     happy_matcher: Matcher,
     error_parser: Pars,
-    _phantom: PhantomData<F>,
+    _phantom: PhantomData<(MRes, F)>,
 }
 
-impl<Matcher, Pars, F> ErrorContextualizer<Matcher, Pars, F> {
+impl<Matcher, Pars, F, MRes> ErrorContextualizer<Matcher, Pars, F, MRes> {
     pub fn new(happy_matcher: Matcher, error_parser: Pars) -> Self {
         Self {
             happy_matcher,
@@ -23,7 +23,7 @@ impl<Matcher, Pars, F> ErrorContextualizer<Matcher, Pars, F> {
 }
 
 //TODO: ensure that Pars cannot error with trait CanNotError
-impl<Token, MRes, Match, Pars, F> Matcher<Token, MRes> for ErrorContextualizer<Match, Pars, F>
+impl<Token, MRes, Match, Pars, F> Matcher<Token, MRes> for ErrorContextualizer<Match, Pars, F, MRes>
 where
     Match: Matcher<Token, MRes>,
     Pars: Parser<Token, Output = F>,
@@ -44,11 +44,12 @@ where
         'ctx: 'a,
         Token: 'ctx,
     {
+        let mut start_pos = *pos;
         match runner.run_match(&self.happy_matcher, error_handler, pos) {
             Ok(true) => Ok(true),
             Ok(false) => Ok(false),
             Err(mut e) => {
-                let mut start_pos = *pos;
+                // let mut start_pos = *pos;
                 if let Ok(Some(f)) = self.error_parser.parse(
                     runner.get_parser_context(),
                     error_handler,

@@ -288,16 +288,18 @@ impl ParserError {
         let mut report = Report::build(ReportKind::Error, (source_id, span_range.clone()))
             .with_message("Syntax Error")
             .with_label(
-                Label::new((source_id, span_range))
+                Label::new((source_id, span_range.clone()))
                     .with_message(self.main_message(source_text))
-                    .with_color(Color::Red),
+                    .with_color(Color::Red)
+                    .with_order(span_range.start as i32),
             );
 
         for label in &self.annotations.extra_labels {
             report = report.with_label(
                 Label::new((source_id, label.span.0..label.span.1))
                     .with_message(label.message.clone())
-                    .with_color(label.color),
+                    .with_color(label.color)
+                    .with_order(label.span.0 as i32),
             );
         }
 
