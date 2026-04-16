@@ -1,6 +1,9 @@
 use std::collections::HashMap;
 
-use crate::grammar::error_handler::ParserError;
+use crate::grammar::{
+    error::{FurthestFailError, ParserError},
+    parser::Parser,
+};
 
 pub struct ParserContext<'a, T> {
     pub tokens: &'a Vec<T>,

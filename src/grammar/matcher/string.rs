@@ -1,5 +1,5 @@
 use crate::grammar::{
-    error_handler::{ErrorHandler, ParserError},
+    error::{FurthestFailError, error_handler::ErrorHandler},
     matcher::{MatchRunner, Matcher, ToMatcher},
 };
 
@@ -41,7 +41,7 @@ impl<MRes> Matcher<char, MRes> for StringMatcher {
         runner: &mut Runner,
         _error_handler: &mut impl ErrorHandler,
         pos: &mut usize,
-    ) -> Result<bool, ParserError>
+    ) -> Result<bool, FurthestFailError>
     where
         Runner: MatchRunner<'a, 'ctx, Token = char, MRes = MRes>,
         'ctx: 'a,
@@ -60,6 +60,10 @@ impl<MRes> Matcher<char, MRes> for StringMatcher {
             Ok(false)
         }
     }
+
+    fn maybe_label(&self) -> Option<Box<dyn std::fmt::Display>> {
+        Some(Box::new(self.expected.iter().collect::<String>()))
+    }
 }
 
 impl<MRes> Matcher<char, MRes> for &str {
@@ -72,7 +76,7 @@ impl<MRes> Matcher<char, MRes> for &str {
         runner: &mut Runner,
         _error_handler: &mut impl ErrorHandler,
         pos: &mut usize,
-    ) -> Result<bool, ParserError>
+    ) -> Result<bool, FurthestFailError>
     where
         Runner: MatchRunner<'a, 'ctx, Token = char, MRes = MRes>,
         'ctx: 'a,
@@ -92,6 +96,10 @@ impl<MRes> Matcher<char, MRes> for &str {
             Ok(false)
         }
     }
+
+    fn maybe_label(&self) -> Option<Box<dyn std::fmt::Display>> {
+        Some(Box::new(self.to_string()))
+    }
 }
 
 // impl for char
@@ -105,7 +113,7 @@ impl<MRes> Matcher<char, MRes> for char {
         runner: &mut Runner,
         _error_handler: &mut impl ErrorHandler,
         pos: &mut usize,
-    ) -> Result<bool, ParserError>
+    ) -> Result<bool, FurthestFailError>
     where
         Runner: MatchRunner<'a, 'ctx, Token = char, MRes = MRes>,
         'ctx: 'a,
@@ -122,6 +130,9 @@ impl<MRes> Matcher<char, MRes> for char {
         } else {
             Ok(false)
         }
+    }
+    fn maybe_label(&self) -> Option<Box<dyn std::fmt::Display>> {
+        Some(Box::new(self.clone()))
     }
 }
 

@@ -1,6 +1,6 @@
 use crate::grammar::{
     context::ParserContext,
-    error_handler::{ErrorHandler, ParserError},
+    error::{FurthestFailError, error_handler::ErrorHandler},
     parser::Parser,
 };
 pub struct MultipleParser<Pars, CombF> {
@@ -43,7 +43,7 @@ where
         context: &mut ParserContext<T>,
         error_handler: &mut impl ErrorHandler,
         pos: &mut usize,
-    ) -> Result<Option<Self::Output>, ParserError> {
+    ) -> Result<Option<Self::Output>, FurthestFailError> {
         let mut results = Vec::new();
         while let Some(result) = self.parser.parse(context, error_handler, pos)? {
             results.push(result);

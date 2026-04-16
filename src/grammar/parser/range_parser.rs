@@ -5,7 +5,7 @@ use std::{
 
 use crate::grammar::{
     context::ParserContext,
-    error_handler::{ErrorHandler, ParserError},
+    error::{FurthestFailError, error_handler::ErrorHandler},
     parser::Parser,
 };
 
@@ -33,7 +33,7 @@ where
         context: &mut ParserContext<Token>,
         _error_handler: &mut impl ErrorHandler,
         pos: &mut usize,
-    ) -> Result<Option<Self::Output>, ParserError> {
+    ) -> Result<Option<Self::Output>, FurthestFailError> {
         let token = context.tokens.get(*pos);
         if let Some(token) = token
             && self.range.contains(token)
@@ -58,7 +58,7 @@ where
         context: &mut ParserContext<Token>,
         _error_handler: &mut impl ErrorHandler,
         pos: &mut usize,
-    ) -> Result<Option<Self::Output>, ParserError> {
+    ) -> Result<Option<Self::Output>, FurthestFailError> {
         let token = context.tokens.get(*pos);
         if let Some(token) = token
             && self.contains(token)
@@ -83,7 +83,7 @@ where
         context: &mut ParserContext<Token>,
         _error_handler: &mut impl ErrorHandler,
         pos: &mut usize,
-    ) -> Result<Option<Self::Output>, ParserError> {
+    ) -> Result<Option<Self::Output>, FurthestFailError> {
         let token = context.tokens.get(*pos);
         if let Some(token) = token
             && self.contains(token)

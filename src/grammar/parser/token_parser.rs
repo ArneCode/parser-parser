@@ -1,6 +1,6 @@
 use crate::grammar::{
     context::ParserContext,
-    error_handler::{ErrorHandler, ParserError},
+    error::{FurthestFailError, error_handler::ErrorHandler},
     parser::Parser,
 };
 pub struct TokenParser<CheckF, ParseF> {
@@ -42,7 +42,7 @@ where
         context: &mut ParserContext<Token>,
         _error_handler: &mut impl ErrorHandler,
         pos: &mut usize,
-    ) -> Result<Option<Self::Output>, ParserError> {
+    ) -> Result<Option<Self::Output>, FurthestFailError> {
         if *pos < context.tokens.len() && (self.check_fn)(&context.tokens[*pos]) {
             let token = &context.tokens[*pos];
             *pos += 1; // Advance position on success

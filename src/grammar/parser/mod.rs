@@ -10,7 +10,7 @@ use std::rc::Rc;
 
 use crate::grammar::{
     context::ParserContext,
-    error_handler::{ErrorHandler, ErrorHandlerChoice, ParserError},
+    error::{FurthestFailError, error_handler::{ErrorHandler, ErrorHandlerChoice}},
     parser::recover_error::ErrorRecoverer,
 };
 
@@ -23,7 +23,7 @@ pub trait Parser<Token> {
         context: &mut ParserContext<'ctx, Token>,
         error_handler: &mut impl ErrorHandler,
         pos: &mut usize,
-    ) -> Result<Option<Self::Output>, ParserError>;
+    ) -> Result<Option<Self::Output>, FurthestFailError>;
     fn recover_with<Match, Output>(
         self,
         recover_matcher: Match,
@@ -42,7 +42,7 @@ pub(crate) trait ParserObjSafe<Token> {
         context: &mut ParserContext<'ctx, Token>,
         error_handler: ErrorHandlerChoice<'_>,
         pos: &mut usize,
-    ) -> Result<Option<Self::Output>, ParserError>;
+    ) -> Result<Option<Self::Output>, FurthestFailError>;
 }
 
 impl<Token, P> ParserObjSafe<Token> for P
@@ -56,7 +56,7 @@ where
         context: &mut ParserContext<'ctx, Token>,
         error_handler: ErrorHandlerChoice<'_>,
         pos: &mut usize,
-    ) -> Result<Option<Self::Output>, ParserError> {
+    ) -> Result<Option<Self::Output>, FurthestFailError> {
         match error_handler {
             ErrorHandlerChoice::Empty(handler) => self.parse(context, handler, pos),
             ErrorHandlerChoice::Multi(handler) => self.parse(context, handler, pos),
@@ -77,7 +77,7 @@ where
         context: &mut ParserContext<'ctx, Token>,
         error_handler: &mut impl ErrorHandler,
         pos: &mut usize,
-    ) -> Result<Option<Self::Output>, ParserError> {
+    ) -> Result<Option<Self::Output>, FurthestFailError> {
         (**self).parse(context, error_handler, pos)
     }
 }
@@ -93,7 +93,7 @@ where
         context: &mut ParserContext<'ctx, Token>,
         error_handler: &mut impl ErrorHandler,
         pos: &mut usize,
-    ) -> Result<Option<Self::Output>, ParserError> {
+    ) -> Result<Option<Self::Output>, FurthestFailError> {
         (**self).parse(context, error_handler, pos)
     }
 }
@@ -109,7 +109,7 @@ where
         context: &mut ParserContext<'ctx, Token>,
         error_handler: &mut impl ErrorHandler,
         pos: &mut usize,
-    ) -> Result<Option<Self::Output>, ParserError> {
+    ) -> Result<Option<Self::Output>, FurthestFailError> {
         (**self).parse(context, error_handler, pos)
     }
 }

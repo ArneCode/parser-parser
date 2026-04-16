@@ -1,5 +1,5 @@
 use crate::grammar::{
-    error_handler::{ErrorHandler, ParserError},
+    error::{FurthestFailError, error_handler::ErrorHandler},
     matcher::{MatchRunner, Matcher},
 };
 pub struct AnyToken;
@@ -14,7 +14,7 @@ impl<Token, MRes> Matcher<Token, MRes> for AnyToken {
         runner: &mut Runner,
         _error_handler: &mut impl ErrorHandler,
         pos: &mut usize,
-    ) -> Result<bool, ParserError>
+    ) -> Result<bool, FurthestFailError>
     where
         Runner: MatchRunner<'a, 'ctx, Token = Token, MRes = MRes>,
         'ctx: 'a,

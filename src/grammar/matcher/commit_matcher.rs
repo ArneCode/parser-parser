@@ -1,5 +1,5 @@
 use crate::grammar::{
-    context::MatchResult, error_handler::{ErrorHandler, MultiErrorHandler, ParserError}, matcher::{MatchRunner, Matcher, NoMemoizeBacktrackingRunner}
+    context::MatchResult, error::{FurthestFailError, error_handler::{ErrorHandler, MultiErrorHandler}}, matcher::{MatchRunner, Matcher, NoMemoizeBacktrackingRunner}
 };
 
 pub struct CommitMatcher<CommitOn, ThenMatch> {
@@ -32,7 +32,7 @@ where
         runner: &mut Runner,
         error_handler: &mut impl ErrorHandler,
         pos: &mut usize,
-    ) -> Result<bool, ParserError>
+    ) -> Result<bool, FurthestFailError>
     where
         Runner: MatchRunner<'a, 'ctx, Token = Token, MRes = MRes>,
         'ctx: 'a,

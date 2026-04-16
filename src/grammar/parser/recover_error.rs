@@ -1,6 +1,6 @@
 use crate::grammar::{
     context::ParserContext,
-    error_handler::ErrorHandler,
+    error::error_handler::ErrorHandler,
     matcher::{MatchRunner, Matcher, NoMemoizeBacktrackingRunner},
     parser::Parser,
 };
@@ -36,7 +36,7 @@ where
         context: &mut ParserContext<'ctx, Token>,
         error_handler: &mut impl ErrorHandler,
         pos: &mut usize,
-    ) -> Result<Option<Self::Output>, crate::grammar::error_handler::ParserError> {
+    ) -> Result<Option<Self::Output>, crate::grammar::error::FurthestFailError> {
         let start_pos = *pos;
         match self.happy.parse(context, error_handler, pos) {
             Err(e) => {
@@ -47,7 +47,7 @@ where
                     .unwrap_or(false)
                 {
                     drop(runner);
-                    context.error_sink.push(e);
+                    context.error_sink.push(e.as_parser_error());
                     return Ok(Some(self.recover_output.clone()));
                 }
                 Err(e)

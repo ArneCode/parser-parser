@@ -2,7 +2,7 @@ use std::fmt::Display;
 
 use crate::grammar::{
     context::ParserContext,
-    error_handler::{ErrorHandler, ParserError},
+    error::{FurthestFailError, error_handler::ErrorHandler},
     matcher::{MatchRunner, Matcher},
     parser::Parser,
 };
@@ -32,24 +32,28 @@ where
         runner: &mut Runner,
         error_handler: &mut impl ErrorHandler,
         pos: &mut usize,
-    ) -> Result<bool, ParserError>
+    ) -> Result<bool, FurthestFailError>
     where
         Runner: MatchRunner<'a, 'ctx, Token = Token, MRes = MRes>,
         'ctx: 'a,
         Token: 'ctx,
     {
-        let idx = error_handler.register_start(*pos);
-        if runner.run_match(&self.inner, error_handler, pos)? {
-            error_handler.register_success(idx);
-            Ok(true)
-        } else {
-            error_handler.register_error(
-                self.label.clone(),
-                idx,
-                runner.get_parser_context().match_start,
-            );
-            Ok(false)
-        }
+        // let idx = error_handler.register_start(*pos);
+        // if runner.run_match(&self.inner, error_handler, pos)? {
+        //     error_handler.register_success(idx);
+        //     Ok(true)
+        // } else {
+        //     error_handler.register_failure_with_label(
+        //         self.label.clone(),
+        //         idx,
+        //         runner.get_parser_context().match_start,
+        //     );
+        //     Ok(false)
+        // }
+        runner.run_match(&self.inner, error_handler, pos)
+    }
+    fn maybe_label(&self) -> Option<Box<dyn Display>> {
+        Some(Box::new(self.label.clone()))
     }
 }
 
@@ -66,7 +70,7 @@ where
         context: &mut ParserContext<'ctx, Token>,
         error_handler: &mut impl ErrorHandler,
         pos: &mut usize,
-    ) -> Result<Option<Self::Output>, ParserError> {
+    ) -> Result<Option<Self::Output>, FurthestFailError> {
         let idx = error_handler.register_start(*pos);
         match self.inner.parse(context, error_handler, pos)? {
             Some(output) => {
@@ -74,68 +78,12 @@ where
                 Ok(Some(output))
             }
             None => {
-                error_handler.register_error(self.label.clone(), idx, context.match_start);
+                error_handler.register_failure(Some(self.label.clone()), idx, context.match_start);
                 Ok(None)
             }
         }
     }
 }
-
-// impl<L: Clone, I> MaybeLabel<L> for Labeled<L, I> {
-//     fn maybe_label(&self) -> Option<L> {
-//         Some(self.label.clone())
-//     }
-// }
-
-// impl<Inner, Label, Token, MRes> Matcher<Token, MRes> for Labeled<Label, Inner>
-// where
-//     Inner: Matcher<Token, MRes>,
-// {
-//     fn match_pattern(
-//         &self,
-//         context: &mut MatcherContext<Token, MRes, impl ErrorHandler>,
-//         pos: &mut usize,
-//     ) -> Result<(), String> {
-//         self.inner.match_pattern(context, pos)
-//     }
-// }
-
-// impl<L, I, Token> Parser<Token> for Labeled<L, I>
-// where
-//     I: Parser<Token>,
-// {
-//     type Output = I::Output;
-
-//     fn parse(
-//         &self,
-//         context: &mut ParserContext<Token, impl ErrorHandler>,
-//         pos: &mut usize,
-//     ) -> Result<Self::Output, String> {
-//         self.inner.parse(context, pos)
-//     }
-// }
-
-// impl<L, I> HasId for Labeled<L, I>
-// where
-//     I: HasId,
-// {
-//     fn id(&self) -> usize {
-//         self.inner.id()
-//     }
-// }
-
-// impl<L, I, Token> IsCheckable<Token> for Labeled<L, I>
-// where
-//     I: IsCheckable<Token>,
-// {
-//     fn calc_check(
-//         &self,
-//         context: &mut ParserContext<Token, impl ErrorHandler>,
-//         pos: &mut usize,
-//     ) -> bool {
-//         self.inner.calc_check(context, pos)
-//     }
-// }
 
 pub trait WithLabel
 where

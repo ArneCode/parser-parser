@@ -2,7 +2,7 @@ use std::fmt::Debug;
 
 use crate::grammar::{
     context::ParserContext,
-    error_handler::{ErrorHandler, ParserError},
+    error::{FurthestFailError, error_handler::ErrorHandler},
     parser::Parser,
 };
 
@@ -67,7 +67,7 @@ impl<Token: PartialEq + Clone + Debug> Parser<Token> for SingleTokenParser<Token
         context: &mut ParserContext<Token>,
         _error_handler: &mut impl ErrorHandler,
         pos: &mut usize,
-    ) -> Result<Option<Self::Output>, ParserError> {
+    ) -> Result<Option<Self::Output>, FurthestFailError> {
         if *pos < context.tokens.len() {
             let token = &context.tokens[*pos];
             if token == &self.token {
@@ -91,7 +91,7 @@ impl Parser<char> for char {
         context: &mut ParserContext<char>,
         _error_handler: &mut impl ErrorHandler,
         pos: &mut usize,
-    ) -> Result<Option<Self::Output>, ParserError> {
+    ) -> Result<Option<Self::Output>, FurthestFailError> {
         if *pos < context.tokens.len() {
             let token = &context.tokens[*pos];
             if token == self {

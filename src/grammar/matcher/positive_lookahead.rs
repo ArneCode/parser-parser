@@ -1,4 +1,4 @@
-use crate::grammar::{error_handler::ErrorHandler, matcher::Matcher};
+use crate::grammar::{error::error_handler::ErrorHandler, matcher::Matcher};
 pub struct PositiveLookahead<Check> {
     checker: Check,
 }
@@ -27,7 +27,7 @@ where
         runner: &mut Runner,
         error_handler: &mut impl ErrorHandler,
         pos: &mut usize,
-    ) -> Result<bool, crate::grammar::error_handler::ParserError>
+    ) -> Result<bool, crate::grammar::error::FurthestFailError>
     where
         Runner: crate::grammar::matcher::MatchRunner<'a, 'ctx, Token = Token, MRes = MRes>,
         'ctx: 'a,

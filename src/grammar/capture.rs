@@ -2,7 +2,7 @@ use crate::grammar::{
     context::{
         MatchResult, MatchResultMultiple, MatchResultOptional, MatchResultSingle, ParserContext,
     },
-    error_handler::{ErrorHandler, ParserError},
+    error::{FurthestFailError, error_handler::ErrorHandler},
     matcher::{DirectMatchRunner, MatchRunner, Matcher, NoMemoizeBacktrackingRunner},
     parser::Parser,
     // span::Span,
@@ -183,7 +183,7 @@ where
         context: &mut ParserContext<'ctx, Token>,
         error_handler: &mut impl ErrorHandler,
         pos: &mut usize,
-    ) -> Result<Option<Self::Output>, ParserError> {
+    ) -> Result<Option<Self::Output>, FurthestFailError> {
         // TODO: match_start logic is a bit wrong, maybe remove overall?
         let old_match_start = context.match_start;
         context.match_start = *pos;
@@ -305,7 +305,7 @@ where
         runner: &mut Runner,
         error_handler: &mut impl ErrorHandler,
         pos: &mut usize,
-    ) -> Result<bool, ParserError>
+    ) -> Result<bool, FurthestFailError>
     where
         Runner: MatchRunner<'a, 'ctx, Token = Token, MRes = MRes>,
         'ctx: 'a,
@@ -356,7 +356,7 @@ where
         runner: &mut Runner,
         error_handler: &mut impl ErrorHandler,
         pos: &mut usize,
-    ) -> Result<bool, ParserError>
+    ) -> Result<bool, FurthestFailError>
     where
         Runner: MatchRunner<'a, 'ctx, Token = Token, MRes = MRes>,
         'ctx: 'a,

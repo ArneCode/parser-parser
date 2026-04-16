@@ -1,6 +1,7 @@
 pub mod any_token;
 pub mod commit_matcher;
 pub mod error_contextualizer;
+pub mod insert_on_error;
 pub mod multiple;
 pub mod negative_lookahead;
 pub mod one_of;
@@ -11,13 +12,13 @@ pub mod positive_lookahead;
 pub mod sequence;
 pub mod string;
 
-use std::{ops::Deref, rc::Rc};
+use std::{fmt::Display, ops::Deref, rc::Rc};
 
 use crate::grammar::{
     capture::BoundResult,
     context::{MatchResult, ParserContext},
-    error_handler::{ErrorHandler, ParserError},
-    matcher::error_contextualizer::ErrorContextualizer,
+    error::{FurthestFailError, error_handler::ErrorHandler},
+    matcher::{error_contextualizer::ErrorContextualizer, insert_on_error::InsertOnErrorMatcher},
     parser::Parser,
 };
 
@@ -37,7 +38,7 @@ pub trait Matcher<Token, MRes> {
         runner: &mut Runner,
         error_handler: &mut impl ErrorHandler,
         pos: &mut usize,
-    ) -> Result<bool, ParserError>
+    ) -> Result<bool, FurthestFailError>
     where
         Runner: MatchRunner<'a, 'ctx, Token = Token, MRes = MRes>,
         'ctx: 'a,
@@ -46,9 +47,21 @@ pub trait Matcher<Token, MRes> {
     where
         Self: Sized,
         Pars: Parser<Token, Output = F>,
-        F: Fn(&mut ParserError),
+        F: Fn(&mut FurthestFailError),
     {
         ErrorContextualizer::new(self, error_parser)
+    }
+    fn maybe_label(&self) -> Option<Box<dyn Display>> {
+        None
+    }
+    fn try_insert_if_missing<M: Display>(self, message: M) -> InsertOnErrorMatcher<Self>
+    where
+        Self: Sized,
+    {
+        InsertOnErrorMatcher {
+            inner: self,
+            message: message.to_string(),
+        }
     }
 }
 
@@ -65,7 +78,7 @@ where
         runner: &mut Runner,
         error_handler: &mut impl ErrorHandler,
         pos: &mut usize,
-    ) -> Result<bool, ParserError>
+    ) -> Result<bool, FurthestFailError>
     where
         Runner: MatchRunner<'a, 'ctx, Token = Token, MRes = MRes>,
         'ctx: 'a,
@@ -88,7 +101,7 @@ where
         runner: &mut Runner,
         error_handler: &mut impl ErrorHandler,
         pos: &mut usize,
-    ) -> Result<bool, ParserError>
+    ) -> Result<bool, FurthestFailError>
     where
         Runner: MatchRunner<'a, 'ctx, Token = Token, MRes = MRes>,
         'ctx: 'a,
@@ -107,7 +120,7 @@ pub trait MatchRunner<'a, 'ctx> {
         matcher: &'a Match,
         error_handler: &mut EHandler,
         pos: &mut usize,
-    ) -> Result<bool, ParserError>
+    ) -> Result<bool, FurthestFailError>
     where
         Match: Matcher<Self::Token, Self::MRes>,
         Self: Sized;
@@ -145,18 +158,26 @@ where
         matcher: &'a Match,
         error_handler: &mut EHandler,
         pos: &mut usize,
-    ) -> Result<bool, ParserError>
+    ) -> Result<bool, FurthestFailError>
     where
         Match: Matcher<Self::Token, Self::MRes>,
         Self: Sized,
     {
         let old_pos = *pos;
         let old_stack_len = self.stack.len();
+        let idx = error_handler.register_start(*pos);
         let result = matcher.match_with_runner(self, error_handler, pos)?;
         error_handler.register_watermark(*pos);
         if !result {
             *pos = old_pos;
             self.stack.truncate(old_stack_len);
+            error_handler.register_failure(
+                matcher.maybe_label(),
+                idx,
+                self.parser_context.match_start,
+            );
+        } else {
+            error_handler.register_success(idx);
         }
         Ok(result)
     }
@@ -195,21 +216,23 @@ where
         matcher: &'a Match,
         error_handler: &mut EHandler,
         pos: &mut usize,
-    ) -> Result<bool, ParserError>
+    ) -> Result<bool, FurthestFailError>
     where
         Match: Matcher<Self::Token, Self::MRes>,
         Self: Sized,
     {
-        // const {
-        if !Match::CAN_MATCH_DIRECTLY {
-            panic!("Matcher cannot be run with DirectMatchRunner because it cannot match directly");
-        }
-        // }
         let old_pos = *pos;
+        let idx = error_handler.register_start(*pos);
         if matcher.match_with_runner(self, error_handler, pos)? {
+            error_handler.register_success(idx);
             Ok(true)
         } else {
             *pos = old_pos;
+            error_handler.register_failure(
+                matcher.maybe_label(),
+                idx,
+                self.parser_context.match_start,
+            );
             Ok(false)
         }
     }
@@ -246,7 +269,7 @@ impl<Token, MRes> Matcher<Token, MRes> for () {
         _runner: &mut Runner,
         _error_handler: &mut impl ErrorHandler,
         _pos: &mut usize,
-    ) -> Result<bool, ParserError>
+    ) -> Result<bool, FurthestFailError>
     where
         Runner: MatchRunner<'a, 'ctx, Token = Token, MRes = MRes>,
         'ctx: 'a,

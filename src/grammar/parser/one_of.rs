@@ -1,6 +1,6 @@
 use crate::grammar::{
     context::ParserContext,
-    error_handler::{ErrorHandler, ParserError},
+    error::{FurthestFailError, error_handler::ErrorHandler},
     parser::Parser,
 };
 pub struct OneOf<Tuple> {
@@ -53,7 +53,7 @@ macro_rules! impl_parser_for_one_of_tuples {
         {
             type Output = Output;
             const CAN_FAIL: bool = $head::CAN_FAIL  $(&& $tail::CAN_FAIL)*;
-            fn parse(&self, context: &mut ParserContext<Token>, error_handler: &mut impl ErrorHandler, pos: &mut usize) -> Result<Option<Output>, ParserError> {
+            fn parse(&self, context: &mut ParserContext<Token>, error_handler: &mut impl ErrorHandler, pos: &mut usize) -> Result<Option<Output>, FurthestFailError> {
 
                 #[allow(non_snake_case)]
                 let ($head, $($tail,)*) = &self.options;

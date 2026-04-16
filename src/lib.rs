@@ -4,10 +4,11 @@ use macros::capture;
 
 use crate::grammar::{
     capture::{Capture, bind_result, bind_span},
-    error_handler::ParserError,
+    error::FurthestFailError,
     label::WithLabel,
     matcher::{
-        Matcher, commit_matcher::commit_on, multiple::many, one_of::one_of, one_or_more::one_or_more, optional::optional
+        Matcher, commit_matcher::commit_on, multiple::many, one_of::one_of,
+        one_or_more::one_or_more, optional::optional,
     },
     parser::{Parser, deferred::recursive, token_parser::TokenParser},
 };
@@ -120,8 +121,7 @@ fn get_json_grammar() -> impl Parser<char, Output = JsonValue> {
             std::char::from_u32(codepoint).unwrap_or('\u{FFFD}')
         }));
         let raw_string = Rc::new(capture!({
-            (
-                '"',
+                commit_on('"',(
                 many(one_of((
                     bind!(character.clone(), *chars),
                     bind!(escaped_char.clone(), *chars),
@@ -129,7 +129,7 @@ fn get_json_grammar() -> impl Parser<char, Output = JsonValue> {
                 ))),
                 '"',
                 ws.clone()
-            )
+            ))
         } =>  {
             chars.into_iter().collect::<String>()
         }));
@@ -138,22 +138,21 @@ fn get_json_grammar() -> impl Parser<char, Output = JsonValue> {
 
         // Array: [ element, element, ... ]
         let array = capture!({
-            (
-                ws.clone(), '[', ws.clone(),
+                commit_on((ws.clone(), '['), (ws.clone(),
                 optional((bind!(element.clone(), *elements),
                 many((
                     ',', ws.clone(),
                     bind!(element.clone(), *elements)
                 )))),
                 ']'.with_label("]"), ws.clone()
-            )
+            ))
         } =>  {
             JsonValue::Array(elements)
         });
 
         // Object: { "key": value, ... }
         let object = capture!({
-            
+
                 commit_on((ws.clone(), '{'.with_label("{")),
                 (
                 ws.clone(),
@@ -174,7 +173,7 @@ fn get_json_grammar() -> impl Parser<char, Output = JsonValue> {
                         capture!((
                             bind_span!(",",comma),
                             ws.clone(),
-                            '}') => move |err: &mut ParserError|{
+                            '}') => move |err: &mut FurthestFailError|{
                             err.add_extra_label(comma,"trailing comma",ariadne::Color::Blue);
                         }),
                     ),
@@ -204,10 +203,70 @@ mod tests {
     use crate::grammar::parse;
 
     use super::*;
-    use std::fs;
+    use std::{env, fs, os::unix::fs::FileExt, path::Path};
+
+    fn run_jsonsuite_case(
+        grammar: &impl Parser<char, Output = JsonValue>,
+        path: &Path,
+    ) -> Option<String> {
+        let file_name = path
+            .file_name()
+            .expect("JSON test file has no name")
+            .to_string_lossy()
+            .into_owned();
+
+        if !(file_name.starts_with("y_")
+            || file_name.starts_with("n_")
+            || file_name.starts_with("i_"))
+        {
+            return None;
+        }
+
+        let raw_content = fs::read(path).expect("Failed reading JSON test file");
+        let content = match std::str::from_utf8(&raw_content) {
+            Ok(content) => content.to_owned(),
+            Err(_) => {
+                if file_name.starts_with("y_") {
+                    return Some(format!("Expected valid JSON test to be UTF-8: {file_name}"));
+                }
+                if file_name.starts_with("n_") {
+                    return None;
+                }
+                return Some(format!("Informational test is not UTF-8: {file_name}"));
+            }
+        };
+
+        let parse_result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            let result: Result<
+                (JsonValue, Vec<grammar::error::ParserError>),
+                grammar::error::FurthestFailError,
+            > = parse(grammar, &content);
+            result
+        }));
+
+        if file_name.starts_with("y_") {
+            match parse_result {
+                Ok(Ok(_)) => None,
+                Ok(Err(err)) => {
+                    err.eprint_ariadne(&file_name, &content);
+                    Some(format!("Expected valid JSON test to pass: {file_name}"))
+                }
+                Err(_) => Some(format!("Parser panicked on valid JSON test: {file_name}")),
+            }
+        } else if file_name.starts_with("n_") {
+            let accepted = matches!(parse_result, Ok(Ok(_)));
+            if accepted {
+                Some(format!("Expected invalid JSON test to fail: {file_name}"))
+            } else {
+                None
+            }
+        } else {
+            None
+        }
+    }
 
     #[test]
-    fn test_standard_suite() {
+    fn test_standard_suite_direct() {
         let grammar = get_json_grammar();
         let suite_dir = "./tests/JSONTestSuite/test_parsing";
         let mut paths: Vec<_> = fs::read_dir(suite_dir)
@@ -218,7 +277,6 @@ mod tests {
 
         let mut accepted_info = 0usize;
         let mut rejected_info = 0usize;
-        let mut skipped_stack_depth = 0usize;
         let mut failures: Vec<String> = Vec::new();
 
         for entry in paths {
@@ -229,70 +287,49 @@ mod tests {
             {
                 continue;
             }
-            if file_name.contains("structure_") {
-                // These tests are intentionally deeply nested and currently overflow
-                // this parser's recursive descent stack in test mode.
-                skipped_stack_depth += 1;
+            if file_name.contains("_structure") {
                 continue;
             }
-
-            let raw_content = fs::read(entry.path()).unwrap();
-            let content = match std::str::from_utf8(&raw_content) {
-                Ok(content) => content.to_owned(),
-                Err(_) => {
-                    if file_name.starts_with("y_") {
-                        panic!("Expected valid JSON test to be UTF-8: {file_name}");
-                    } else if file_name.starts_with("n_") {
-                        // Invalid UTF-8 is an expected rejection for n_* files.
-                        continue;
-                    } else {
-                        rejected_info += 1;
-                        continue;
-                    }
-                }
-            };
-            let parse_result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                let result: Result<
-                    (JsonValue, Vec<grammar::error_handler::ParserError>),
-                    grammar::error_handler::ParserError,
-                > = parse(&grammar, &content);
-                result
-            }));
-
-            if file_name.starts_with("y_") {
-                match parse_result {
-                    Ok(Ok(_)) => {}
-                    Ok(Err(err)) => {
-                        err.eprint_ariadne(&file_name, &content);
-                        failures.push(format!("Expected valid JSON test to pass: {file_name}"));
-                    }
-                    Err(_) => {
-                        failures.push(format!("Parser panicked on valid JSON test: {file_name}"));
-                    }
-                }
-            } else {
-                let accepted = matches!(parse_result, Ok(Ok(_)));
-
-                if file_name.starts_with("n_") {
-                    if accepted {
-                        failures.push(format!("Expected invalid JSON test to fail: {file_name}"));
-                    }
-                } else if accepted {
+            if file_name.starts_with("i_") {
+                let raw_content = fs::read(entry.path()).unwrap();
+                let accepted = std::str::from_utf8(&raw_content)
+                    .ok()
+                    .and_then(|content| {
+                        let parse_result: Result<
+                            (JsonValue, Vec<grammar::error::ParserError>),
+                            grammar::error::FurthestFailError,
+                        > = parse(&grammar, content);
+                        Some(parse_result.is_ok())
+                    })
+                    .unwrap_or(false);
+                if accepted {
                     accepted_info += 1;
                 } else {
                     rejected_info += 1;
                 }
+                continue;
+            }
+            if let Some(failure) = run_jsonsuite_case(&grammar, &entry.path()) {
+                failures.push(failure);
             }
         }
 
-        println!(
-            "JSONTestSuite i_* results: accepted={accepted_info}, rejected={rejected_info}, skipped_depth={skipped_stack_depth}"
-        );
+        println!("JSONTestSuite i_* results: accepted={accepted_info}, rejected={rejected_info}");
         assert!(
             failures.is_empty(),
             "JSONTestSuite mismatches ({}):\n{}",
             failures.len(),
             failures.join("\n")
         );
+    }
+
+    #[test]
+    fn test_standard_suite_single_file_from_env() {
+        let path =
+            env::var("JSONSUITE_FILE").expect("Set JSONSUITE_FILE to run one JSONTestSuite case");
+        let grammar = get_json_grammar();
+        if let Some(failure) = run_jsonsuite_case(&grammar, Path::new(&path)) {
+            panic!("{failure}");
+        }
     }
 }

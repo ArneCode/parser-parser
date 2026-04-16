@@ -1,6 +1,6 @@
 use crate::grammar::{
     context::ParserContext,
-    error_handler::{ErrorHandler, ParserError},
+    error::{FurthestFailError, error_handler::ErrorHandler},
     matcher::{MatchRunner, Matcher},
     parser::Parser,
 };
@@ -30,7 +30,7 @@ macro_rules! impl_matcher_for_one_of_tuples {
             const HAS_PROPERTY: bool = $head::HAS_PROPERTY  $(|| $tail::HAS_PROPERTY)*;
             const CAN_FAIL: bool = $head::CAN_FAIL  $(&& $tail::CAN_FAIL)*;
 
-            fn match_with_runner<'a, 'ctx, Runner>(&'a self, runner: &mut Runner, error_handler: &mut impl ErrorHandler, pos: &mut usize) -> Result<bool, ParserError>
+            fn match_with_runner<'a, 'ctx, Runner>(&'a self, runner: &mut Runner, error_handler: &mut impl ErrorHandler, pos: &mut usize) -> Result<bool, FurthestFailError>
             where
                 Runner: MatchRunner<'a, 'ctx, Token = Token, MRes = MRes>,
                 'ctx: 'a,
@@ -58,7 +58,7 @@ macro_rules! impl_matcher_for_one_of_tuples {
         {
             type Output = Output;
             const CAN_FAIL: bool = $head::CAN_FAIL  $(&& $tail::CAN_FAIL)*;
-            fn parse(&self, context: &mut ParserContext<Token>, error_handler: &mut impl ErrorHandler, pos: &mut usize) -> Result<Option<Output>, ParserError> {
+            fn parse(&self, context: &mut ParserContext<Token>, error_handler: &mut impl ErrorHandler, pos: &mut usize) -> Result<Option<Output>, FurthestFailError> {
 
                 #[allow(non_snake_case)]
                 let ($head, $($tail,)*) = &self.options;

@@ -1,5 +1,5 @@
 use crate::grammar::{
-    error_handler::ErrorHandler,
+    error::error_handler::ErrorHandler,
     matcher::{MatchRunner, Matcher},
 };
 pub struct NegativeLookahead<Check> {
@@ -31,7 +31,7 @@ where
         runner: &mut Runner,
         error_handler: &mut impl ErrorHandler,
         pos: &mut usize,
-    ) -> Result<bool, crate::grammar::error_handler::ParserError>
+    ) -> Result<bool, crate::grammar::error::FurthestFailError>
     where
         Runner: MatchRunner<'a, 'ctx, Token = Token, MRes = MRes>,
         'ctx: 'a,

@@ -1,23 +1,24 @@
 pub mod capture;
 pub mod context;
-pub mod error_handler;
+pub mod error;
 pub mod label;
 pub mod matcher;
 pub mod parser;
-// pub mod span;
-use crate::Capture;
-use crate::grammar::capture::bind_result;
 use crate::grammar::{
     context::ParserContext,
-    error_handler::{EmptyErrorHandler, ParserError},
+    error::{FurthestFailError, ParserError, error_handler::EmptyErrorHandler},
     matcher::{
         any_token::AnyToken, commit_matcher::commit_on, negative_lookahead::negative_lookahead,
     },
     parser::Parser,
 };
+use macros::capture;
 use std::rc::Rc;
 
-pub fn parse<Pars>(parser: Pars, src: &str) -> Result<(Pars::Output, Vec<ParserError>), ParserError>
+pub fn parse<Pars>(
+    parser: Pars,
+    src: &str,
+) -> Result<(Pars::Output, Vec<ParserError>), FurthestFailError>
 where
     Pars: Parser<char>,
 {
@@ -27,19 +28,11 @@ where
     let mut pos = 0;
     let parser = Rc::new(parser);
 
-    let parser = Capture::<((::std::option::Option<_>,), (), ()), _, _>::new(
-        |(result,), (), ()| {
-            {
-                commit_on(
-                    (),
-                    (
-                        bind_result(parser.clone(), result),
-                        negative_lookahead(AnyToken),
-                    ),
-                )
-            }
-        },
-        |(result,), (), ()| result,
+    let parser = capture!(
+        commit_on((), (
+            bind!(parser.clone(), result),
+            negative_lookahead(AnyToken),
+        )) => result
     );
     let result = parser
         .parse(&mut context, &mut error_handler, &mut pos)?
@@ -121,15 +114,6 @@ mod tests {
                 }
             );
 
-        // assert_eq!(
-        //     number_parser.parse(Rc::new(ParserContext::new(vec!['1', '2', '3'])), &mut 0),
-        //     Ok("123".to_string())
-        // // );
-        // assert!(check(&number_parser, "123"));
-        // assert_eq!(parse(&number_parser, "123"), Ok("123".to_string()));
-        // println!("{}", parse(&number_parser, "123abc").unwrap());
-        // println!("{}", parse(&identifier_parser, "var_name123").unwrap());
-
         let func_parser = Rc::new(Capture::<
             (
                 (
@@ -194,71 +178,5 @@ mod tests {
             },
         ));
         let func_parser: Box<dyn ParserObjSafe<char, Output = String>> = Box::new(func_parser);
-        // let func_parser = Rc::new(Capture::<
-        //     (
-        //         (
-        //             ::std::option::Option<_>,
-        //             ::std::option::Option<span::Span>,
-        //             ::std::option::Option<span::Span>,
-        //         ),
-        //         (::std::vec::Vec<_>, ::std::vec::Vec<span::Span>),
-        //         (::std::option::Option<_>,),
-        //     ),
-        //     _,
-        //     _,
-        // >::new(
-        //     |(name, fn_keyword_span, name_span), (params, param_spans), (body,)| {
-        //         {
-        //             seq((
-        //                 bind_span(
-        //                     ParserMatcher::new(&identifier_parser, "fn".to_string()),
-        //                     fn_keyword_span,
-        //                 ),
-        //                 one_or_more(" ".to_matcher()),
-        //                 bind_span(bind_result(word_parser.clone(), name.clone()), name_span),
-        //                 many(" ".to_matcher()),
-        //                 "(".to_matcher(),
-        //                 many(" ".to_matcher()),
-        //                 bind_span(
-        //                     bind_result(word_parser.clone(), params.clone()),
-        //                     param_spans.clone(),
-        //                 ),
-        //                 many(seq((
-        //                     many(" ".to_matcher()),
-        //                     ",".to_matcher(),
-        //                     many(" ".to_matcher()),
-        //                     bind_span(
-        //                         bind_result(word_parser.clone(), params.clone()),
-        //                         param_spans.clone(),
-        //                     ),
-        //                 ))),
-        //                 many(" ".to_matcher()),
-        //                 ")".to_matcher(),
-        //                 many(" ".to_matcher()),
-        //                 optional(bind_result(word_parser.clone(), body.clone())),
-        //             ))
-        //         }
-        //     },
-        //     |(name, fn_keyword_span, name_span), (params, param_spans), (body,)| {
-        //         {
-        //             // Here we can use the captured values and spans to construct a more detailed output
-        //         }
-        //     },
-        // ));
-        // assert_eq!(
-        //     func_parser.parse(
-        //         Rc::new(ParserContext::new(vec![
-        //             'f', 'n', ' ', 'm', 'a', 'i', 'n', '(', 'x', ',', ' ', 'y', ')', ' ', '{', '}'
-        //         ])),
-        //         &mut 0
-        //     ),
-        //     Ok("Function: name=main, params=[x, y], body=None".to_string())
-        // );
-        // assert_eq!(
-        //     parse(func_parser.clone(), "fn main(x, y)"),
-        //     Ok("Function: name=main, params=[x, y], body=None".to_string())
-        // );
-
-        // parse(&func_parser, "fn main(x, y)").unwrap();
     }
 }

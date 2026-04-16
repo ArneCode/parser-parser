@@ -5,7 +5,7 @@ use std::{
 
 use crate::grammar::{
     context::ParserContext,
-    error_handler::{ErrorHandler, ParserError},
+    error::{FurthestFailError, error_handler::ErrorHandler},
     parser::{Parser, ParserObjSafe},
 };
 
@@ -50,7 +50,7 @@ impl<'a, Token, Output> Parser<Token> for Deferred<'a, Token, Output> {
         context: &mut ParserContext<Token>,
         error_handler: &mut impl ErrorHandler,
         pos: &mut usize,
-    ) -> Result<Option<Self::Output>, ParserError> {
+    ) -> Result<Option<Self::Output>, FurthestFailError> {
         if let Some(parser) = self.parser.get() {
             parser.parse(context, error_handler.to_choice(), pos)
         } else {
@@ -68,7 +68,7 @@ impl<'a, Token, Output> Parser<Token> for DeferredWeak<'a, Token, Output> {
         context: &mut ParserContext<Token>,
         error_handler: &mut impl ErrorHandler,
         pos: &mut usize,
-    ) -> Result<Option<Self::Output>, ParserError> {
+    ) -> Result<Option<Self::Output>, FurthestFailError> {
         if let Some(parser) = self.parser.upgrade() {
             if let Some(parser) = parser.get() {
                 parser.parse(context, error_handler.to_choice(), pos)
