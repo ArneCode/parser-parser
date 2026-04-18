@@ -18,7 +18,7 @@ You build grammars from small parts:
 The usual top-level flow is:
 
 1. Build a parser value.
-2. Call `grammar::parse(&parser, input_str)`.
+2. Call `parse(&parser, input_str)`.
 3. Get `Result<(output, extra_errors), ParserError>`.
 
 ---
@@ -26,8 +26,8 @@ The usual top-level flow is:
 ## 2) Minimal parser example
 
 ```rust
-use macros::capture;
-use crate::grammar::{
+use marser_macros::capture;
+use marser::{
     matcher::{one_of::one_of, multiple::many},
     parser::token_parser::TokenParser,
 };
@@ -77,7 +77,7 @@ Spans are `(usize, usize)` in token indices.
 
 ## 4) Useful combinators
 
-From `crate::grammar::matcher`:
+From `marser::matcher`:
 
 - `one_of((a, b, c))`: alternatives
 - `many(x)`: zero or more
@@ -98,7 +98,7 @@ Use `deferred::recursive` for self-referential grammars (arrays/objects/expressi
 
 ```rust
 use std::rc::Rc;
-use crate::grammar::parser::deferred::recursive;
+use marser::parser::deferred::recursive;
 
 let grammar = recursive(|expr| {
     let expr = Rc::new(expr);
@@ -108,16 +108,16 @@ let grammar = recursive(|expr| {
 });
 ```
 
-For recursive JSON-like structures, this is the standard pattern used in `src/lib.rs`.
+For recursive JSON-like structures, this is the standard pattern used in `examples/json.rs`.
 
 ---
 
 ## 6) Running a grammar against input
 
-Use the helper in `crate::grammar::parse`:
+Use the helper in `marser::parse`:
 
 ```rust
-use crate::grammar::parse;
+use marser::parse;
 
 let (value, non_fatal_errors) = parse(&my_grammar, input)?;
 ```

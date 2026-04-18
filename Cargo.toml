@@ -2,8 +2,20 @@
 name = "marser"
 version = "0.1.0"
 edition = "2024"
+description = "Parser combinator toolkit with matcher-level backtracking and rich error reporting."
+license = "MIT"
+repository = "https://github.com/ArneCode/parser-parser"
+readme = "README.md"
+documentation = "https://docs.rs/marser"
+keywords = ["parser", "combinator", "grammar", "parsing", "peg"]
+categories = ["parsing"]
+rust-version = "1.85"
+exclude = [
+    "target/**",
+    "tests/JSONTestSuite/**",
+]
 
 [dependencies]
 ariadne = "0.6.0"
-macros = { path = "./macros" }
+marser_macros = { version = "0.1.0", path = "./macros" }
 miette = { version = "7", features = ["fancy"] }

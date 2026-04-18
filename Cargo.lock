@@ -120,22 +120,22 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "32a66949e030da00e8c7d4434b251670a91556f4144941d37452769c25d58a53"
 
 [[package]]
-name = "macros"
+name = "marser"
+version = "0.1.0"
+dependencies = [
+ "ariadne",
+ "marser_macros",
+ "miette",
+]
+
+[[package]]
+name = "marser_macros"
 version = "0.1.0"
 dependencies = [
  "proc-macro-crate",
  "proc-macro2",
  "quote",
  "syn",
-]
-
-[[package]]
-name = "marser"
-version = "0.1.0"
-dependencies = [
- "ariadne",
- "macros",
- "miette",
 ]
 
 [[package]]

@@ -1,7 +1,12 @@
 [package]
-name = "macros"
+name = "marser_macros"
 version = "0.1.0"
 edition = "2024"
+description = "Procedural macros for the marser parser-combinator library."
+license = "MIT"
+repository = "https://github.com/ArneCode/parser-parser"
+readme = "../README.md"
+documentation = "https://docs.rs/marser_macros"
 
 [lib]
 proc-macro = true

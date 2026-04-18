@@ -174,11 +174,11 @@ impl VisitMut for BindVisitor {
                         self.register_span(span_id.clone(), span_kind);
                         // wrap: bind_span( bind_result(parser, id), span_id )
                         parse_quote! {
-                            #marser::grammar::capture::bind_span(
-                                #marser::grammar::capture::bind_result_with_debug(
+                            #marser::parser::capture::bind_span(
+                                #marser::parser::capture::bind_result_with_debug(
                                     #parser,
                                     #id.clone(),
-                                    #marser::grammar::capture::BindDebugInfo {
+                                    #marser::parser::capture::BindDebugInfo {
                                         property_name: stringify!(#id),
                                         file: file!(),
                                         line: line!(),
@@ -191,10 +191,10 @@ impl VisitMut for BindVisitor {
                     } else {
                         let marser = self.marser_path.clone();
                         parse_quote! {
-                            #marser::grammar::capture::bind_result_with_debug(
+                            #marser::parser::capture::bind_result_with_debug(
                                 #parser,
                                 #id.clone(),
-                                #marser::grammar::capture::BindDebugInfo {
+                                #marser::parser::capture::BindDebugInfo {
                                     property_name: stringify!(#id),
                                     file: file!(),
                                     line: line!(),
@@ -216,7 +216,7 @@ impl VisitMut for BindVisitor {
                     self.register_span(span_id.clone(), &info.kind);
 
                     let marser = self.marser_path.clone();
-                    *i = parse_quote! { #marser::grammar::capture::bind_span(#parser, #span_id.clone()) };
+                    *i = parse_quote! { #marser::parser::capture::bind_span(#parser, #span_id.clone()) };
                     return;
                 }
             }
@@ -286,7 +286,7 @@ pub fn capture(input: TokenStream) -> TokenStream {
     let o_ty = type_tuple(&visitor.optional_values, &visitor.optional_spans, false);
 
     TokenStream::from(quote! {
-        #marser_path::grammar::capture::Capture::<(#s_ty, #m_ty, #o_ty), _, _>::new(
+        #marser_path::parser::capture::Capture::<(#s_ty, #m_ty, #o_ty), _, _>::new(
             |#s_pat, #m_pat, #o_pat| { #grammar     },
             |#s_pat, #m_pat, #o_pat| { #result_expr },
         )
@@ -295,7 +295,7 @@ pub fn capture(input: TokenStream) -> TokenStream {
 
 fn marser_crate_path() -> Path {
     match crate_name("marser") {
-        Ok(FoundCrate::Itself) => parse_quote!(crate),
+        Ok(FoundCrate::Itself) => parse_quote!(::marser),
         Ok(FoundCrate::Name(name)) => {
             let ident = Ident::new(&name, Span::call_site());
             parse_quote!(::#ident)
