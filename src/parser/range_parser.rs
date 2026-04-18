@@ -6,7 +6,6 @@ use std::{
 use crate::{
     context::ParserContext,
     error::{FurthestFailError, error_handler::ErrorHandler},
-    parser::Parser,
 };
 
 pub struct RangeParser<Range> {

@@ -3,7 +3,6 @@ use std::fmt::Debug;
 use crate::{
     context::ParserContext,
     error::{FurthestFailError, error_handler::ErrorHandler},
-    parser::Parser,
 };
 
 pub struct SingleTokenParser<Token> {

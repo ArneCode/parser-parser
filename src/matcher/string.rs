@@ -1,6 +1,6 @@
 use crate::{
     error::{FurthestFailError, error_handler::ErrorHandler},
-    matcher::{MatchRunner, Matcher},
+    matcher::MatchRunner,
 };
 
 pub struct StringMatcher {

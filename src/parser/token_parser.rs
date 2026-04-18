@@ -1,7 +1,6 @@
 use crate::{
     context::ParserContext,
     error::{FurthestFailError, error_handler::ErrorHandler},
-    parser::Parser,
 };
 pub struct TokenParser<CheckF, ParseF> {
     check_fn: CheckF,
