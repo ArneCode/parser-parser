@@ -3,13 +3,10 @@ use std::{collections::HashMap, rc::Rc};
 use marser_macros::capture;
 
 use marser::{
-    error::FurthestFailError,
-    label::WithLabel,
-    matcher::{
-        Matcher, commit_matcher::commit_on, multiple::many, one_of::one_of,
+    error::FurthestFailError, label::WithLabel, matcher::{
+        Matcher, commit_matcher::commit_on, multiple::many, 
         one_or_more::one_or_more, optional::optional,
-    },
-    parser::{Parser, deferred::recursive, token_parser::TokenParser},
+    }, one_of::one_of, parser::{Parser, deferred::recursive, token_parser::TokenParser}
 };
 
 #[derive(Debug, Clone, PartialEq)]
