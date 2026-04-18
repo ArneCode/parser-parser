@@ -1,3 +1,6 @@
+// `OneOf` lives at the crate root rather than inside `parser` or `matcher`
+// because it implements *both* `ParserImpl` and `MatcherImpl`. 
+
 use crate::{
     context::ParserContext,
     error::{FurthestFailError, error_handler::ErrorHandler},
