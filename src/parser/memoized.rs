@@ -23,7 +23,7 @@ impl<P> Memoized<P> {
     }
 }
 
-impl<Token, P> Parser<Token> for Memoized<P>
+impl<Token, P> super::internal::ParserImpl<Token> for Memoized<P>
 where
     P: Parser<Token>,
     P::Output: 'static,

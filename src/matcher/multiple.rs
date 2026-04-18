@@ -19,7 +19,7 @@ pub fn many<Match>(matcher: Match) -> Multiple<Match> {
 
 // impl<Match> Matcher for Multiple<Match> where Match: Matcher {}
 
-impl<Token, MRes, Match> Matcher<Token, MRes> for Multiple<Match>
+impl<Token, MRes, Match> super::internal::MatcherImpl<Token, MRes> for Multiple<Match>
 where
     Match: Matcher<Token, MRes>,
 {

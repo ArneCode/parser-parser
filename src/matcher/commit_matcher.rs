@@ -21,7 +21,8 @@ impl<Commit, Match> CommitMatcher<Commit, Match> {
     }
 }
 
-impl<Token, MRes, CommitOn, ThenMatch> Matcher<Token, MRes> for CommitMatcher<CommitOn, ThenMatch>
+impl<Token, MRes, CommitOn, ThenMatch> super::internal::MatcherImpl<Token, MRes>
+    for CommitMatcher<CommitOn, ThenMatch>
 where
     CommitOn: Matcher<Token, MRes>,
     ThenMatch: Matcher<Token, MRes>,

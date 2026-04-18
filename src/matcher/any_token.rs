@@ -4,7 +4,7 @@ use crate::{
 };
 pub struct AnyToken;
 
-impl<Token, MRes> Matcher<Token, MRes> for AnyToken {
+impl<Token, MRes> super::internal::MatcherImpl<Token, MRes> for AnyToken {
     const CAN_MATCH_DIRECTLY: bool = true;
     const HAS_PROPERTY: bool = false;
     const CAN_FAIL: bool = true;

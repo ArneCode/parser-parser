@@ -59,7 +59,7 @@ impl<Token> SingleTokenParser<Token> {
 //         }
 //     }
 // }
-impl<Token: PartialEq + Clone + Debug> Parser<Token> for SingleTokenParser<Token> {
+impl<Token: PartialEq + Clone + Debug> super::internal::ParserImpl<Token> for SingleTokenParser<Token> {
     type Output = Token;
     const CAN_FAIL: bool = true;
     fn parse(
@@ -82,7 +82,7 @@ impl<Token: PartialEq + Clone + Debug> Parser<Token> for SingleTokenParser<Token
 
 // impl<Token, Label> MaybeLabel<Label> for SingleTokenParser<Token> {}
 
-impl Parser<char> for char {
+impl super::internal::ParserImpl<char> for char {
     type Output = char;
     const CAN_FAIL: bool = true;
 

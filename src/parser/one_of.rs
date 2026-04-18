@@ -46,7 +46,7 @@ macro_rules! impl_parser_for_one_of_tuples {
         //     }
         // }
 
-        impl<Token, Output, $head, $($tail),*> Parser<Token> for OneOf<($head, $($tail,)*)>
+        impl<Token, Output, $head, $($tail),*> super::internal::ParserImpl<Token> for OneOf<($head, $($tail,)*)>
         where
             $head: Parser<Token, Output = Output>,
             $($tail: Parser<Token, Output = Output>,)*

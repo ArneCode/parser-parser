@@ -3,8 +3,8 @@ use std::fmt::Display;
 use crate::{
     context::ParserContext,
     error::{FurthestFailError, error_handler::ErrorHandler},
-    matcher::{MatchRunner, Matcher},
-    parser::Parser,
+    matcher::{MatchRunner, Matcher, internal::MatcherImpl},
+    parser::{Parser, internal::ParserImpl},
 };
 
 pub struct Labeled<L, I> {
@@ -18,7 +18,7 @@ impl<L, I> Labeled<L, I> {
     }
 }
 
-impl<Token, MRes, L, I> Matcher<Token, MRes> for Labeled<L, I>
+impl<Token, MRes, L, I> MatcherImpl<Token, MRes> for Labeled<L, I>
 where
     I: Matcher<Token, MRes>,
     L: Display + Clone + 'static,
@@ -52,12 +52,12 @@ where
         // }
         runner.run_match(&self.inner, error_handler, pos)
     }
-    fn maybe_label(&self) -> Option<Box<dyn Display>> {
+    fn maybe_label_internal(&self) -> Option<Box<dyn Display>> {
         Some(Box::new(self.label.clone()))
     }
 }
 
-impl<L, I, Token> Parser<Token> for Labeled<L, I>
+impl<L, I, Token> ParserImpl<Token> for Labeled<L, I>
 where
     I: Parser<Token>,
     L: Display + Clone + 'static,

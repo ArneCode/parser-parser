@@ -32,20 +32,30 @@ use crate::{
     parser::recover_error::ErrorRecoverer as ErrorRecovererInner,
 };
 
-pub trait Parser<Token> {
-    type Output;
-    /// `true` when this parser can return `Ok(None)` on a normal parse path.
-    ///
-    /// This constant models parse absence and does not indicate whether
-    /// `Err(FurthestFailError)` may be returned.
-    const CAN_FAIL: bool;
+pub(crate) mod internal {
+    use crate::{
+        context::ParserContext,
+        error::{FurthestFailError, error_handler::ErrorHandler},
+    };
 
-    fn parse<'ctx>(
-        &self,
-        context: &mut ParserContext<'ctx, Token>,
-        error_handler: &mut impl ErrorHandler,
-        pos: &mut usize,
-    ) -> Result<Option<Self::Output>, FurthestFailError>;
+    pub trait ParserImpl<Token> {
+        type Output;
+        /// `true` when this parser can return `Ok(None)` on a normal parse path.
+        ///
+        /// This constant models parse absence and does not indicate whether
+        /// `Err(FurthestFailError)` may be returned.
+        const CAN_FAIL: bool;
+
+        fn parse<'ctx>(
+            &self,
+            context: &mut ParserContext<'ctx, Token>,
+            error_handler: &mut impl ErrorHandler,
+            pos: &mut usize,
+        ) -> Result<Option<Self::Output>, FurthestFailError>;
+    }
+}
+
+pub trait Parser<Token>: internal::ParserImpl<Token> {
     fn recover_with<Match, Output>(
         self,
         recover_matcher: Match,
@@ -65,6 +75,12 @@ pub trait Parser<Token> {
         memoized::Memoized::new(self)
     }
 }
+
+impl<Token, P> Parser<Token> for P
+where
+    P: internal::ParserImpl<Token>,
+{}
+
 pub(crate) trait ParserObjSafe<Token> {
     type Output;
     fn parse<'ctx>(
@@ -77,7 +93,7 @@ pub(crate) trait ParserObjSafe<Token> {
 
 impl<Token, P> ParserObjSafe<Token> for P
 where
-    P: Parser<Token>,
+    P: internal::ParserImpl<Token>,
 {
     type Output = P::Output;
 
@@ -95,7 +111,7 @@ where
 }
 
 // impl Parser for all types that deref to a parser
-impl<Inner, Token> Parser<Token> for &Inner
+impl<Inner, Token> internal::ParserImpl<Token> for &Inner
 where
     Inner: Parser<Token>,
 {
@@ -111,7 +127,7 @@ where
         (**self).parse(context, error_handler, pos)
     }
 }
-impl<Inner, Token> Parser<Token> for Rc<Inner>
+impl<Inner, Token> internal::ParserImpl<Token> for Rc<Inner>
 where
     Inner: Parser<Token>,
 {
@@ -127,7 +143,7 @@ where
         (**self).parse(context, error_handler, pos)
     }
 }
-impl<Inner, Token> Parser<Token> for Box<Inner>
+impl<Inner, Token> internal::ParserImpl<Token> for Box<Inner>
 where
     Inner: Parser<Token>,
 {

@@ -1,5 +1,5 @@
 #![doc = include_str!("../README.md")]
-
+#![allow(private_bounds)]
 extern crate self as marser;
 
 pub(crate) mod context;
@@ -18,7 +18,7 @@ use crate::{
     matcher::{
         any_token::AnyToken, commit_matcher::commit_on, negative_lookahead::negative_lookahead,
     },
-    parser::Parser,
+    parser::{Parser, internal::ParserImpl},
 };
 
 pub fn parse<Pars>(

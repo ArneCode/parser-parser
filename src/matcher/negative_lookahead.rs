@@ -16,7 +16,7 @@ pub fn negative_lookahead<Check>(checker: Check) -> NegativeLookahead<Check> {
     NegativeLookahead::new(checker)
 }
 
-impl<Token, MRes, Match> Matcher<Token, MRes> for NegativeLookahead<Match>
+impl<Token, MRes, Match> super::internal::MatcherImpl<Token, MRes> for NegativeLookahead<Match>
 where
     Match: Matcher<Token, MRes>,
 {

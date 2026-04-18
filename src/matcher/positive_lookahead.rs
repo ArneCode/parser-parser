@@ -14,7 +14,7 @@ pub fn positive_lookahead<Check>(checker: Check) -> PositiveLookahead<Check> {
     PositiveLookahead::new(checker)
 }
 
-impl<Token, MRes, Check> Matcher<Token, MRes> for PositiveLookahead<Check>
+impl<Token, MRes, Check> super::internal::MatcherImpl<Token, MRes> for PositiveLookahead<Check>
 where
     Check: Matcher<Token, MRes>,
 {

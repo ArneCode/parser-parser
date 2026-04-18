@@ -17,7 +17,7 @@ pub fn optional<Match>(matcher: Match) -> Optional<Match> {
     Optional::new(matcher)
 }
 
-impl<Token, MRes, Match> Matcher<Token, MRes> for Optional<Match>
+impl<Token, MRes, Match> super::internal::MatcherImpl<Token, MRes> for Optional<Match>
 where
     Match: Matcher<Token, MRes>,
 {

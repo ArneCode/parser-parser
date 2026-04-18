@@ -30,7 +30,7 @@ impl<Pars, CombF> MultipleParser<Pars, CombF> {
 //     }
 // }
 
-impl<T, NodeIn, NodeOut, Pars, CombF> Parser<T> for MultipleParser<Pars, CombF>
+impl<T, NodeIn, NodeOut, Pars, CombF> super::internal::ParserImpl<T> for MultipleParser<Pars, CombF>
 where
     Pars: Parser<T, Output = NodeIn>,
     CombF: Fn(Vec<NodeIn>) -> NodeOut,

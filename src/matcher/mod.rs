@@ -38,30 +38,47 @@ use crate::{
     parser::Parser,
 };
 
-pub trait Matcher<Token, MRes> {
-    /// `true` when matching can run directly into the active result buffer
-    /// without temporary backtracking storage.
-    const CAN_MATCH_DIRECTLY: bool;
-    /// Same as `CAN_MATCH_DIRECTLY` but evaluated under the assumption that
-    /// sub-matchers do not return `false`.
-    const CAN_MATCH_DIRECTLY_ASSUMING_NO_FAIL: bool = Self::CAN_MATCH_DIRECTLY;
-    /// `true` when this matcher may write properties/results to `MRes`.
-    const HAS_PROPERTY: bool;
-    /// `true` when this matcher can return `Ok(false)` on a normal match path.
-    ///
-    /// This constant models match absence and does not indicate whether
-    /// `Err(FurthestFailError)` may be returned.
-    const CAN_FAIL: bool;
-    fn match_with_runner<'a, 'ctx, Runner>(
-        &'a self,
-        runner: &mut Runner,
-        error_handler: &mut impl ErrorHandler,
-        pos: &mut usize,
-    ) -> Result<bool, FurthestFailError>
-    where
-        Runner: MatchRunner<'a, 'ctx, Token = Token, MRes = MRes>,
-        'ctx: 'a,
-        Token: 'ctx;
+pub(crate) mod internal {
+    use std::fmt::Display;
+
+    use crate::{
+        error::{FurthestFailError, error_handler::ErrorHandler},
+        matcher::runner::MatchRunner,
+    };
+
+    pub trait MatcherImpl<Token, MRes> {
+        /// `true` when matching can run directly into the active result buffer
+        /// without temporary backtracking storage.
+        const CAN_MATCH_DIRECTLY: bool;
+        /// Same as `CAN_MATCH_DIRECTLY` but evaluated under the assumption that
+        /// sub-matchers do not return `false`.
+        const CAN_MATCH_DIRECTLY_ASSUMING_NO_FAIL: bool = Self::CAN_MATCH_DIRECTLY;
+        /// `true` when this matcher may write properties/results to `MRes`.
+        const HAS_PROPERTY: bool;
+        /// `true` when this matcher can return `Ok(false)` on a normal match path.
+        ///
+        /// This constant models match absence and does not indicate whether
+        /// `Err(FurthestFailError)` may be returned.
+        const CAN_FAIL: bool;
+
+        fn match_with_runner<'a, 'ctx, Runner>(
+            &'a self,
+            runner: &mut Runner,
+            error_handler: &mut impl ErrorHandler,
+            pos: &mut usize,
+        ) -> Result<bool, FurthestFailError>
+        where
+            Runner: MatchRunner<'a, 'ctx, Token = Token, MRes = MRes>,
+            'ctx: 'a,
+            Token: 'ctx;
+
+        fn maybe_label_internal(&self) -> Option<Box<dyn Display>> {
+            None
+        }
+    }
+}
+
+pub trait Matcher<Token, MRes>: internal::MatcherImpl<Token, MRes> {
     fn add_error_info<Pars, F>(
         self,
         error_parser: Pars,
@@ -74,7 +91,7 @@ pub trait Matcher<Token, MRes> {
         ErrorContextualizerInner::new(self, error_parser)
     }
     fn maybe_label(&self) -> Option<Box<dyn Display>> {
-        None
+        <Self as internal::MatcherImpl<Token, MRes>>::maybe_label_internal(self)
     }
     fn try_insert_if_missing<M: Display>(self, message: M) -> InsertOnErrorMatcherInner<Self>
     where
@@ -87,7 +104,9 @@ pub trait Matcher<Token, MRes> {
     }
 }
 
-impl<Token, MRes, Inner> Matcher<Token, MRes> for &Inner
+impl<Token, MRes, M> Matcher<Token, MRes> for M where M: internal::MatcherImpl<Token, MRes> {}
+
+impl<Token, MRes, Inner> internal::MatcherImpl<Token, MRes> for &Inner
 where
     Inner: Matcher<Token, MRes>,
 {
@@ -110,7 +129,7 @@ where
     }
 }
 
-impl<Token, MRes, Inner> Matcher<Token, MRes> for Rc<Inner>
+impl<Token, MRes, Inner> internal::MatcherImpl<Token, MRes> for Rc<Inner>
 where
     Inner: Matcher<Token, MRes>,
 {
@@ -133,7 +152,7 @@ where
     }
 }
 
-impl<Token, MRes, Inner> Matcher<Token, MRes> for Box<Inner>
+impl<Token, MRes, Inner> internal::MatcherImpl<Token, MRes> for Box<Inner>
 where
     Inner: Matcher<Token, MRes>,
 {
@@ -156,7 +175,7 @@ where
     }
 }
 
-impl<Token, MRes> Matcher<Token, MRes> for () {
+impl<Token, MRes> internal::MatcherImpl<Token, MRes> for () {
     const CAN_MATCH_DIRECTLY: bool = true;
     const HAS_PROPERTY: bool = false;
     const CAN_FAIL: bool = false;

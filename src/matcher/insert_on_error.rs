@@ -8,7 +8,7 @@ pub struct InsertOnErrorMatcher<Inner> {
     pub message: String,
 }
 
-impl<Token, MRes, Inner> Matcher<Token, MRes> for InsertOnErrorMatcher<Inner>
+impl<Token, MRes, Inner> super::internal::MatcherImpl<Token, MRes> for InsertOnErrorMatcher<Inner>
 where
     Inner: Matcher<Token, MRes>,
 {

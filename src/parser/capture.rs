@@ -165,7 +165,7 @@ where
     }
 }
 
-impl<Token, Out, MResSingle, MResMultiple, MResOptional, Match, F> Parser<Token>
+impl<Token, Out, MResSingle, MResMultiple, MResOptional, Match, F> super::internal::ParserImpl<Token>
     for Capture<(MResSingle, MResMultiple, MResOptional), Match, F>
 where
     MResSingle: MatchResultSingle,
@@ -291,7 +291,8 @@ pub fn bind_result_with_debug<Pars, Prop, Token>(
     ResultBinder::new(parser, property, Some(debug))
 }
 
-impl<Pars, Prop, Token, MRes> Matcher<Token, MRes> for ResultBinder<Pars, Prop, Token>
+impl<Pars, Prop, Token, MRes> crate::matcher::internal::MatcherImpl<Token, MRes>
+    for ResultBinder<Pars, Prop, Token>
 where
     Pars: Parser<Token>,
     Prop: Property<Pars::Output, MRes> + Clone,
@@ -342,7 +343,8 @@ pub fn bind_span<Match, Prop>(matcher: Match, property: Prop) -> SpanBinder<Matc
     SpanBinder::new(matcher, property)
 }
 
-impl<Token, MRes, Match, Prop> Matcher<Token, MRes> for SpanBinder<Match, Prop>
+impl<Token, MRes, Match, Prop> crate::matcher::internal::MatcherImpl<Token, MRes>
+    for SpanBinder<Match, Prop>
 where
     Match: Matcher<Token, MRes>,
     Prop: Property<(usize, usize), MRes> + Clone,

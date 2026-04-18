@@ -41,7 +41,7 @@ impl<'a, Token, Output> Deferred<'a, Token, Output> {
     }
 }
 
-impl<'a, Token, Output> Parser<Token> for Deferred<'a, Token, Output> {
+impl<'a, Token, Output> super::internal::ParserImpl<Token> for Deferred<'a, Token, Output> {
     type Output = Output;
     const CAN_FAIL: bool = true;
 
@@ -59,7 +59,7 @@ impl<'a, Token, Output> Parser<Token> for Deferred<'a, Token, Output> {
     }
 }
 
-impl<'a, Token, Output> Parser<Token> for DeferredWeak<'a, Token, Output> {
+impl<'a, Token, Output> super::internal::ParserImpl<Token> for DeferredWeak<'a, Token, Output> {
     type Output = Output;
     const CAN_FAIL: bool = true;
 

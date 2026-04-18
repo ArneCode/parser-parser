@@ -21,7 +21,7 @@ pub fn one_of<Options>(options: Options) -> OneOf<Options> {
 macro_rules! impl_matcher_for_one_of_tuples {
     () => {};
     ($head:ident $(,$tail:ident)*) => {
-        impl<Token, MRes, $head, $($tail),*> Matcher<Token, MRes> for OneOf<($head, $($tail,)*)>
+        impl<Token, MRes, $head, $($tail),*> super::internal::MatcherImpl<Token, MRes> for OneOf<($head, $($tail,)*)>
         where
             $head: Matcher<Token, MRes>,
             $($tail: Matcher<Token, MRes>,)*
@@ -51,7 +51,7 @@ macro_rules! impl_matcher_for_one_of_tuples {
                 Ok(false)
             }
         }
-        impl<Token, Output, $head, $($tail),*> Parser<Token> for OneOf<($head, $($tail,)*)>
+        impl<Token, Output, $head, $($tail),*> crate::parser::internal::ParserImpl<Token> for OneOf<($head, $($tail,)*)>
         where
             $head: Parser<Token, Output = Output>,
             $($tail: Parser<Token, Output = Output>,)*

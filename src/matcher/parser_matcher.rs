@@ -18,7 +18,8 @@ impl<Pars, ParserOutput> ParserMatcher<Pars, ParserOutput> {
     }
 }
 
-impl<Token, MRes, Pars, ParserOutput> Matcher<Token, MRes> for ParserMatcher<Pars, ParserOutput>
+impl<Token, MRes, Pars, ParserOutput> super::internal::MatcherImpl<Token, MRes>
+    for ParserMatcher<Pars, ParserOutput>
 where
     Pars: Parser<Token, Output = ParserOutput>,
     ParserOutput: PartialEq,

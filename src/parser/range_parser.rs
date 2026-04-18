@@ -19,7 +19,7 @@ impl<Range> RangeParser<Range> {
     }
 }
 
-impl<Token, Range> Parser<Token> for RangeParser<Range>
+impl<Token, Range> super::internal::ParserImpl<Token> for RangeParser<Range>
 where
     Range: RangeBounds<Token>,
     Token: PartialOrd + Clone,
@@ -45,7 +45,7 @@ where
     }
 }
 
-impl<Token> Parser<Token> for Range<Token>
+impl<Token> super::internal::ParserImpl<Token> for Range<Token>
 where
     Token: PartialOrd + Clone,
     Range<Token>: Debug,
@@ -70,7 +70,7 @@ where
     }
 }
 
-impl<Token> Parser<Token> for RangeInclusive<Token>
+impl<Token> super::internal::ParserImpl<Token> for RangeInclusive<Token>
 where
     Token: PartialOrd + Clone,
     Range<Token>: Debug,

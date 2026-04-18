@@ -29,7 +29,7 @@ where
     TokenParser::new(check_fn, parse_fn)
 }
 
-impl<Token, Out, CheckF, ParseF> Parser<Token> for TokenParser<CheckF, ParseF>
+impl<Token, Out, CheckF, ParseF> super::internal::ParserImpl<Token> for TokenParser<CheckF, ParseF>
 where
     CheckF: for<'a> Fn(&'a Token) -> bool,
     ParseF: Fn(&Token) -> Out,

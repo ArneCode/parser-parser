@@ -22,7 +22,8 @@ impl<Pars, Match, Output> ErrorRecoverer<Pars, Match, Output> {
 }
 
 //TODO: ensure that Match cannot error with trait CanNotError
-impl<Pars, Match, Output, Token> Parser<Token> for ErrorRecoverer<Pars, Match, Output>
+impl<Pars, Match, Output, Token> super::internal::ParserImpl<Token>
+    for ErrorRecoverer<Pars, Match, Output>
 where
     Pars: Parser<Token, Output = Output>,
     Match: Matcher<Token, ((), (), ())>,

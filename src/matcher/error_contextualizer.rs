@@ -23,7 +23,8 @@ impl<Matcher, Pars, F, MRes> ErrorContextualizer<Matcher, Pars, F, MRes> {
 }
 
 //TODO: ensure that Pars cannot error with trait CanNotError
-impl<Token, MRes, Match, Pars, F> Matcher<Token, MRes> for ErrorContextualizer<Match, Pars, F, MRes>
+impl<Token, MRes, Match, Pars, F> super::internal::MatcherImpl<Token, MRes>
+    for ErrorContextualizer<Match, Pars, F, MRes>
 where
     Match: Matcher<Token, MRes>,
     Pars: Parser<Token, Output = F>,

@@ -17,7 +17,7 @@ pub fn one_or_more<Match>(matcher: Match) -> OneOrMore<Match> {
     OneOrMore::new(matcher)
 }
 
-impl<Token, MRes, Match> Matcher<Token, MRes> for OneOrMore<Match>
+impl<Token, MRes, Match> super::internal::MatcherImpl<Token, MRes> for OneOrMore<Match>
 where
     Match: Matcher<Token, MRes>,
 {

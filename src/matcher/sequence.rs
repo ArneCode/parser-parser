@@ -17,7 +17,7 @@ use crate::{
 macro_rules! impl_matcher_for_seq_tuples {
     () => {};
     ($head:ident $(,$tail:ident)*) => {
-        impl<Token, MRes, $head, $($tail),*> Matcher<Token, MRes> for ($head, $($tail,)*)
+        impl<Token, MRes, $head, $($tail),*> super::internal::MatcherImpl<Token, MRes> for ($head, $($tail,)*)
         where
             $head: Matcher<Token, MRes>,
             $($tail: Matcher<Token, MRes>,)*

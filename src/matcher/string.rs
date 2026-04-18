@@ -15,7 +15,7 @@ impl StringMatcher {
     }
 }
 
-impl<MRes> Matcher<char, MRes> for StringMatcher {
+impl<MRes> super::internal::MatcherImpl<char, MRes> for StringMatcher {
     const CAN_MATCH_DIRECTLY: bool = true;
     const HAS_PROPERTY: bool = false;
     const CAN_FAIL: bool = true;
@@ -45,12 +45,12 @@ impl<MRes> Matcher<char, MRes> for StringMatcher {
         }
     }
 
-    fn maybe_label(&self) -> Option<Box<dyn std::fmt::Display>> {
+    fn maybe_label_internal(&self) -> Option<Box<dyn std::fmt::Display>> {
         Some(Box::new(self.expected.iter().collect::<String>()))
     }
 }
 
-impl<MRes> Matcher<char, MRes> for &str {
+impl<MRes> super::internal::MatcherImpl<char, MRes> for &str {
     const CAN_MATCH_DIRECTLY: bool = true;
     const HAS_PROPERTY: bool = false;
     const CAN_FAIL: bool = true;
@@ -81,13 +81,13 @@ impl<MRes> Matcher<char, MRes> for &str {
         }
     }
 
-    fn maybe_label(&self) -> Option<Box<dyn std::fmt::Display>> {
+    fn maybe_label_internal(&self) -> Option<Box<dyn std::fmt::Display>> {
         Some(Box::new(self.to_string()))
     }
 }
 
 // impl for char
-impl<MRes> Matcher<char, MRes> for char {
+impl<MRes> super::internal::MatcherImpl<char, MRes> for char {
     const CAN_MATCH_DIRECTLY: bool = true;
     const HAS_PROPERTY: bool = false;
     const CAN_FAIL: bool = true;
@@ -115,7 +115,7 @@ impl<MRes> Matcher<char, MRes> for char {
             Ok(false)
         }
     }
-    fn maybe_label(&self) -> Option<Box<dyn std::fmt::Display>> {
+    fn maybe_label_internal(&self) -> Option<Box<dyn std::fmt::Display>> {
         Some(Box::new(*self))
     }
 }
