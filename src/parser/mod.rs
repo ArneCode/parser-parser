@@ -1,3 +1,16 @@
+//! Parser combinators: types that implement [`Parser`].
+//!
+//! You build parsers by composing the types in this module (and in
+//! [`crate::one_of`]). [`Parser`] is not intended to be implemented outside this
+//! crate: it extends a crate-private implementation trait, so only types
+//! defined here can satisfy the full bound.
+//!
+//! ## Associated constants
+//!
+//! Implementations expose `CAN_FAIL`. When `true`, the parser may return `Ok(None)` on a normal path
+//! (no match at the current position). It does **not** describe whether `Err` with
+//! [`crate::error::FurthestFailError`] is possible.
+
 pub mod capture;
 pub mod deferred;
 pub mod memoized;
@@ -36,7 +49,9 @@ pub(crate) mod internal {
         error::{FurthestFailError, error_handler::ErrorHandler},
     };
 
+    /// Crate-private parsing interface used by [`super::Parser`].
     pub trait ParserImpl<Token> {
+        /// Successful parse value when the parser matches at `pos`.
         type Output;
         /// `true` when this parser can return `Ok(None)` on a normal parse path.
         ///
@@ -44,6 +59,7 @@ pub(crate) mod internal {
         /// `Err(FurthestFailError)` may be returned.
         const CAN_FAIL: bool;
 
+        /// Run the parser at `pos` against `context`, reporting secondary issues through `error_handler`.
         fn parse<'ctx>(
             &self,
             context: &mut ParserContext<'ctx, Token>,
@@ -53,7 +69,14 @@ pub(crate) mod internal {
     }
 }
 
+/// Object-safe facade for parsers over a token type `Token`.
+///
+/// Blanket-implemented for every type that implements the crate-private parsing
+/// trait used internally. Use [`recover_with`](Self::recover_with) and
+/// [`memoized`](Self::memoized) for common extensions; the `parse` method is
+/// inherited from that internal trait and drives the actual parse step.
 pub trait Parser<Token>: internal::ParserImpl<Token> {
+    /// On parse failure, run `recover_matcher` and yield `recover_output` if it matches.
     fn recover_with<Match, Output>(
         self,
         recover_matcher: Match,
@@ -65,6 +88,7 @@ pub trait Parser<Token>: internal::ParserImpl<Token> {
         ErrorRecovererInner::new(self, recover_matcher, recover_output)
     }
 
+    /// Memoize parse results keyed by input position (output type must be `'static`).
     fn memoized(self) -> memoized::Memoized<Self>
     where
         Self: Sized,

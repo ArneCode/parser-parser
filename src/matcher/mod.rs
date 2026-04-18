@@ -1,3 +1,19 @@
+//! Matchers: predicates and grammar fragments used inside [`crate::parser::capture::Capture`]
+//! and related runners.
+//!
+//! [`Matcher`] is parameterized by `MRes`, the “match result” type that captures
+//! bound values and spans (typically a tuple bucket produced by [`crate::parser::capture::Capture`]).
+//! You compose matchers rather than implementing [`Matcher`] yourself: it extends a
+//! crate-private implementation trait (not public API).
+//!
+//! ## Associated constants
+//!
+//! - `CAN_FAIL` — may return `Ok(false)` on a normal path (no match).
+//! - `HAS_PROPERTY` — may write into `MRes` (captures).
+//! - `CAN_MATCH_DIRECTLY` — optimization hint for the runner.
+//!
+//! `CAN_FAIL` does **not** indicate whether `Err` with [`crate::error::FurthestFailError`] is possible.
+
 pub mod any_token;
 pub mod commit_matcher;
 pub mod error_contextualizer;
@@ -44,6 +60,7 @@ pub(crate) mod internal {
         matcher::runner::MatchRunner,
     };
 
+    /// Crate-private matching interface used by [`super::Matcher`].
     pub trait MatcherImpl<Token, MRes> {
         /// `true` when matching can run directly into the active result buffer
         /// without temporary backtracking storage.
@@ -59,6 +76,7 @@ pub(crate) mod internal {
         /// `Err(FurthestFailError)` may be returned.
         const CAN_FAIL: bool;
 
+        /// Run this matcher via `runner`, updating `pos` and possibly `MRes` on success.
         fn match_with_runner<'a, 'ctx, Runner>(
             &'a self,
             runner: &mut Runner,
@@ -76,7 +94,12 @@ pub(crate) mod internal {
     }
 }
 
+/// Facade for matchers over `Token` that read and write match state into `MRes`.
+///
+/// `MRes` is usually the capture bucket type in [`crate::parser::capture::Capture`].
+/// Blanket-implemented for all types that implement the crate-private matcher implementation trait.
 pub trait Matcher<Token, MRes>: internal::MatcherImpl<Token, MRes> {
+    /// Wrap this matcher so that on furthest-failure, `error_parser` runs to attach diagnostics.
     fn add_error_info<Pars, F>(
         self,
         error_parser: Pars,
@@ -88,9 +111,11 @@ pub trait Matcher<Token, MRes>: internal::MatcherImpl<Token, MRes> {
     {
         ErrorContextualizerInner::new(self, error_parser)
     }
+    /// Optional label used when reporting errors for this matcher.
     fn maybe_label(&self) -> Option<Box<dyn Display>> {
         <Self as internal::MatcherImpl<Token, MRes>>::maybe_label_internal(self)
     }
+    /// If the matcher fails to extend the furthest error, insert `message` into that error.
     fn try_insert_if_missing<M: Display>(self, message: M) -> InsertOnErrorMatcherInner<Self>
     where
         Self: Sized,

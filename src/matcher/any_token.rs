@@ -1,7 +1,11 @@
+//! Unconditional single-token consumption (if any input remains).
+
 use crate::{
     error::{FurthestFailError, error_handler::ErrorHandler},
     matcher::MatchRunner,
 };
+
+/// Matches exactly one token and advances; fails at end of input.
 pub struct AnyToken;
 
 impl<Token, MRes> super::internal::MatcherImpl<Token, MRes> for AnyToken {

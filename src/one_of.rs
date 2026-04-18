@@ -1,5 +1,8 @@
-// `OneOf` lives at the crate root rather than inside `parser` or `matcher`
-// because it implements *both* `ParserImpl` and `MatcherImpl`. 
+//! Ordered choice: try each alternative until one succeeds.
+//!
+//! [`OneOf`] implements both [`crate::parser::Parser`] and [`crate::matcher::Matcher`]
+//! for tuples of alternatives. It lives at the crate root (not under [`crate::parser`]
+//! or [`crate::matcher`]) so it can depend on both without creating a dependency cycle.
 
 use crate::{
     context::ParserContext,
@@ -7,16 +10,20 @@ use crate::{
     matcher::{MatchRunner, Matcher},
     parser::Parser,
 };
+
+/// Wraps a tuple of parsers or matchers; used with [`one_of`].
 pub struct OneOf<Tuple> {
     options: Tuple,
 }
 
 impl<Tuple> OneOf<Tuple> {
+    /// Builds an alternative group from a tuple `(first, second, …)`.
     pub fn new(options: Tuple) -> Self {
         Self { options }
     }
 }
 
+/// Convenience alias for [`OneOf::new`].
 pub fn one_of<Options>(options: Options) -> OneOf<Options> {
     OneOf::new(options)
 }

@@ -1,3 +1,11 @@
+//! Building blocks for [`Capture`], the parser that runs a [`crate::matcher::Matcher`] and
+//! maps captured slots into a Rust value.
+//!
+//! Typical usage is through the `capture!` macro from `marser_macros`, which expands to
+//! [`Capture::new`] and rewrites embedded `bind!(…)` / `bind_span!(…)` (and `*` / `?` bind
+//! forms) into [`bind_result`], [`bind_span`], and [`Property`] helpers. You can also
+//! construct [`Capture`] and matchers by hand using these types.
+
 mod bound;
 mod capture_parser;
 mod match_result;

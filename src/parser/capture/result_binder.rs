@@ -9,6 +9,7 @@ use crate::{
 
 use super::property::{BindDebugInfo, Property};
 
+/// [`crate::matcher::Matcher`] that runs parser `Pars` and stores its output with `Prop`.
 pub struct ResultBinder<Pars, Prop, Token> {
     pub(super) parser: Pars,
     pub(super) property: Prop,
@@ -17,6 +18,7 @@ pub struct ResultBinder<Pars, Prop, Token> {
 }
 
 impl<Pars, Prop, Token> ResultBinder<Pars, Prop, Token> {
+    /// Wraps `parser` and `property`; `debug` is passed through on bind (for duplicate detection).
     pub fn new(parser: Pars, property: Prop, debug: Option<BindDebugInfo>) -> Self {
         Self {
             parser,
@@ -27,6 +29,7 @@ impl<Pars, Prop, Token> ResultBinder<Pars, Prop, Token> {
     }
 }
 
+/// Same as [`bind_result_with_unknown_debug`] (caller location is used for debug metadata).
 pub fn bind_result<Pars, Prop, Token>(
     parser: Pars,
     property: Prop,
@@ -34,6 +37,7 @@ pub fn bind_result<Pars, Prop, Token>(
     bind_result_with_unknown_debug(parser, property)
 }
 
+/// Like [`bind_result`] but attaches file/line/column from the caller for panic messages.
 #[track_caller]
 pub fn bind_result_with_unknown_debug<Pars, Prop, Token>(
     parser: Pars,
@@ -52,6 +56,7 @@ pub fn bind_result_with_unknown_debug<Pars, Prop, Token>(
     )
 }
 
+/// Binds parse output to `property` with explicit [`BindDebugInfo`].
 pub fn bind_result_with_debug<Pars, Prop, Token>(
     parser: Pars,
     property: Prop,

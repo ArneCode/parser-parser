@@ -1,13 +1,17 @@
+//! Literal string / `&str` / [`char`] matchers over a `char` token stream.
+
 use crate::{
     error::{FurthestFailError, error_handler::ErrorHandler},
     matcher::MatchRunner,
 };
 
+/// Matches a fixed run of characters (by Unicode scalar values).
 pub struct StringMatcher {
     expected: Vec<char>,
 }
 
 impl StringMatcher {
+    /// Converts `expected` to a `Vec<char>` for matching.
     pub fn new(expected: String) -> Self {
         Self {
             expected: expected.chars().collect(),

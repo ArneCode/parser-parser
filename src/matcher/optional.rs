@@ -1,8 +1,11 @@
+//! Optional matcher: tries `matcher` once; always reports success (whether or not it matched).
+
 use crate::{
     error::{FurthestFailError, error_handler::ErrorHandler},
     matcher::{MatchRunner, Matcher},
 };
 
+/// `matcher?` at the matcher level.
 pub struct Optional<Match> {
     matcher: Match,
 }
@@ -13,6 +16,7 @@ impl<Match> Optional<Match> {
     }
 }
 
+/// See [`Optional`].
 pub fn optional<Match>(matcher: Match) -> Optional<Match> {
     Optional::new(matcher)
 }

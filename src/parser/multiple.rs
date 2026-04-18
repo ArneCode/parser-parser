@@ -1,14 +1,19 @@
+//! Greedy repetition: parse zero or more `Pars` outputs, then fold with `combine_fn`.
+
 use crate::{
     context::ParserContext,
     error::{FurthestFailError, error_handler::ErrorHandler},
     parser::Parser,
 };
+
+/// Applies `parser` in a loop until it returns [`None`], then maps the collected vector with `combine_fn`.
 pub struct MultipleParser<Pars, CombF> {
     parser: Pars,
     combine_fn: CombF,
 }
 
 impl<Pars, CombF> MultipleParser<Pars, CombF> {
+    /// Creates a greedy “many” parser wrapper.
     pub fn new(parser: Pars, combine_fn: CombF) -> Self {
         Self { parser, combine_fn }
     }

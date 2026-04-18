@@ -5,17 +5,20 @@ use crate::{
 
 use super::{bound::BoundValue, property::Property};
 
+/// Runs `matcher`, then records the span `(start, end)` byte/char indices via `property`.
 pub struct SpanBinder<Match, Prop> {
     pub(super) matcher: Match,
     pub(super) property: Prop,
 }
 
 impl<Match, Prop> SpanBinder<Match, Prop> {
+    /// See [`bind_span`].
     pub fn new(matcher: Match, property: Prop) -> Self {
         Self { matcher, property }
     }
 }
 
+/// Convenience constructor for [`SpanBinder`].
 pub fn bind_span<Match, Prop>(matcher: Match, property: Prop) -> SpanBinder<Match, Prop> {
     SpanBinder::new(matcher, property)
 }

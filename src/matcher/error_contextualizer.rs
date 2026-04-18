@@ -1,3 +1,5 @@
+//! Enrich [`crate::error::FurthestFailError`] from `happy_matcher` using a small [`crate::parser::Parser`] callback.
+
 use std::marker::PhantomData;
 
 use crate::{
@@ -6,6 +8,7 @@ use crate::{
     parser::Parser,
 };
 
+/// On [`Err`] from the inner matcher, runs `error_parser` to obtain a callback that mutates the error.
 pub struct ErrorContextualizer<Matcher, Pars, F, MRes> {
     happy_matcher: Matcher,
     error_parser: Pars,
@@ -13,6 +16,7 @@ pub struct ErrorContextualizer<Matcher, Pars, F, MRes> {
 }
 
 impl<Matcher, Pars, F, MRes> ErrorContextualizer<Matcher, Pars, F, MRes> {
+    /// See [`crate::matcher::Matcher::add_error_info`].
     pub fn new(happy_matcher: Matcher, error_parser: Pars) -> Self {
         Self {
             happy_matcher,

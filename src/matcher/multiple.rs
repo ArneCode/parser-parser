@@ -1,8 +1,11 @@
+//! Zero-or-more repetition matcher; stops when `matcher` fails or makes no progress.
+
 use crate::{
     error::{FurthestFailError, error_handler::ErrorHandler},
     matcher::{MatchRunner, Matcher},
 };
 
+/// Greedy `matcher*` at the matcher level (always reports match success after the loop).
 pub struct Multiple<Match> {
     matcher: Match,
 }
@@ -13,6 +16,7 @@ impl<Match> Multiple<Match> {
     }
 }
 
+/// See [`Multiple`].
 pub fn many<Match>(matcher: Match) -> Multiple<Match> {
     Multiple::new(matcher)
 }

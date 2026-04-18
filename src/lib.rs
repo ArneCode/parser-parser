@@ -28,6 +28,16 @@ use crate::{
     parser::{Parser, internal::ParserImpl},
 };
 
+/// Parse all of `src` as `char` tokens with a small driver around `parser`.
+///
+/// - Collects `src` into a [`Vec<char>`] and runs [`Parser::parse`](parser::Parser) with the
+///   crate’s internal parse context and position.
+/// - Wraps your parser in `capture!(commit_on((), (bind!(…), negative_lookahead(AnyToken))) => …)`
+///   so the whole input must be consumed (commit, bind result, then forbid trailing tokens).
+///
+/// On success returns the parsed output and any collected [`error::ParserError`] values.
+/// On hard failure returns [`error::FurthestFailError`]. For a custom token type or context,
+/// call `parse` on your [`parser::Parser`] implementation directly instead.
 pub fn parse<Pars>(
     parser: Pars,
     src: &str,

@@ -1,3 +1,5 @@
+//! Error recovery: if the inner parser fails with [`crate::error::FurthestFailError`], try an alternate matcher.
+
 use crate::{
     context::ParserContext,
     error::error_handler::ErrorHandler,
@@ -5,6 +7,7 @@ use crate::{
     parser::Parser,
 };
 
+/// On hard failure of `happy`, resets position and runs `recover_matcher`; on success yields `recover_output` and records the error.
 pub struct ErrorRecoverer<Pars, Match, Output> {
     happy: Pars,
     recover_matcher: Match,
@@ -12,6 +15,7 @@ pub struct ErrorRecoverer<Pars, Match, Output> {
 }
 
 impl<Pars, Match, Output> ErrorRecoverer<Pars, Match, Output> {
+    /// See [`crate::parser::Parser::recover_with`].
     pub fn new(happy: Pars, recover_matcher: Match, recover_output: Output) -> Self {
         Self {
             happy,

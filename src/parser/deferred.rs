@@ -1,3 +1,8 @@
+//! Fixed-point and mutually recursive parsers via a cell filled after construction.
+//!
+//! Use [`recursive`] to obtain a [`Deferred`] handle, build a parser that closes over
+//! [`DeferredWeak`], then parse through the strong [`Deferred`].
+
 use std::{
     cell::OnceCell,
     rc::{Rc, Weak},
@@ -9,10 +14,13 @@ use crate::{
     parser::{Parser, ParserObjSafe},
 };
 
+/// Strong handle to a parser installed later; used as the entry point for a recursive grammar.
 #[derive(Clone)]
 pub struct Deferred<'a, Token, Output> {
     parser: Rc<OnceCell<Box<dyn ParserObjSafe<Token, Output = Output> + 'a>>>,
 }
+
+/// Weak back-reference for defining recursive productions without a cycle at construction time.
 #[derive(Clone)]
 pub struct DeferredWeak<'a, Token, Output> {
     parser: Weak<OnceCell<Box<dyn ParserObjSafe<Token, Output = Output> + 'a>>>,
@@ -81,6 +89,7 @@ impl<'a, Token, Output> super::internal::ParserImpl<Token> for DeferredWeak<'a, 
     }
 }
 
+/// Creates a [`Deferred`] parser: `parser_fn` receives a weak handle and must return the real parser.
 pub fn recursive<'a, 'ctx, Token, Output, F, Pars>(parser_fn: F) -> Deferred<'a, Token, Output>
 where
     F: FnOnce(DeferredWeak<'a, Token, Output>) -> Pars,

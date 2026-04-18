@@ -6,7 +6,8 @@ backtracking control, and rich source diagnostics.
 ## Quick start
 
 ```rust
-use marser::matcher::{multiple::many, one_of::one_of};
+use marser::matcher::many;
+use marser::one_of::one_of;
 use marser::parser::token_parser::TokenParser;
 use marser::parse;
 use marser_macros::capture;

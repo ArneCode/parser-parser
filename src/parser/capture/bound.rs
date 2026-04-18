@@ -1,10 +1,14 @@
 use super::property::{BindDebugInfo, Property};
 
+/// A value pending insertion into a match-result bucket `MRes`.
 pub trait BoundResult<MRes> {
+    /// Write this capture into `result`.
     fn put_in_result(self, result: &mut MRes);
+    /// Write a boxed capture into `result`.
     fn put_boxed_in_result(self: Box<Self>, result: &mut MRes);
 }
 
+/// Pair of a captured value and the [`Property`] that knows how to store it.
 pub struct BoundValue<Value, Prop> {
     pub(super) value: Value,
     pub(super) property: Prop,

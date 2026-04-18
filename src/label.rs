@@ -1,3 +1,5 @@
+//! Attach a displayable label to a [`crate::matcher::Matcher`] or [`crate::parser::Parser`] for richer errors.
+
 use std::fmt::Display;
 
 use crate::{
@@ -7,12 +9,14 @@ use crate::{
     parser::{Parser, internal::ParserImpl},
 };
 
+/// Wraps `inner` and supplies [`Matcher::maybe_label`] / parse failure registration from `label`.
 pub struct Labeled<L, I> {
     label: L,
     inner: I,
 }
 
 impl<L, I> Labeled<L, I> {
+    /// Pairs a label with an inner parser or matcher.
     pub fn new(label: L, inner: I) -> Self {
         Self { label, inner }
     }
@@ -73,10 +77,12 @@ where
     }
 }
 
+/// Extension trait to wrap `self` in [`Labeled`].
 pub trait WithLabel
 where
     Self: Sized,
 {
+    /// Same as `Labeled::new(label, self)`.
     fn with_label<L>(self, label: L) -> Labeled<L, Self>;
 }
 

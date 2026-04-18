@@ -1,17 +1,23 @@
+//! `!e` — succeeds when `checker` does *not* match at the current position (no input consumed).
+
 use crate::{
     error::error_handler::ErrorHandler,
     matcher::{MatchRunner, Matcher},
 };
+
+/// Predicate-style negative lookahead built from any [`Matcher`].
 pub struct NegativeLookahead<Check> {
     checker: Check,
 }
 
 impl<Check> NegativeLookahead<Check> {
+    /// Wraps `checker` (typically another matcher used as a probe).
     pub fn new(checker: Check) -> Self {
         Self { checker }
     }
 }
 
+/// Convenience constructor for [`NegativeLookahead`].
 pub fn negative_lookahead<Check>(checker: Check) -> NegativeLookahead<Check> {
     NegativeLookahead::new(checker)
 }

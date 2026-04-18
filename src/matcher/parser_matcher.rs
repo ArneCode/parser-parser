@@ -1,15 +1,19 @@
+//! Treat a [`crate::parser::Parser`] as a [`crate::matcher::Matcher`]: succeed only when parse output equals `expected_output`.
+
 use crate::{
     error::{FurthestFailError, error_handler::ErrorHandler},
     matcher::MatchRunner,
     parser::Parser,
 };
 
+/// Runs `parser` and compares the result to `expected_output` with [`PartialEq`].
 pub struct ParserMatcher<Pars, ParserOutput> {
     parser: Pars,
     expected_output: ParserOutput,
 }
 
 impl<Pars, ParserOutput> ParserMatcher<Pars, ParserOutput> {
+    /// Matcher succeeds when `parser` returns `Some(expected_output)`.
     pub fn new(parser: Pars, expected_output: ParserOutput) -> Self {
         Self {
             parser,

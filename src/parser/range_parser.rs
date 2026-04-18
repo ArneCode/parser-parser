@@ -1,3 +1,5 @@
+//! Parse a single token that lies in a Rust [`RangeBounds`] (or use [`Range`] / [`RangeInclusive`] directly as parsers).
+
 use std::{
     fmt::Debug,
     ops::{Range, RangeBounds, RangeInclusive},
@@ -8,11 +10,13 @@ use crate::{
     error::{FurthestFailError, error_handler::ErrorHandler},
 };
 
+/// Named wrapper holding a [`RangeBounds`] value; accepts one in-range token (same idea as the [`Range`] / [`RangeInclusive`] impls below).
 pub struct RangeParser<Range> {
     range: Range,
 }
 
 impl<Range> RangeParser<Range> {
+    /// Parser that accepts one token contained in `range`.
     pub fn new(range: Range) -> Self {
         Self { range }
     }

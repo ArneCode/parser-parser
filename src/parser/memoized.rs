@@ -1,3 +1,5 @@
+//! Packrat-style memoization of parse results per `(parser_id, input_position)`.
+
 use std::rc::Rc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
@@ -9,12 +11,14 @@ use crate::{
 
 static NEXT_MEMO_ID: AtomicUsize = AtomicUsize::new(0);
 
+/// Wraps parser `P`; successful outputs are shared as [`Rc`] across repeated parses at the same position.
 pub struct Memoized<P> {
     inner: P,
     id: usize,
 }
 
 impl<P> Memoized<P> {
+    /// Assigns a unique memo table id for this wrapper.
     pub fn new(inner: P) -> Self {
         Self {
             inner,

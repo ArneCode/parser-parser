@@ -1,9 +1,14 @@
+//! `&e` — succeeds when `checker` would match, without consuming input (position restored).
+
 use crate::{error::error_handler::ErrorHandler, matcher::Matcher};
+
+/// Positive lookahead wrapper around a [`Matcher`].
 pub struct PositiveLookahead<Check> {
     checker: Check,
 }
 
 impl<Check> PositiveLookahead<Check> {
+    /// See [`positive_lookahead`].
     pub fn new(checker: Check) -> Self {
         Self { checker }
     }

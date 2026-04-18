@@ -1,12 +1,17 @@
+//! One-or-more repetition (`matcher+`).
+
 use crate::{
     error::{FurthestFailError, error_handler::ErrorHandler},
     matcher::{MatchRunner, Matcher},
 };
+
+/// Requires at least one successful `matcher`, then behaves like greedy repetition.
 pub struct OneOrMore<Match> {
     matcher: Match,
 }
 
 impl<Match> OneOrMore<Match> {
+    /// See [`one_or_more`].
     pub fn new(matcher: Match) -> Self {
         Self { matcher }
     }

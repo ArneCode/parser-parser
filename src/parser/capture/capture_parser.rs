@@ -9,6 +9,11 @@ use crate::{
 
 use super::match_result::{MatchResultMultiple, MatchResultOptional, MatchResultSingle};
 
+/// Parser that runs `matcher` and, on success, calls `constructor` with the filled capture buckets.
+///
+/// `MRes` is a triple `(single, multiple, optional)` of match-result pieces; the macro-generated
+/// grammar usually matches this shape. See the [`super`] module for bind helpers and for using
+/// `capture!` to build this type.
 pub struct Capture<MRes, Match, F> {
     pub(super) matcher: Match,
     pub(super) constructor: F,
@@ -23,6 +28,8 @@ where
     MResOptional: MatchResultOptional,
     F: Fn(MResSingle::Output, MResMultiple, MResOptional) -> Out,
 {
+    /// Builds a capture parser: `grammar_factory` receives empty property slots and must return
+    /// the matcher; `constructor` maps filled results to `Out`.
     pub fn new<
         'a,
         'ctx: 'a,

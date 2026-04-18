@@ -1,3 +1,8 @@
+//! Procedural macros for [`marser`](https://docs.rs/marser).
+//!
+//! The main entry point is [`capture`], which builds a
+//! `marser::parser::capture::Capture` parser from a grammar expression.
+
 use proc_macro::TokenStream;
 use proc_macro_crate::{FoundCrate, crate_name};
 use proc_macro2::Span;
@@ -229,6 +234,35 @@ impl VisitMut for BindVisitor {
 // capture! proc-macro
 // ---------------------------------------------------------------------------
 
+/// Build a [`Capture`](https://docs.rs/marser/latest/marser/parser/capture/struct.Capture.html) parser from grammar + result expressions.
+///
+/// # Syntax
+///
+/// ```ignore
+/// capture!( <grammar> => <result> )
+/// ```
+///
+/// - **`<grammar>`** — any expression after `bind!` / `bind_span!` expansion (typically a tuple
+///   of matchers, often using [`crate::matcher::Matcher`](https://docs.rs/marser/latest/marser/matcher/trait.Matcher.html)
+///   combinators like `many` / `one_of`).
+/// - **`<result>`** — Rust expression that receives the captured bindings and produces the parser output.
+///
+/// Inside `<grammar>`, the macro recognizes:
+///
+/// - **`bind!(parser, ident)`** — single capture into `ident` (`Option<_>` in the bucket).
+/// - **`bind!(parser, *ident)`** — repeated capture into `ident` (`Vec<_>`).
+/// - **`bind!(parser, ?ident)`** — optional capture (`Option<_>`).
+/// - **`bind!(parser, ident, *span_ident)`** (and `?` / `*` on the value) — value plus span tuple `(usize, usize)`.
+/// - **`bind_span!(parser, ident)`** / **`bind_span!(parser, *ident)`** / **`bind_span!(parser, ?ident)`** —
+///   capture only a span (expands to `marser::parser::capture::bind_span`).
+///
+/// Each binding becomes a parameter to both the grammar closure and the result closure generated
+/// by this macro.
+///
+/// # Crate path
+///
+/// The expansion prefixes APIs with the dependency name from Cargo (via `proc_macro_crate::crate_name("marser")`).
+/// If you rename the `marser` dependency in your `Cargo.toml`, generated paths use that name.
 #[proc_macro]
 pub fn capture(input: TokenStream) -> TokenStream {
     let mut input = parse_macro_input!(input as CaptureInput);

@@ -1,3 +1,7 @@
+//! Sequential composition: tuples `(m1, m2, …)` implement [`crate::matcher::Matcher`] by running each arm in order.
+//!
+//! There is no public `Sequence` struct—use a tuple of matchers directly.
+
 use crate::{
     error::{FurthestFailError, error_handler::ErrorHandler},
     matcher::{MatchRunner, Matcher},

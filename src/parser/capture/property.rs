@@ -1,15 +1,21 @@
 use super::match_result::MatchResult;
 
+/// Source location and name for debugging double-bind panics.
 #[derive(Clone, Copy)]
 pub struct BindDebugInfo {
+    /// Name of the binding (from `bind!` / macro expansion).
     pub property_name: &'static str,
+    /// File where the bind was created.
     pub file: &'static str,
     pub line: u32,
     pub column: u32,
 }
 
+/// Describes how to write a captured `Value` into the aggregate result `MRes`.
 pub trait Property<Value, MRes> {
+    /// Store `value` into `result`, optionally using `debug` for panic messages on conflict.
     fn put_in_result(&self, result: &mut MRes, value: Value, debug: Option<BindDebugInfo>);
+    /// Wrap `value` with this property for deferred insertion into `MRes`.
     fn bind_result(&self, value: Value) -> super::bound::BoundValue<Value, Self>
     where
         Self: Sized,
@@ -17,6 +23,7 @@ pub trait Property<Value, MRes> {
     {
         super::bound::BoundValue::new(value, self.clone(), None)
     }
+    /// Like [`bind_result`](Self::bind_result) but attaches [`BindDebugInfo`] for diagnostics.
     fn bind_result_with_debug(
         &self,
         value: Value,
@@ -30,12 +37,14 @@ pub trait Property<Value, MRes> {
     }
 }
 
+/// Property that writes at most once into an `Option` field (panics if set twice).
 #[derive(Clone, Copy)]
 pub struct SingleProperty<F> {
     setter: F,
 }
 
 impl<F> SingleProperty<F> {
+    /// `setter` selects the `Option` slot inside the “single” capture bucket.
     pub fn new(setter: F) -> Self {
         Self { setter }
     }
@@ -61,12 +70,14 @@ where
     }
 }
 
+/// Property that appends each capture into a `Vec`.
 #[derive(Clone, Copy)]
 pub struct MultipleProperty<F> {
     setter: F,
 }
 
 impl<F> MultipleProperty<F> {
+    /// `setter` selects the `Vec` field inside the “multiple” capture bucket.
     pub fn new(setter: F) -> Self {
         Self { setter }
     }
@@ -83,12 +94,14 @@ where
     }
 }
 
+/// Property for an optional capture stored in `Option` (panics if set twice).
 #[derive(Clone, Copy)]
 pub struct OptionalProperty<F> {
     setter: F,
 }
 
 impl<F> OptionalProperty<F> {
+    /// `setter` selects the `Option` slot inside the “optional” capture bucket.
     pub fn new(setter: F) -> Self {
         Self { setter }
     }

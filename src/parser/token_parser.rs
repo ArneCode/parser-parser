@@ -1,13 +1,18 @@
+//! Predicate-based token parser: `check_fn` gates consumption; `parse_fn` maps the token to output.
+
 use crate::{
     context::ParserContext,
     error::{FurthestFailError, error_handler::ErrorHandler},
 };
+
+/// [`crate::parser::Parser`] built from a predicate and a projection function.
 pub struct TokenParser<CheckF, ParseF> {
     check_fn: CheckF,
     parse_fn: ParseF,
 }
 
 impl<CheckF, ParseF> TokenParser<CheckF, ParseF> {
+    /// See [`token_parser`].
     pub fn new<Token, Out>(check_fn: CheckF, parse_fn: ParseF) -> Self
     where
         CheckF: Fn(&Token) -> bool,
@@ -17,6 +22,7 @@ impl<CheckF, ParseF> TokenParser<CheckF, ParseF> {
     }
 }
 
+/// Convenience constructor for [`TokenParser`].
 pub fn token_parser<CheckF, ParseF, Token, Out>(
     check_fn: CheckF,
     parse_fn: ParseF,

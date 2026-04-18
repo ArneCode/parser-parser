@@ -1,10 +1,15 @@
+//! When the inner matcher fails “softly” and the error handler is active, record a synthetic [`crate::error::MissingError`].
+
 use crate::{
     error::{FurthestFailError, MissingError, error_handler::ErrorHandler},
     matcher::{MatchRunner, Matcher},
 };
 
+/// Wrapper produced by [`crate::matcher::Matcher::try_insert_if_missing`].
 pub struct InsertOnErrorMatcher<Inner> {
+    /// Inner matcher.
     pub inner: Inner,
+    /// Message stored on the synthetic missing error.
     pub message: String,
 }
 

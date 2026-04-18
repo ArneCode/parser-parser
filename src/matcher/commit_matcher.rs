@@ -1,3 +1,5 @@
+//! Committing sequence: after `commit_on` succeeds, failure in `then_matcher` becomes a hard error.
+
 use crate::{
     error::{
         FurthestFailError,
@@ -7,12 +9,14 @@ use crate::{
     parser::capture::MatchResult,
 };
 
+/// Runs `commit_on` then `then_matcher`; if the second fails, furthest-fail is surfaced as [`Err`].
 pub struct CommitMatcher<CommitOn, ThenMatch> {
     commit_on: CommitOn,
     then_matcher: ThenMatch,
 }
 
 impl<Commit, Match> CommitMatcher<Commit, Match> {
+    /// See [`commit_on`].
     pub fn new(commit_on: Commit, matcher: Match) -> Self {
         Self {
             commit_on,
@@ -61,6 +65,7 @@ where
     }
 }
 
+/// Convenience constructor for [`CommitMatcher`].
 pub fn commit_on<CommitOn, ThenMatch>(
     commit_on: CommitOn,
     then_matcher: ThenMatch,

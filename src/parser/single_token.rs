@@ -1,3 +1,5 @@
+//! Exact single-token parsers: a literal value or a [`char`] literal.
+
 use std::fmt::Debug;
 
 use crate::{
@@ -5,11 +7,13 @@ use crate::{
     error::{FurthestFailError, error_handler::ErrorHandler},
 };
 
+/// Matches `token` and advances by one on success.
 pub struct SingleTokenParser<Token> {
     token: Token,
 }
 
 impl<Token> SingleTokenParser<Token> {
+    /// Parser for one occurrence of `token`.
     pub fn new(token: Token) -> Self {
         Self { token }
     }
