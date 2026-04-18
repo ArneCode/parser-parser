@@ -10,7 +10,7 @@
 extern crate self as marser;
 
 pub(crate) mod context;
-
+pub mod one_of;
 pub mod error;
 pub mod label;
 pub mod matcher;
