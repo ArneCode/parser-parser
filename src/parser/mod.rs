@@ -2,7 +2,6 @@ pub mod capture;
 pub mod deferred;
 pub mod memoized;
 pub mod multiple;
-pub mod one_of;
 pub mod range_parser;
 pub mod recover_error;
 pub mod single_token;
@@ -16,7 +15,6 @@ pub use capture::{
 pub use deferred::{Deferred, DeferredWeak, recursive};
 pub use memoized::Memoized;
 pub use multiple::MultipleParser;
-pub use one_of::OneOf;
 pub use range_parser::RangeParser;
 pub use recover_error::ErrorRecoverer;
 pub use single_token::SingleTokenParser;

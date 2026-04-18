@@ -8,7 +8,7 @@ pub struct StringMatcher {
 }
 
 impl StringMatcher {
-    fn new(expected: String) -> Self {
+    pub fn new(expected: String) -> Self {
         Self {
             expected: expected.chars().collect(),
         }

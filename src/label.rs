@@ -38,18 +38,6 @@ where
         'ctx: 'a,
         Token: 'ctx,
     {
-        // let idx = error_handler.register_start(*pos);
-        // if runner.run_match(&self.inner, error_handler, pos)? {
-        //     error_handler.register_success(idx);
-        //     Ok(true)
-        // } else {
-        //     error_handler.register_failure_with_label(
-        //         self.label.clone(),
-        //         idx,
-        //         runner.get_parser_context().match_start,
-        //     );
-        //     Ok(false)
-        // }
         runner.run_match(&self.inner, error_handler, pos)
     }
     fn maybe_label_internal(&self) -> Option<Box<dyn Display>> {
@@ -100,13 +88,3 @@ where
         Labeled::new(label, self)
     }
 }
-
-// impl<L, T, D> MaybeLabel<L> for T
-// where
-//     T: Deref<Target = D> + ?Sized,
-//     D: MaybeLabel<L> + ?Sized,
-// {
-//     fn maybe_label(&self) -> Option<L> {
-//         self.deref().maybe_label()
-//     }
-// }
