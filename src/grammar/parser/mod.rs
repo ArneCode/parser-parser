@@ -2,6 +2,7 @@ pub mod multiple;
 pub mod one_of;
 // pub mod one_or_more;
 pub mod deferred;
+pub mod memoized;
 pub mod range_parser;
 pub mod recover_error;
 pub mod single_token;
@@ -33,6 +34,14 @@ pub trait Parser<Token> {
         Self: Sized,
     {
         ErrorRecoverer::new(self, recover_matcher, recover_output)
+    }
+
+    fn memoized(self) -> memoized::Memoized<Self>
+    where
+        Self: Sized,
+        Self::Output: 'static,
+    {
+        memoized::Memoized::new(self)
     }
 }
 pub(crate) trait ParserObjSafe<Token> {

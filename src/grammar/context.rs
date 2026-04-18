@@ -1,3 +1,4 @@
+use std::any::Any;
 use std::collections::HashMap;
 
 use crate::grammar::{
@@ -7,7 +8,7 @@ use crate::grammar::{
 
 pub struct ParserContext<'a, T> {
     pub tokens: &'a Vec<T>,
-    pub memo_table: HashMap<(usize, usize), Option<usize>>,
+    pub memo_table: HashMap<(usize, usize), Box<dyn Any>>,
     pub match_start: usize,
     pub error_sink: Vec<ParserError>,
 }
