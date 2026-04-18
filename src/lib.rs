@@ -1,4 +1,11 @@
 #![doc = include_str!("../README.md")]
+// `Parser` and `Matcher` are sealed via `pub(crate)` supertraits (`ParserImpl`,
+// `MatcherImpl`) whose method signatures intentionally reference crate-private
+// runtime types (`ParserContext`, `ErrorHandler`, `MatchRunner`). The
+// `private_bounds` lint flags every `impl …Impl for …` site in the crate (~130
+// locations) for this single intentional pattern. Downstream users cannot name
+// or implement `ParserImpl`/`MatcherImpl`, so the "reachability" the lint warns
+// about is purely nominal.
 #![allow(private_bounds)]
 extern crate self as marser;
 
