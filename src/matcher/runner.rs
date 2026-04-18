@@ -1,8 +1,8 @@
 use crate::{
-    context::{MatchResult, ParserContext},
+    context::ParserContext,
     error::{FurthestFailError, error_handler::ErrorHandler},
     matcher::Matcher,
-    parser::capture::BoundResult,
+    parser::capture::{BoundResult, MatchResult},
 };
 
 pub(crate) trait MatchRunner<'a, 'ctx> {

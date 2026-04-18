@@ -1,10 +1,10 @@
 use crate::{
-    context::MatchResult,
     error::{
         FurthestFailError,
         error_handler::{ErrorHandler, MultiErrorHandler},
     },
     matcher::{MatchRunner, Matcher, NoMemoizeBacktrackingRunner},
+    parser::capture::MatchResult,
 };
 
 pub struct CommitMatcher<CommitOn, ThenMatch> {
