@@ -14,12 +14,7 @@ pub(crate) trait ErrorHandler {
         Self: Sized;
 
     fn register_start(&mut self, pos: usize) -> Self::Indexer;
-    fn register_failure<L: Display + 'static>(
-        &mut self,
-        label: Option<L>,
-        idx: Self::Indexer,
-        _match_start: usize,
-    );
+    fn register_failure<L: Display + 'static>(&mut self, label: Option<L>, idx: Self::Indexer);
     fn register_success(&mut self, idx: Self::Indexer);
     fn register_watermark(&mut self, pos: usize);
     fn register_stack_error(&mut self, error: ParserError);
@@ -43,13 +38,7 @@ impl ErrorHandler for EmptyErrorHandler {
     }
 
     fn register_start(&mut self, _pos: usize) -> Self::Indexer {}
-    fn register_failure<L: Display>(
-        &mut self,
-        _label: Option<L>,
-        _idx: Self::Indexer,
-        _match_start: usize,
-    ) {
-    }
+    fn register_failure<L: Display>(&mut self, _label: Option<L>, _idx: Self::Indexer) {}
     fn register_success(&mut self, _idx: Self::Indexer) {}
     fn register_watermark(&mut self, _pos: usize) {}
     fn register_stack_error(&mut self, _error: ParserError) {}
@@ -122,12 +111,7 @@ impl ErrorHandler for MultiErrorHandler {
         self.pop_slice_stack(&idx);
     }
 
-    fn register_failure<L: Display + 'static>(
-        &mut self,
-        label: Option<L>,
-        idx: Self::Indexer,
-        _match_start: usize,
-    ) {
+    fn register_failure<L: Display + 'static>(&mut self, label: Option<L>, idx: Self::Indexer) {
         let failure_slice = self.slice_stack[idx.slice_idx];
         self.pop_slice_stack(&idx);
         let old_stack_size = idx.error_stack_size_at_start;

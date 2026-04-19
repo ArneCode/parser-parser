@@ -70,7 +70,7 @@ where
                 Ok(Some(output))
             }
             None => {
-                error_handler.register_failure(Some(self.label.clone()), idx, context.match_start);
+                error_handler.register_failure(Some(self.label.clone()), idx);
                 Ok(None)
             }
         }

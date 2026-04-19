@@ -66,11 +66,7 @@ where
         if !result {
             *pos = old_pos;
             self.stack.truncate(old_stack_len);
-            error_handler.register_failure(
-                matcher.maybe_label(),
-                idx,
-                self.parser_context.match_start,
-            );
+            error_handler.register_failure(matcher.maybe_label(), idx);
         } else {
             error_handler.register_success(idx);
         }
@@ -132,11 +128,7 @@ where
             Ok(true)
         } else {
             *pos = old_pos;
-            error_handler.register_failure(
-                matcher.maybe_label(),
-                idx,
-                self.parser_context.match_start,
-            );
+            error_handler.register_failure(matcher.maybe_label(), idx);
             Ok(false)
         }
     }

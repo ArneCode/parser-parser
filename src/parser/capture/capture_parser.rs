@@ -53,8 +53,7 @@ where
     }
 }
 
-impl<Token, Out, MResSingle, MResMultiple, MResOptional, Match, F>
-    ParserImpl<Token>
+impl<Token, Out, MResSingle, MResMultiple, MResOptional, Match, F> ParserImpl<Token>
     for Capture<(MResSingle, MResMultiple, MResOptional), Match, F>
 where
     MResSingle: MatchResultSingle,
@@ -72,8 +71,8 @@ where
         error_handler: &mut impl ErrorHandler,
         pos: &mut usize,
     ) -> Result<Option<Self::Output>, FurthestFailError> {
-        let old_match_start = context.match_start;
-        context.match_start = *pos;
+        // let old_match_start = context.match_start;
+        // context.match_start = *pos;
         if Match::CAN_MATCH_DIRECTLY {
             let mut runner = DirectMatchRunner::new(
                 context,
@@ -82,11 +81,11 @@ where
             if runner.run_match(&self.matcher, error_handler, pos)? {
                 let (res_single, res_multiple, res_optional) = runner.get_match_result();
                 let result = (self.constructor)(res_single.to_output(), res_multiple, res_optional);
-                context.match_start = old_match_start;
+                // context.match_start = old_match_start;
                 Ok(Some(result))
             } else {
                 drop(runner);
-                context.match_start = old_match_start;
+                // context.match_start = old_match_start;
                 Ok(None)
             }
         } else {
@@ -94,11 +93,11 @@ where
             if runner.run_match(&self.matcher, error_handler, pos)? {
                 let (res_single, res_multiple, res_optional) = runner.get_match_result();
                 let result = (self.constructor)(res_single.to_output(), res_multiple, res_optional);
-                context.match_start = old_match_start;
+                // context.match_start = old_match_start;
                 Ok(Some(result))
             } else {
                 drop(runner);
-                context.match_start = old_match_start;
+                // context.match_start = old_match_start;
                 Ok(None)
             }
         }

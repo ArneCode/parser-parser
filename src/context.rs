@@ -6,7 +6,6 @@ use crate::error::ParserError;
 pub struct ParserContext<'a, T> {
     pub tokens: &'a Vec<T>,
     pub memo_table: HashMap<(usize, usize), Box<dyn Any>>,
-    pub match_start: usize,
     pub error_sink: Vec<ParserError>,
 }
 
@@ -15,7 +14,6 @@ impl<'a, T> ParserContext<'a, T> {
         Self {
             tokens,
             memo_table: HashMap::new(),
-            match_start: 0,
             error_sink: Vec::new(),
         }
     }
