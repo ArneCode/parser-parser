@@ -1,10 +1,13 @@
 //! Committing sequence: after `commit_on` succeeds, failure in `then_matcher` becomes a hard error.
 
+use std::marker::PhantomData;
+
 use crate::{
     error::{
         FurthestFailError,
         error_handler::{ErrorHandler, MultiErrorHandler},
     },
+    input::{InputFamily, InputStream},
     matcher::{MatchRunner, Matcher, NoMemoizeBacktrackingRunner},
     parser::capture::MatchResult,
 };
@@ -25,11 +28,12 @@ impl<Commit, Match> CommitMatcher<Commit, Match> {
     }
 }
 
-impl<Token, MRes, CommitOn, ThenMatch> super::internal::MatcherImpl<Token, MRes>
+impl<InpFam, MRes, CommitOn, ThenMatch> super::internal::MatcherImpl<InpFam, MRes>
     for CommitMatcher<CommitOn, ThenMatch>
 where
-    CommitOn: Matcher<Token, MRes>,
-    ThenMatch: Matcher<Token, MRes>,
+    InpFam: InputFamily + ?Sized,
+    CommitOn: Matcher<InpFam, MRes>,
+    ThenMatch: Matcher<InpFam, MRes>,
     MRes: MatchResult,
 {
     const CAN_MATCH_DIRECTLY: bool =
@@ -37,27 +41,26 @@ where
     const HAS_PROPERTY: bool = CommitOn::HAS_PROPERTY || ThenMatch::HAS_PROPERTY;
     const CAN_FAIL: bool = CommitOn::CAN_FAIL;
 
-    fn match_with_runner<'a, 'ctx, Runner>(
+    fn match_with_runner<'a, 'src, Runner>(
         &'a self,
         runner: &mut Runner,
         error_handler: &mut impl ErrorHandler,
-        pos: &mut usize,
+        input: &mut InputStream<'src, InpFam::In<'src>>,
     ) -> Result<bool, FurthestFailError>
     where
-        Runner: MatchRunner<'a, 'ctx, Token = Token, MRes = MRes>,
-        'ctx: 'a,
-        Token: 'ctx,
+        Runner: MatchRunner<'a, 'src, InpFam, MRes = MRes>,
+        'src: 'a,
     {
-        if runner.run_match(&self.commit_on, error_handler, pos)? {
-            if runner.run_match(&self.then_matcher, error_handler, pos)? {
+        if runner.run_match(&self.commit_on, error_handler, input)? {
+            if runner.run_match(&self.then_matcher, error_handler, input)? {
                 return Ok(true);
             }
 
-            let mut error_handler = MultiErrorHandler::new(*pos);
+            let mut error_handler = MultiErrorHandler::new(input.get_pos().into());
             // starting new runner to find the error. we can't use the same runner again because then the properties of the match result will be written twice.
-            let mut runner: NoMemoizeBacktrackingRunner<'_, '_, Token, MRes> =
-                NoMemoizeBacktrackingRunner::new(runner.get_parser_context());
-            runner.run_match(&self.then_matcher, &mut error_handler, pos)?;
+            let mut inner_runner: NoMemoizeBacktrackingRunner<'_, 'src, InpFam, MRes> =
+                NoMemoizeBacktrackingRunner::new(runner.get_parser_context(), PhantomData::<&'src ()>);
+            inner_runner.run_match(&self.then_matcher, &mut error_handler, input)?;
             let err = error_handler.to_parser_error();
             return Err(err);
         }

@@ -1,8 +1,11 @@
 //! Error recovery: if the inner parser fails with [`crate::error::FurthestFailError`], try an alternate matcher.
 
+use std::marker::PhantomData;
+
 use crate::{
     context::ParserContext,
     error::error_handler::ErrorHandler,
+    input::{InputFamily, InputStream},
     matcher::{MatchRunner, Matcher, NoMemoizeBacktrackingRunner},
     parser::Parser,
 };
@@ -26,29 +29,30 @@ impl<Pars, Match, Output> ErrorRecoverer<Pars, Match, Output> {
 }
 
 //TODO: ensure that Match cannot error with trait CanNotError
-impl<Pars, Match, Output, Token> super::internal::ParserImpl<Token>
+impl<InpFam, Pars, Match, Output> super::internal::ParserImpl<InpFam>
     for ErrorRecoverer<Pars, Match, Output>
 where
-    Pars: Parser<Token, Output = Output>,
-    Match: Matcher<Token, ((), (), ())>,
+    InpFam: InputFamily + ?Sized,
+    Pars: for<'src> Parser<InpFam, Output<'src> = Output>,
+    Match: Matcher<InpFam, ((), (), ())>,
     Output: Clone,
 {
-    type Output = Output;
+    type Output<'src> = Output;
     const CAN_FAIL: bool = Pars::CAN_FAIL;
 
-    fn parse<'ctx>(
+    fn parse<'src>(
         &self,
-        context: &mut ParserContext<'ctx, Token>,
+        context: &mut ParserContext,
         error_handler: &mut impl ErrorHandler,
-        pos: &mut usize,
-    ) -> Result<Option<Self::Output>, crate::error::FurthestFailError> {
-        let start_pos = *pos;
-        match self.happy.parse(context, error_handler, pos) {
+        input: &mut InputStream<'src, InpFam::In<'src>>,
+    ) -> Result<Option<Self::Output<'src>>, crate::error::FurthestFailError> {
+        let start_pos = input.get_pos();
+        match self.happy.parse(context, error_handler, input) {
             Err(e) => {
-                *pos = start_pos;
-                let mut runner = NoMemoizeBacktrackingRunner::new(context);
+                input.set_pos(start_pos);
+                let mut runner = NoMemoizeBacktrackingRunner::new(context, PhantomData::<&'src ()>);
                 if runner
-                    .run_match(&self.recover_matcher, error_handler, pos)
+                    .run_match(&self.recover_matcher, error_handler, input)
                     .unwrap_or(false)
                 {
                     drop(runner);

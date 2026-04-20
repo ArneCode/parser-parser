@@ -2,6 +2,7 @@
 
 use crate::{
     error::{FurthestFailError, MissingError, error_handler::ErrorHandler},
+    input::{InputFamily, InputStream},
     matcher::{MatchRunner, Matcher},
 };
 
@@ -13,27 +14,28 @@ pub struct InsertOnErrorMatcher<Inner> {
     pub message: String,
 }
 
-impl<Token, MRes, Inner> super::internal::MatcherImpl<Token, MRes> for InsertOnErrorMatcher<Inner>
+impl<InpFam, MRes, Inner> super::internal::MatcherImpl<InpFam, MRes>
+    for InsertOnErrorMatcher<Inner>
 where
-    Inner: Matcher<Token, MRes>,
+    InpFam: InputFamily + ?Sized,
+    Inner: Matcher<InpFam, MRes>,
 {
     const CAN_MATCH_DIRECTLY: bool = Inner::CAN_MATCH_DIRECTLY;
     const HAS_PROPERTY: bool = Inner::HAS_PROPERTY;
     const CAN_FAIL: bool = true;
 
-    fn match_with_runner<'a, 'ctx, Runner>(
+    fn match_with_runner<'a, 'src, Runner>(
         &'a self,
         runner: &mut Runner,
         error_handler: &mut impl ErrorHandler,
-        pos: &mut usize,
+        input: &mut InputStream<'src, InpFam::In<'src>>,
     ) -> Result<bool, FurthestFailError>
     where
-        Runner: MatchRunner<'a, 'ctx, Token = Token, MRes = MRes>,
-        'ctx: 'a,
-        Token: 'ctx,
+        Runner: MatchRunner<'a, 'src, InpFam, MRes = MRes>,
+        'src: 'a,
     {
-        let start_pos = *pos;
-        match runner.run_match(&self.inner, error_handler, pos)? {
+        let start_pos: usize = input.get_pos().into();
+        match runner.run_match(&self.inner, error_handler, input)? {
             true => Ok(true),
             false => {
                 if error_handler.is_real() {

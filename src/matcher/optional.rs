@@ -2,6 +2,7 @@
 
 use crate::{
     error::{FurthestFailError, error_handler::ErrorHandler},
+    input::{InputFamily, InputStream},
     matcher::{MatchRunner, Matcher},
 };
 
@@ -21,25 +22,26 @@ pub fn optional<Match>(matcher: Match) -> Optional<Match> {
     Optional::new(matcher)
 }
 
-impl<Token, MRes, Match> super::internal::MatcherImpl<Token, MRes> for Optional<Match>
+impl<InpFam, MRes, Match> super::internal::MatcherImpl<InpFam, MRes> for Optional<Match>
 where
-    Match: Matcher<Token, MRes>,
+    InpFam: InputFamily + ?Sized,
+    Match: Matcher<InpFam, MRes>,
 {
     const CAN_MATCH_DIRECTLY: bool = Match::CAN_MATCH_DIRECTLY;
     const HAS_PROPERTY: bool = Match::HAS_PROPERTY;
     const CAN_FAIL: bool = false;
 
-    fn match_with_runner<'a, 'ctx, Runner>(
+    fn match_with_runner<'a, 'src, Runner>(
         &'a self,
         runner: &mut Runner,
         error_handler: &mut impl ErrorHandler,
-        pos: &mut usize,
+        input: &mut InputStream<'src, InpFam::In<'src>>,
     ) -> Result<bool, FurthestFailError>
     where
-        Runner: MatchRunner<'a, 'ctx, Token = Token, MRes = MRes>,
-        'ctx: 'a,
+        Runner: MatchRunner<'a, 'src, InpFam, MRes = MRes>,
+        'src: 'a,
     {
-        if runner.run_match(&self.matcher, error_handler, pos)? {
+        if runner.run_match(&self.matcher, error_handler, input)? {
             return Ok(true);
         }
         Ok(true)

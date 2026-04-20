@@ -6,6 +6,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use crate::{
     context::ParserContext,
     error::{FurthestFailError, error_handler::ErrorHandler},
+    input::{InputFamily, InputStream},
     parser::Parser,
 };
 
@@ -27,45 +28,51 @@ impl<P> Memoized<P> {
     }
 }
 
-impl<Token, P> super::internal::ParserImpl<Token> for Memoized<P>
+impl<InpFam, P> super::internal::ParserImpl<InpFam> for Memoized<P>
 where
-    P: Parser<Token>,
-    P::Output: 'static,
+    InpFam: InputFamily + ?Sized,
+    P: Parser<InpFam>,
+    for<'src> P::Output<'src>: 'static,
 {
-    type Output = Rc<P::Output>;
+    type Output<'src> = Rc<P::Output<'src>>;
     const CAN_FAIL: bool = P::CAN_FAIL;
 
-    fn parse<'ctx>(
+    fn parse<'src>(
         &self,
-        context: &mut ParserContext<'ctx, Token>,
+        context: &mut ParserContext,
         error_handler: &mut impl ErrorHandler,
-        pos: &mut usize,
-    ) -> Result<Option<Self::Output>, FurthestFailError> {
-        let key = (self.id, *pos);
+        input: &mut InputStream<'src, InpFam::In<'src>>,
+    ) -> Result<Option<Self::Output<'src>>, FurthestFailError> {
+        let pos = input.get_pos();
+        let key = (self.id, pos.clone().into());
 
         if let Some(entry) = context.memo_table.get(&key) {
             return match entry
-                .downcast_ref::<Option<(Rc<P::Output>, usize)>>()
+                .downcast_ref::<Option<(Rc<P::Output<'src>>, usize)>>()
                 .expect("memo table entry type mismatch")
             {
                 None => Ok(None),
                 Some((rc, new_pos)) => {
-                    *pos = *new_pos;
+                    while input.get_pos().into() < *new_pos {
+                        if input.next().is_none() {
+                            break;
+                        }
+                    }
                     Ok(Some(Rc::clone(rc)))
                 }
             };
         }
 
-        match self.inner.parse(context, error_handler, pos) {
+        match self.inner.parse(context, error_handler, input) {
             Ok(None) => {
                 context
                     .memo_table
-                    .insert(key, Box::new(None::<(Rc<P::Output>, usize)>));
+                    .insert(key, Box::new(None::<(Rc<P::Output<'src>>, usize)>));
                 Ok(None)
             }
             Ok(Some(output)) => {
                 let rc = Rc::new(output);
-                let new_pos = *pos;
+                let new_pos: usize = input.get_pos().into();
                 context
                     .memo_table
                     .insert(key, Box::new(Some((Rc::clone(&rc), new_pos))));

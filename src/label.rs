@@ -5,6 +5,7 @@ use std::fmt::Display;
 use crate::{
     context::ParserContext,
     error::{FurthestFailError, error_handler::ErrorHandler},
+    input::{Input, InputFamily, InputStream},
     matcher::{MatchRunner, Matcher, internal::MatcherImpl},
     parser::{Parser, internal::ParserImpl},
 };
@@ -22,49 +23,50 @@ impl<L, I> Labeled<L, I> {
     }
 }
 
-impl<Token, MRes, L, I> MatcherImpl<Token, MRes> for Labeled<L, I>
+impl<InpFam, MRes, L, I> MatcherImpl<InpFam, MRes> for Labeled<L, I>
 where
-    I: Matcher<Token, MRes>,
+    InpFam: InputFamily + ?Sized,
+    I: Matcher<InpFam, MRes>,
     L: Display + Clone + 'static,
 {
     const CAN_MATCH_DIRECTLY: bool = I::CAN_MATCH_DIRECTLY;
     const HAS_PROPERTY: bool = I::HAS_PROPERTY;
     const CAN_FAIL: bool = I::CAN_FAIL;
 
-    fn match_with_runner<'a, 'ctx, Runner>(
+    fn match_with_runner<'a, 'src, Runner>(
         &'a self,
         runner: &mut Runner,
         error_handler: &mut impl ErrorHandler,
-        pos: &mut usize,
+        input: &mut InputStream<'src, InpFam::In<'src>>,
     ) -> Result<bool, FurthestFailError>
     where
-        Runner: MatchRunner<'a, 'ctx, Token = Token, MRes = MRes>,
-        'ctx: 'a,
-        Token: 'ctx,
+        Runner: MatchRunner<'a, 'src, InpFam, MRes = MRes>,
+        'src: 'a,
     {
-        runner.run_match(&self.inner, error_handler, pos)
+        runner.run_match(&self.inner, error_handler, input)
     }
     fn maybe_label_internal(&self) -> Option<Box<dyn Display>> {
         Some(Box::new(self.label.clone()))
     }
 }
 
-impl<L, I, Token> ParserImpl<Token> for Labeled<L, I>
+impl<InpFam, L, I> ParserImpl<InpFam> for Labeled<L, I>
 where
-    I: Parser<Token>,
+    InpFam: InputFamily + ?Sized,
+    I: Parser<InpFam>,
     L: Display + Clone + 'static,
 {
-    type Output = I::Output;
+    type Output<'src> = I::Output<'src>;
     const CAN_FAIL: bool = I::CAN_FAIL;
 
-    fn parse<'ctx>(
+    fn parse<'src>(
         &self,
-        context: &mut ParserContext<'ctx, Token>,
+        context: &mut ParserContext,
         error_handler: &mut impl ErrorHandler,
-        pos: &mut usize,
-    ) -> Result<Option<Self::Output>, FurthestFailError> {
-        let idx = error_handler.register_start(*pos);
-        match self.inner.parse(context, error_handler, pos)? {
+        input: &mut InputStream<'src, InpFam::In<'src>>,
+    ) -> Result<Option<Self::Output<'src>>, FurthestFailError> {
+        let idx = error_handler.register_start(input.get_pos().into());
+        match self.inner.parse(context, error_handler, input)? {
             Some(output) => {
                 error_handler.register_success(idx);
                 Ok(Some(output))

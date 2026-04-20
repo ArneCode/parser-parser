@@ -7,6 +7,7 @@
 use crate::{
     context::ParserContext,
     error::{FurthestFailError, error_handler::ErrorHandler},
+    input::{InputFamily, InputStream},
     matcher::{MatchRunner, Matcher},
     parser::Parser,
 };
@@ -31,29 +32,30 @@ pub fn one_of<Options>(options: Options) -> OneOf<Options> {
 macro_rules! impl_one_of_tuples {
     () => {};
     ($head:ident $(,$tail:ident)*) => {
-        impl<Token, MRes, $head, $($tail),*> crate::matcher::internal::MatcherImpl<Token, MRes> for OneOf<($head, $($tail,)*)>
+        impl<InpFam, MRes, $head, $($tail),*> crate::matcher::internal::MatcherImpl<InpFam, MRes> for OneOf<($head, $($tail,)*)>
         where
-            $head: Matcher<Token, MRes>,
-            $($tail: Matcher<Token, MRes>,)*
+            InpFam: InputFamily + ?Sized,
+            $head: Matcher<InpFam, MRes>,
+            $($tail: Matcher<InpFam, MRes>,)*
         {
             const CAN_MATCH_DIRECTLY: bool = $head::CAN_MATCH_DIRECTLY  $(&& $tail::CAN_MATCH_DIRECTLY)*;
             const HAS_PROPERTY: bool = $head::HAS_PROPERTY  $(|| $tail::HAS_PROPERTY)*;
             const CAN_FAIL: bool = $head::CAN_FAIL  $(&& $tail::CAN_FAIL)*;
 
-            fn match_with_runner<'a, 'ctx, Runner>(&'a self, runner: &mut Runner, error_handler: &mut impl ErrorHandler, pos: &mut usize) -> Result<bool, FurthestFailError>
+            fn match_with_runner<'a, 'src, Runner>(&'a self, runner: &mut Runner, error_handler: &mut impl ErrorHandler, input: &mut InputStream<'src, InpFam::In<'src>>) -> Result<bool, FurthestFailError>
             where
-                Runner: MatchRunner<'a, 'ctx, Token = Token, MRes = MRes>,
-                'ctx: 'a,
+                Runner: MatchRunner<'a, 'src, InpFam, MRes = MRes>,
+                'src: 'a,
             {
                 #[allow(non_snake_case)]
                 let ($head, $($tail,)*) = &self.options;
 
-                if runner.run_match($head, error_handler, pos)? {
+                if runner.run_match($head, error_handler, input)? {
                     return Ok(true);
                 }
 
                 $(
-                    if runner.run_match($tail, error_handler, pos)? {
+                    if runner.run_match($tail, error_handler, input)? {
                         return Ok(true);
                     }
                 )*
@@ -61,14 +63,15 @@ macro_rules! impl_one_of_tuples {
                 Ok(false)
             }
         }
-        impl<Token, Output, $head, $($tail),*> crate::parser::internal::ParserImpl<Token> for OneOf<($head, $($tail,)*)>
+        impl<InpFam, Output, $head, $($tail),*> crate::parser::internal::ParserImpl<InpFam> for OneOf<($head, $($tail,)*)>
         where
-            $head: Parser<Token, Output = Output>,
-            $($tail: Parser<Token, Output = Output>,)*
+            InpFam: InputFamily + ?Sized,
+            $head: for<'src> Parser<InpFam, Output<'src> = Output>,
+            $($tail: for<'src> Parser<InpFam, Output<'src> = Output>,)*
         {
-            type Output = Output;
+            type Output<'src> = Output;
             const CAN_FAIL: bool = $head::CAN_FAIL  $(&& $tail::CAN_FAIL)*;
-            fn parse(&self, context: &mut ParserContext<Token>, error_handler: &mut impl ErrorHandler, pos: &mut usize) -> Result<Option<Output>, FurthestFailError> {
+            fn parse<'src>(&self, context: &mut ParserContext, error_handler: &mut impl ErrorHandler, input: &mut InputStream<'src, InpFam::In<'src>>) -> Result<Option<Output>, FurthestFailError> {
 
                 #[allow(non_snake_case)]
                 let ($head, $($tail,)*) = &self.options;
@@ -76,7 +79,7 @@ macro_rules! impl_one_of_tuples {
                 // if $head.check_no_advance(context, pos) {
                 //     return $head.parse(context, pos);
                 // }
-                if let Some(output) = $head.parse(context, error_handler, pos)? {
+                if let Some(output) = $head.parse(context, error_handler, input)? {
                     return Ok(Some(output));
                 }
 
@@ -86,7 +89,7 @@ macro_rules! impl_one_of_tuples {
                 //     }
                 // )*
                 $(
-                    if let Some(output) = $tail.parse(context, error_handler, pos)? {
+                    if let Some(output) = $tail.parse(context, error_handler, input)? {
                         return Ok(Some(output));
                     }
                 )*

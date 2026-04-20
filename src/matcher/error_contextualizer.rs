@@ -4,6 +4,7 @@ use std::marker::PhantomData;
 
 use crate::{
     error::{FurthestFailError, error_handler::ErrorHandler},
+    input::{InputFamily, InputStream},
     matcher::{MatchRunner, Matcher},
     parser::Parser,
 };
@@ -27,41 +28,44 @@ impl<Matcher, Pars, F, MRes> ErrorContextualizer<Matcher, Pars, F, MRes> {
 }
 
 //TODO: ensure that Pars cannot error with trait CanNotError
-impl<Token, MRes, Match, Pars, F> super::internal::MatcherImpl<Token, MRes>
+impl<InpFam, MRes, Match, Pars, F> super::internal::MatcherImpl<InpFam, MRes>
     for ErrorContextualizer<Match, Pars, F, MRes>
 where
-    Match: Matcher<Token, MRes>,
-    Pars: Parser<Token, Output = F>,
+    InpFam: InputFamily + ?Sized,
+    Match: Matcher<InpFam, MRes>,
+    Pars: for<'src> Parser<InpFam, Output<'src> = F>,
     F: Fn(&mut FurthestFailError),
 {
     const CAN_MATCH_DIRECTLY: bool = Match::CAN_MATCH_DIRECTLY;
     const HAS_PROPERTY: bool = Match::HAS_PROPERTY;
     const CAN_FAIL: bool = Match::CAN_FAIL;
 
-    fn match_with_runner<'a, 'ctx, Runner>(
+    fn match_with_runner<'a, 'src, Runner>(
         &'a self,
         runner: &mut Runner,
         error_handler: &mut impl ErrorHandler,
-        pos: &mut usize,
+        input: &mut InputStream<'src, InpFam::In<'src>>,
     ) -> Result<bool, FurthestFailError>
     where
-        Runner: MatchRunner<'a, 'ctx, Token = Token, MRes = MRes>,
-        'ctx: 'a,
-        Token: 'ctx,
+        Runner: MatchRunner<'a, 'src, InpFam, MRes = MRes>,
+        'src: 'a,
     {
-        let mut start_pos = *pos;
-        match runner.run_match(&self.happy_matcher, error_handler, pos) {
+        let start_pos = input.get_pos();
+        match runner.run_match(&self.happy_matcher, error_handler, input) {
             Ok(true) => Ok(true),
             Ok(false) => Ok(false),
             Err(mut e) => {
-                // let mut start_pos = *pos;
+                let resume_pos = input.get_pos();
+                input.set_pos(start_pos.clone());
                 if let Ok(Some(f)) = self.error_parser.parse(
                     runner.get_parser_context(),
                     error_handler,
-                    &mut start_pos,
-                ) {
+                    input,
+                )
+                {
                     f(&mut e);
                 }
+                input.set_pos(resume_pos);
                 Err(e)
             }
         }

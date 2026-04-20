@@ -6,14 +6,15 @@
 // locations) for this single intentional pattern. Downstream users cannot name
 // or implement `ParserImpl`/`MatcherImpl`, so the "reachability" the lint warns
 // about is purely nominal.
-#![allow(private_bounds)]
+#![allow(private_bounds, private_interfaces)]
 extern crate self as marser;
 
 pub(crate) mod context;
-pub mod one_of;
 pub mod error;
+pub mod input;
 pub mod label;
 pub mod matcher;
+pub mod one_of;
 pub mod parser;
 
 use marser_macros::capture;
@@ -22,33 +23,32 @@ use std::rc::Rc;
 use crate::{
     context::ParserContext,
     error::{FurthestFailError, ParserError, error_handler::EmptyErrorHandler},
+    input::InputStream,
     matcher::{
         any_token::AnyToken, commit_matcher::commit_on, negative_lookahead::negative_lookahead,
     },
     parser::{Parser, internal::ParserImpl},
 };
 
-/// Parse all of `src` as `char` tokens with a small driver around `parser`.
+/// Parse all of `src` with a small driver around `parser`.
 ///
-/// - Collects `src` into a [`Vec<char>`] and runs [`Parser::parse`](parser::Parser) with the
-///   crate’s internal parse context and position.
+/// - Runs [`Parser::parse`](parser::Parser) against an [`input::InputStream`] over `src`.
 /// - Wraps your parser in `capture!(commit_on((), (bind!(…), negative_lookahead(AnyToken))) => …)`
 ///   so the whole input must be consumed (commit, bind result, then forbid trailing tokens).
 ///
 /// On success returns the parsed output and any collected [`error::ParserError`] values.
 /// On hard failure returns [`error::FurthestFailError`]. For a custom token type or context,
 /// call `parse` on your [`parser::Parser`] implementation directly instead.
-pub fn parse<Pars>(
+pub fn parse<Pars, Out>(
     parser: Pars,
     src: &str,
-) -> Result<(Pars::Output, Vec<ParserError>), FurthestFailError>
+) -> Result<(Out, Vec<ParserError>), FurthestFailError>
 where
-    Pars: Parser<char>,
+    Pars: for<'src> Parser<str, Output<'src> = Out>,
 {
-    let tokens: Vec<char> = src.chars().collect();
     let mut error_handler = EmptyErrorHandler;
-    let mut context = ParserContext::new(&tokens);
-    let mut pos = 0;
+    let mut context = ParserContext::new();
+    let mut input = InputStream::new(src);
     let parser = Rc::new(parser);
 
     let parser = capture!(
@@ -58,7 +58,7 @@ where
         )) => result
     );
     let result = parser
-        .parse(&mut context, &mut error_handler, &mut pos)?
+        .parse(&mut context, &mut error_handler, &mut input)?
         .unwrap();
     Ok((result, context.get_errors()))
 }

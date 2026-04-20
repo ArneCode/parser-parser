@@ -2,6 +2,7 @@
 
 use crate::{
     error::{FurthestFailError, error_handler::ErrorHandler},
+    input::{InputFamily, InputStream},
     matcher::MatchRunner,
 };
 
@@ -19,34 +20,31 @@ impl StringMatcher {
     }
 }
 
-impl<MRes> super::internal::MatcherImpl<char, MRes> for StringMatcher {
+impl<InpFam, MRes> super::internal::MatcherImpl<InpFam, MRes> for StringMatcher
+where
+    InpFam: InputFamily + ?Sized,
+    for<'src> InpFam::In<'src>: crate::input::Input<'src, Token = char>,
+{
     const CAN_MATCH_DIRECTLY: bool = true;
     const HAS_PROPERTY: bool = false;
     const CAN_FAIL: bool = true;
 
-    fn match_with_runner<'a, 'ctx, Runner>(
+    fn match_with_runner<'a, 'src, Runner>(
         &'a self,
-        runner: &mut Runner,
+        _runner: &mut Runner,
         _error_handler: &mut impl ErrorHandler,
-        pos: &mut usize,
+        input: &mut InputStream<'src, InpFam::In<'src>>,
     ) -> Result<bool, FurthestFailError>
     where
-        Runner: MatchRunner<'a, 'ctx, Token = char, MRes = MRes>,
-        'ctx: 'a,
+        Runner: MatchRunner<'a, 'src, InpFam, MRes = MRes>,
+        'src: 'a,
     {
-        let context = runner.get_parser_context();
-        let end_pos = *pos + self.expected.len();
-        if end_pos > context.tokens.len() {
-            *pos = context.tokens.len(); // Move to end if not enough tokens
-            return Ok(false);
+        for expected in &self.expected {
+            if input.next() != Some(*expected) {
+                return Ok(false);
+            }
         }
-        let slice = &context.tokens[*pos..end_pos];
-        if slice == self.expected {
-            *pos = end_pos; // Advance position
-            Ok(true)
-        } else {
-            Ok(false)
-        }
+        Ok(true)
     }
 
     fn maybe_label_internal(&self) -> Option<Box<dyn std::fmt::Display>> {
@@ -54,35 +52,31 @@ impl<MRes> super::internal::MatcherImpl<char, MRes> for StringMatcher {
     }
 }
 
-impl<MRes> super::internal::MatcherImpl<char, MRes> for &str {
+impl<InpFam, MRes> super::internal::MatcherImpl<InpFam, MRes> for &str
+where
+    InpFam: InputFamily + ?Sized,
+    for<'src> InpFam::In<'src>: crate::input::Input<'src, Token = char>,
+{
     const CAN_MATCH_DIRECTLY: bool = true;
     const HAS_PROPERTY: bool = false;
     const CAN_FAIL: bool = true;
 
-    fn match_with_runner<'a, 'ctx, Runner>(
+    fn match_with_runner<'a, 'src, Runner>(
         &'a self,
-        runner: &mut Runner,
+        _runner: &mut Runner,
         _error_handler: &mut impl ErrorHandler,
-        pos: &mut usize,
+        input: &mut InputStream<'src, InpFam::In<'src>>,
     ) -> Result<bool, FurthestFailError>
     where
-        Runner: MatchRunner<'a, 'ctx, Token = char, MRes = MRes>,
-        'ctx: 'a,
+        Runner: MatchRunner<'a, 'src, InpFam, MRes = MRes>,
+        'src: 'a,
     {
-        let context = runner.get_parser_context();
-        let expected_len = self.chars().count();
-        let end_pos = *pos + expected_len;
-        if end_pos > context.tokens.len() {
-            *pos = context.tokens.len();
-            return Ok(false);
+        for expected in self.chars() {
+            if input.next() != Some(expected) {
+                return Ok(false);
+            }
         }
-        let slice = &context.tokens[*pos..end_pos];
-        if slice.iter().copied().eq(self.chars()) {
-            *pos = end_pos;
-            Ok(true)
-        } else {
-            Ok(false)
-        }
+        Ok(true)
     }
 
     fn maybe_label_internal(&self) -> Option<Box<dyn std::fmt::Display>> {
@@ -91,33 +85,29 @@ impl<MRes> super::internal::MatcherImpl<char, MRes> for &str {
 }
 
 // impl for char
-impl<MRes> super::internal::MatcherImpl<char, MRes> for char {
+impl<InpFam, MRes> super::internal::MatcherImpl<InpFam, MRes> for char
+where
+    InpFam: InputFamily + ?Sized,
+    for<'src> InpFam::In<'src>: crate::input::Input<'src, Token = char>,
+{
     const CAN_MATCH_DIRECTLY: bool = true;
     const HAS_PROPERTY: bool = false;
     const CAN_FAIL: bool = true;
 
-    fn match_with_runner<'a, 'ctx, Runner>(
+    fn match_with_runner<'a, 'src, Runner>(
         &'a self,
-        runner: &mut Runner,
+        _runner: &mut Runner,
         _error_handler: &mut impl ErrorHandler,
-        pos: &mut usize,
+        input: &mut InputStream<'src, InpFam::In<'src>>,
     ) -> Result<bool, FurthestFailError>
     where
-        Runner: MatchRunner<'a, 'ctx, Token = char, MRes = MRes>,
-        'ctx: 'a,
+        Runner: MatchRunner<'a, 'src, InpFam, MRes = MRes>,
+        'src: 'a,
     {
-        let context = runner.get_parser_context();
-
-        if *pos < context.tokens.len() {
-            *pos += 1; // Advance position
-            if context.tokens[*pos - 1] == *self {
-                Ok(true)
-            } else {
-                Ok(false)
-            }
-        } else {
-            Ok(false)
+        if input.next() == Some(*self) {
+            return Ok(true);
         }
+        Ok(false)
     }
     fn maybe_label_internal(&self) -> Option<Box<dyn std::fmt::Display>> {
         Some(Box::new(*self))

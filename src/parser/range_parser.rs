@@ -8,6 +8,7 @@ use std::{
 use crate::{
     context::ParserContext,
     error::{FurthestFailError, error_handler::ErrorHandler},
+    input::{InputFamily, InputStream},
 };
 
 /// Named wrapper holding a [`RangeBounds`] value; accepts one in-range token (same idea as the [`Range`] / [`RangeInclusive`] impls below).
@@ -22,78 +23,84 @@ impl<Range> RangeParser<Range> {
     }
 }
 
-impl<Token, Range> super::internal::ParserImpl<Token> for RangeParser<Range>
+impl<InpFam, Token, Range> super::internal::ParserImpl<InpFam> for RangeParser<Range>
 where
+    InpFam: InputFamily + ?Sized,
+    for<'src> InpFam::In<'src>: crate::input::Input<'src, Token = Token>,
     Range: RangeBounds<Token>,
     Token: PartialOrd + Clone,
     Range: Debug,
 {
-    type Output = Token;
+    type Output<'src> = Token;
     const CAN_FAIL: bool = true;
 
-    fn parse(
+    fn parse<'src>(
         &self,
-        context: &mut ParserContext<Token>,
+        _context: &mut ParserContext,
         _error_handler: &mut impl ErrorHandler,
-        pos: &mut usize,
-    ) -> Result<Option<Self::Output>, FurthestFailError> {
-        let token = context.tokens.get(*pos);
-        if let Some(token) = token
-            && self.range.contains(token)
+        input: &mut InputStream<'src, InpFam::In<'src>>,
+    ) -> Result<Option<Self::Output<'src>>, FurthestFailError> {
+        let old_pos = input.get_pos();
+        if let Some(token) = input.next()
+            && self.range.contains(&token)
         {
-            *pos += 1;
             return Ok(Some(token.clone()));
         }
+        input.set_pos(old_pos);
         Ok(None)
     }
 }
 
-impl<Token> super::internal::ParserImpl<Token> for Range<Token>
+impl<InpFam, Token> super::internal::ParserImpl<InpFam> for Range<Token>
 where
+    InpFam: InputFamily + ?Sized,
+    for<'src> InpFam::In<'src>: crate::input::Input<'src, Token = Token>,
     Token: PartialOrd + Clone,
     Range<Token>: Debug,
 {
-    type Output = Token;
+    type Output<'src> = Token;
     const CAN_FAIL: bool = true;
 
-    fn parse(
+    fn parse<'src>(
         &self,
-        context: &mut ParserContext<Token>,
+        _context: &mut ParserContext,
         _error_handler: &mut impl ErrorHandler,
-        pos: &mut usize,
-    ) -> Result<Option<Self::Output>, FurthestFailError> {
-        let token = context.tokens.get(*pos);
-        if let Some(token) = token
-            && self.contains(token)
+        input: &mut InputStream<'src, InpFam::In<'src>>,
+    ) -> Result<Option<Self::Output<'src>>, FurthestFailError> {
+        let old_pos = input.get_pos();
+        if let Some(token) = input.next()
+            && self.contains(&token)
         {
-            *pos += 1;
             return Ok(Some(token.clone()));
         }
+        input.set_pos(old_pos);
         Ok(None)
     }
 }
 
-impl<Token> super::internal::ParserImpl<Token> for RangeInclusive<Token>
+impl<InpFam, Token> super::internal::ParserImpl<InpFam> for RangeInclusive<Token>
 where
+    InpFam: InputFamily + ?Sized,
+    for<'src> InpFam::In<'src>: crate::input::Input<'src, Token = Token>,
     Token: PartialOrd + Clone,
     Range<Token>: Debug,
 {
-    type Output = Token;
+    type Output<'src> = Token;
     const CAN_FAIL: bool = true;
 
-    fn parse(
+    fn parse<'src>(
         &self,
-        context: &mut ParserContext<Token>,
+        _context: &mut ParserContext,
         _error_handler: &mut impl ErrorHandler,
-        pos: &mut usize,
-    ) -> Result<Option<Self::Output>, FurthestFailError> {
-        let token = context.tokens.get(*pos);
-        if let Some(token) = token
-            && self.contains(token)
+        input: &mut InputStream<'src, InpFam::In<'src>>,
+    ) -> Result<Option<Self::Output<'src>>, FurthestFailError> {
+        let old_pos = input.get_pos();
+        if let Some(token) = input.next()
+            && self.contains(&token)
         {
-            *pos += 1;
             return Ok(Some(token.clone()));
         }
+        input.set_pos(old_pos);
         Ok(None)
     }
 }

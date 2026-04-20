@@ -31,8 +31,8 @@ pub use multiple::MultipleParser;
 pub use range_parser::RangeParser;
 pub use recover_error::ErrorRecoverer;
 pub use single_token::SingleTokenParser;
-pub use token_parser::{TokenParser, token_parser};
 use std::rc::Rc;
+pub use token_parser::{TokenParser, token_parser};
 
 use crate::{
     context::ParserContext,
@@ -40,6 +40,7 @@ use crate::{
         FurthestFailError,
         error_handler::{ErrorHandler, ErrorHandlerChoice},
     },
+    input::{InputFamily, InputStream},
     parser::recover_error::ErrorRecoverer as ErrorRecovererInner,
 };
 
@@ -47,12 +48,16 @@ pub(crate) mod internal {
     use crate::{
         context::ParserContext,
         error::{FurthestFailError, error_handler::ErrorHandler},
+        input::{InputFamily, InputStream},
     };
 
     /// Crate-private parsing interface used by [`super::Parser`].
-    pub trait ParserImpl<Token> {
+    pub trait ParserImpl<InpFam>
+    where
+        InpFam: InputFamily + ?Sized,
+    {
         /// Successful parse value when the parser matches at `pos`.
-        type Output;
+        type Output<'src>;
         /// `true` when this parser can return `Ok(None)` on a normal parse path.
         ///
         /// This constant models parse absence and does not indicate whether
@@ -60,12 +65,12 @@ pub(crate) mod internal {
         const CAN_FAIL: bool;
 
         /// Run the parser at `pos` against `context`, reporting secondary issues through `error_handler`.
-        fn parse<'ctx>(
+        fn parse<'src>(
             &self,
-            context: &mut ParserContext<'ctx, Token>,
+            context: &mut ParserContext,
             error_handler: &mut impl ErrorHandler,
-            pos: &mut usize,
-        ) -> Result<Option<Self::Output>, FurthestFailError>;
+            input: &mut InputStream<'src, InpFam::In<'src>>,
+        ) -> Result<Option<Self::Output<'src>>, FurthestFailError>;
     }
 }
 
@@ -75,7 +80,10 @@ pub(crate) mod internal {
 /// trait used internally. Use [`recover_with`](Self::recover_with) and
 /// [`memoized`](Self::memoized) for common extensions; the `parse` method is
 /// inherited from that internal trait and drives the actual parse step.
-pub trait Parser<Token>: internal::ParserImpl<Token> {
+pub trait Parser<InpFam>: internal::ParserImpl<InpFam>
+where
+    InpFam: InputFamily + ?Sized,
+{
     /// On parse failure, run `recover_matcher` and yield `recover_output` if it matches.
     fn recover_with<Match, Output>(
         self,
@@ -92,92 +100,99 @@ pub trait Parser<Token>: internal::ParserImpl<Token> {
     fn memoized(self) -> memoized::Memoized<Self>
     where
         Self: Sized,
-        Self::Output: 'static,
+        for<'src> Self::Output<'src>: 'static,
     {
         memoized::Memoized::new(self)
     }
 }
 
-impl<Token, P> Parser<Token> for P
+impl<InpFam, P> Parser<InpFam> for P
 where
-    P: internal::ParserImpl<Token>,
-{}
-
-pub(crate) trait ParserObjSafe<Token> {
-    type Output;
-    fn parse<'ctx>(
-        &self,
-        context: &mut ParserContext<'ctx, Token>,
-        error_handler: ErrorHandlerChoice<'_>,
-        pos: &mut usize,
-    ) -> Result<Option<Self::Output>, FurthestFailError>;
+    InpFam: InputFamily + ?Sized,
+    P: internal::ParserImpl<InpFam>,
+{
 }
 
-impl<Token, P> ParserObjSafe<Token> for P
+pub(crate) trait ParserObjSafe<InpFam, Output>
 where
-    P: internal::ParserImpl<Token>,
+    InpFam: InputFamily + ?Sized,
 {
-    type Output = P::Output;
-
-    fn parse<'ctx>(
+    fn parse<'src>(
         &self,
-        context: &mut ParserContext<'ctx, Token>,
+        context: &mut ParserContext,
         error_handler: ErrorHandlerChoice<'_>,
-        pos: &mut usize,
-    ) -> Result<Option<Self::Output>, FurthestFailError> {
+        input: &mut InputStream<'src, InpFam::In<'src>>,
+    ) -> Result<Option<Output>, FurthestFailError>;
+}
+
+impl<InpFam, Output, P> ParserObjSafe<InpFam, Output> for P
+where
+    InpFam: InputFamily + ?Sized,
+    P: for<'src> internal::ParserImpl<InpFam, Output<'src> = Output>,
+{
+    fn parse<'src>(
+        &self,
+        context: &mut ParserContext,
+        error_handler: ErrorHandlerChoice<'_>,
+        input: &mut InputStream<'src, InpFam::In<'src>>,
+    ) -> Result<Option<Output>, FurthestFailError> {
         match error_handler {
-            ErrorHandlerChoice::Empty(handler) => self.parse(context, handler, pos),
-            ErrorHandlerChoice::Multi(handler) => self.parse(context, handler, pos),
+            ErrorHandlerChoice::Empty(handler) => self.parse(context, handler, input),
+            ErrorHandlerChoice::Multi(handler) => self.parse(context, handler, input),
         }
     }
 }
 
 // impl Parser for all types that deref to a parser
-impl<Inner, Token> internal::ParserImpl<Token> for &Inner
+impl<Inner, InpFam> internal::ParserImpl<InpFam> for &Inner
 where
-    Inner: Parser<Token>,
+    InpFam: InputFamily + ?Sized,
+    Inner: Parser<InpFam>,
 {
-    type Output = Inner::Output;
+    type Output<'src> = Inner::Output<'src>;
     const CAN_FAIL: bool = Inner::CAN_FAIL;
 
-    fn parse<'ctx>(
+    fn parse<'src>(
         &self,
-        context: &mut ParserContext<'ctx, Token>,
+        context: &mut ParserContext,
         error_handler: &mut impl ErrorHandler,
-        pos: &mut usize,
-    ) -> Result<Option<Self::Output>, FurthestFailError> {
-        (**self).parse(context, error_handler, pos)
+        input: &mut InputStream<'src, InpFam::In<'src>>,
+    ) -> Result<Option<Self::Output<'src>>, FurthestFailError> {
+        (**self).parse(context, error_handler, input)
     }
 }
-impl<Inner, Token> internal::ParserImpl<Token> for Rc<Inner>
+impl<Inner, InpFam> internal::ParserImpl<InpFam> for Rc<Inner>
 where
-    Inner: Parser<Token>,
+    InpFam: InputFamily + ?Sized,
+    Inner: Parser<InpFam>,
 {
-    type Output = Inner::Output;
+    type Output<'src> = Inner::Output<'src>;
     const CAN_FAIL: bool = Inner::CAN_FAIL;
 
-    fn parse<'ctx>(
+    fn parse<'src>(
         &self,
-        context: &mut ParserContext<'ctx, Token>,
+        context: &mut ParserContext,
         error_handler: &mut impl ErrorHandler,
-        pos: &mut usize,
-    ) -> Result<Option<Self::Output>, FurthestFailError> {
-        (**self).parse(context, error_handler, pos)
+        input: &mut InputStream<'src, InpFam::In<'src>>,
+    ) -> Result<Option<Self::Output<'src>>, FurthestFailError> {
+        (**self).parse(context, error_handler, input)
     }
 }
-impl<Inner, Token> internal::ParserImpl<Token> for Box<Inner>
+impl<Inner, InpFam> internal::ParserImpl<InpFam> for Box<Inner>
 where
-    Inner: Parser<Token>,
+    InpFam: InputFamily + ?Sized,
+    Inner: Parser<InpFam>,
 {
-    type Output = Inner::Output;
+    type Output<'src> = Inner::Output<'src>;
     const CAN_FAIL: bool = Inner::CAN_FAIL;
 
-    fn parse<'ctx>(
+    fn parse<'src>(
         &self,
-        context: &mut ParserContext<'ctx, Token>,
+        context: &mut ParserContext,
         error_handler: &mut impl ErrorHandler,
-        pos: &mut usize,
-    ) -> Result<Option<Self::Output>, FurthestFailError> {
-        (**self).parse(context, error_handler, pos)
+        input: &mut InputStream<'src, InpFam::In<'src>>,
+    ) -> Result<Option<Self::Output<'src>>, FurthestFailError> {
+        (**self).parse(context, error_handler, input)
     }
 }
+

@@ -1,70 +1,89 @@
+use std::marker::PhantomData;
+
 use crate::{
     context::ParserContext,
     error::{FurthestFailError, error_handler::ErrorHandler},
+    input::{InputFamily, InputStream},
     matcher::Matcher,
     parser::capture::{BoundResult, MatchResult},
 };
 
-pub(crate) trait MatchRunner<'a, 'ctx> {
-    type Token: 'ctx;
+/// Runs matchers for one parse invocation over input lifetime `'src`.
+///
+/// `'a` is the lifetime of the runner borrow passed into nested `match_with_runner` calls.
+/// Deferred captures are stored as [`BoundResult`] trait objects at lifetime **`'src`**
+/// (the parse / input-stream invocation), so values may borrow the input for `'src`.
+pub(crate) trait MatchRunner<'a, 'src, InpFam>
+where
+    InpFam: InputFamily + ?Sized,
+{
     type MRes: MatchResult;
 
     fn run_match<Match, EHandler: ErrorHandler>(
         &mut self,
         matcher: &'a Match,
         error_handler: &mut EHandler,
-        pos: &mut usize,
+        input: &mut InputStream<'src, InpFam::In<'src>>,
     ) -> Result<bool, FurthestFailError>
     where
-        Match: Matcher<Self::Token, Self::MRes>,
+        Match: Matcher<InpFam, Self::MRes>,
+        'src: 'a,
         Self: Sized;
 
     fn register_result<Res: BoundResult<Self::MRes> + 'a>(&mut self, result: Res);
 
     fn get_match_result(self) -> Self::MRes;
 
-    fn get_parser_context<'b>(&'b mut self) -> &'b mut ParserContext<'ctx, Self::Token>;
+    fn get_parser_context<'b>(&'b mut self) -> &'b mut ParserContext;
 }
 
-pub(crate) struct NoMemoizeBacktrackingRunner<'a, 'ctx, Token, MRes> {
-    parser_context: &'a mut ParserContext<'ctx, Token>,
+pub(crate) struct NoMemoizeBacktrackingRunner<'a, 'src, InpFam: ?Sized, MRes> {
+    parser_context: &'a mut ParserContext,
+    _phantom_inp: PhantomData<InpFam>,
+    _phantom_src: PhantomData<&'src ()>,
     stack: Vec<Box<dyn BoundResult<MRes> + 'a>>,
 }
 
-impl<'a, 'ctx, Token, MRes> NoMemoizeBacktrackingRunner<'a, 'ctx, Token, MRes> {
-    pub(crate) const fn new(parser_context: &'a mut ParserContext<'ctx, Token>) -> Self {
+impl<'a, 'src, InpFam: ?Sized, MRes> NoMemoizeBacktrackingRunner<'a, 'src, InpFam, MRes> {
+    pub(crate) fn new(
+        parser_context: &'a mut ParserContext,
+        _marker: PhantomData<&'src ()>,
+    ) -> Self {
         Self {
             parser_context,
+            _phantom_inp: PhantomData,
+            _phantom_src: PhantomData,
             stack: Vec::new(),
         }
     }
 }
 
-impl<'a, 'ctx, Token, MRes> MatchRunner<'a, 'ctx>
-    for NoMemoizeBacktrackingRunner<'a, 'ctx, Token, MRes>
+impl<'a, 'src, InpFam, MRes> MatchRunner<'a, 'src, InpFam>
+    for NoMemoizeBacktrackingRunner<'a, 'src, InpFam, MRes>
 where
+    InpFam: InputFamily + ?Sized,
     MRes: MatchResult,
 {
-    type Token = Token;
     type MRes = MRes;
 
     fn run_match<Match, EHandler: ErrorHandler>(
         &mut self,
         matcher: &'a Match,
         error_handler: &mut EHandler,
-        pos: &mut usize,
+        input: &mut InputStream<'src, InpFam::In<'src>>,
     ) -> Result<bool, FurthestFailError>
     where
-        Match: Matcher<Self::Token, Self::MRes>,
+        Match: Matcher<InpFam, Self::MRes>,
+        'src: 'a,
         Self: Sized,
     {
-        let old_pos = *pos;
+        let old_pos = input.get_pos();
         let old_stack_len = self.stack.len();
-        let idx = error_handler.register_start(*pos);
-        let result = matcher.match_with_runner(self, error_handler, pos)?;
-        error_handler.register_watermark(*pos);
+        let idx = error_handler.register_start(old_pos.clone().into());
+        let result = matcher.match_with_runner(self, error_handler, input)?;
+        error_handler.register_watermark(input.get_pos().into());
         if !result {
-            *pos = old_pos;
+            input.set_pos(old_pos);
             self.stack.truncate(old_stack_len);
             error_handler.register_failure(matcher.maybe_label(), idx);
         } else {
@@ -85,49 +104,58 @@ where
         mres
     }
 
-    fn get_parser_context<'b>(&'b mut self) -> &'b mut ParserContext<'ctx, Self::Token> {
+    fn get_parser_context<'b>(&'b mut self) -> &'b mut ParserContext {
         self.parser_context
     }
 }
 
-pub(crate) struct DirectMatchRunner<'a, 'ctx, Token, MRes> {
-    parser_context: &'a mut ParserContext<'ctx, Token>,
+pub(crate) struct DirectMatchRunner<'a, 'src, InpFam: ?Sized, MRes> {
+    parser_context: &'a mut ParserContext,
+    _phantom_inp: PhantomData<InpFam>,
+    _phantom_src: PhantomData<&'src ()>,
     result: MRes,
 }
 
-impl<'a, 'ctx, Token, MRes> DirectMatchRunner<'a, 'ctx, Token, MRes> {
-    pub(crate) fn new(parser_context: &'a mut ParserContext<'ctx, Token>, result: MRes) -> Self {
+impl<'a, 'src, InpFam: ?Sized, MRes> DirectMatchRunner<'a, 'src, InpFam, MRes> {
+    pub(crate) fn new(
+        parser_context: &'a mut ParserContext,
+        result: MRes,
+        _marker: PhantomData<&'src ()>,
+    ) -> Self {
         Self {
             parser_context,
+            _phantom_inp: PhantomData,
+            _phantom_src: PhantomData,
             result,
         }
     }
 }
 
-impl<'a, 'ctx, Token, MRes> MatchRunner<'a, 'ctx> for DirectMatchRunner<'a, 'ctx, Token, MRes>
+impl<'a, 'src, InpFam, MRes> MatchRunner<'a, 'src, InpFam> for DirectMatchRunner<'a, 'src, InpFam, MRes>
 where
+    InpFam: InputFamily + ?Sized,
     MRes: MatchResult,
 {
-    type Token = Token;
     type MRes = MRes;
 
     fn run_match<Match, EHandler: ErrorHandler>(
         &mut self,
         matcher: &'a Match,
         error_handler: &mut EHandler,
-        pos: &mut usize,
+        input: &mut InputStream<'src, InpFam::In<'src>>,
     ) -> Result<bool, FurthestFailError>
     where
-        Match: Matcher<Self::Token, Self::MRes>,
+        Match: Matcher<InpFam, Self::MRes>,
+        'src: 'a,
         Self: Sized,
     {
-        let old_pos = *pos;
-        let idx = error_handler.register_start(*pos);
-        if matcher.match_with_runner(self, error_handler, pos)? {
+        let old_pos = input.get_pos();
+        let idx = error_handler.register_start(old_pos.clone().into());
+        if matcher.match_with_runner(self, error_handler, input)? {
             error_handler.register_success(idx);
             Ok(true)
         } else {
-            *pos = old_pos;
+            input.set_pos(old_pos);
             error_handler.register_failure(matcher.maybe_label(), idx);
             Ok(false)
         }
@@ -141,7 +169,7 @@ where
         self.result
     }
 
-    fn get_parser_context<'b>(&'b mut self) -> &'b mut ParserContext<'ctx, Self::Token> {
+    fn get_parser_context<'b>(&'b mut self) -> &'b mut ParserContext {
         self.parser_context
     }
 }

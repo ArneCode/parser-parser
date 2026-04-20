@@ -2,6 +2,7 @@
 
 use crate::{
     error::{FurthestFailError, error_handler::ErrorHandler},
+    input::{InputFamily, InputStream},
     matcher::MatchRunner,
     parser::Parser,
 };
@@ -22,30 +23,30 @@ impl<Pars, ParserOutput> ParserMatcher<Pars, ParserOutput> {
     }
 }
 
-impl<Token, MRes, Pars, ParserOutput> super::internal::MatcherImpl<Token, MRes>
+impl<InpFam, MRes, Pars, ParserOutput> super::internal::MatcherImpl<InpFam, MRes>
     for ParserMatcher<Pars, ParserOutput>
 where
-    Pars: Parser<Token, Output = ParserOutput>,
+    InpFam: InputFamily + ?Sized,
+    Pars: for<'src> Parser<InpFam, Output<'src> = ParserOutput>,
     ParserOutput: PartialEq,
 {
     const CAN_MATCH_DIRECTLY: bool = true;
     const HAS_PROPERTY: bool = false;
     const CAN_FAIL: bool = Pars::CAN_FAIL;
 
-    fn match_with_runner<'a, 'ctx, Runner>(
+    fn match_with_runner<'a, 'src, Runner>(
         &'a self,
         runner: &mut Runner,
         error_handler: &mut impl ErrorHandler,
-        pos: &mut usize,
+        input: &mut InputStream<'src, InpFam::In<'src>>,
     ) -> Result<bool, FurthestFailError>
     where
-        Runner: MatchRunner<'a, 'ctx, Token = Token, MRes = MRes>,
-        'ctx: 'a,
-        Token: 'ctx,
+        Runner: MatchRunner<'a, 'src, InpFam, MRes = MRes>,
+        'src: 'a,
     {
         if let Some(output) = self
             .parser
-            .parse(runner.get_parser_context(), error_handler, pos)?
+            .parse(runner.get_parser_context(), error_handler, input)?
             && output == self.expected_output
         {
             return Ok(true);

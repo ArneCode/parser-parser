@@ -2,6 +2,7 @@
 
 use crate::{
     error::error_handler::ErrorHandler,
+    input::{InputFamily, InputStream},
     matcher::{MatchRunner, Matcher},
 };
 
@@ -22,9 +23,11 @@ pub fn negative_lookahead<Check>(checker: Check) -> NegativeLookahead<Check> {
     NegativeLookahead::new(checker)
 }
 
-impl<Token, MRes, Match> super::internal::MatcherImpl<Token, MRes> for NegativeLookahead<Match>
+impl<InpFam, MRes, Match> super::internal::MatcherImpl<InpFam, MRes>
+    for NegativeLookahead<Match>
 where
-    Match: Matcher<Token, MRes>,
+    InpFam: InputFamily + ?Sized,
+    Match: Matcher<InpFam, MRes>,
 {
     const CAN_MATCH_DIRECTLY: bool = Match::CAN_MATCH_DIRECTLY;
 
@@ -32,19 +35,19 @@ where
 
     const CAN_FAIL: bool = true;
 
-    fn match_with_runner<'a, 'ctx, Runner>(
+    fn match_with_runner<'a, 'src, Runner>(
         &'a self,
         runner: &mut Runner,
         error_handler: &mut impl ErrorHandler,
-        pos: &mut usize,
+        input: &mut InputStream<'src, InpFam::In<'src>>,
     ) -> Result<bool, crate::error::FurthestFailError>
     where
-        Runner: MatchRunner<'a, 'ctx, Token = Token, MRes = MRes>,
-        'ctx: 'a,
+        Runner: MatchRunner<'a, 'src, InpFam, MRes = MRes>,
+        'src: 'a,
     {
-        // Peek — pos must not move.  Success means the inner check *failed*.
-        let mut original_pos = *pos;
-        let can_match = runner.run_match(&self.checker, error_handler, &mut original_pos)?;
+        let original_pos = input.get_pos();
+        let can_match = runner.run_match(&self.checker, error_handler, input)?;
+        input.set_pos(original_pos);
         Ok(!can_match)
     }
 }

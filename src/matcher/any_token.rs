@@ -2,34 +2,31 @@
 
 use crate::{
     error::{FurthestFailError, error_handler::ErrorHandler},
+    input::{InputFamily, InputStream},
     matcher::MatchRunner,
 };
 
 /// Matches exactly one token and advances; fails at end of input.
 pub struct AnyToken;
 
-impl<Token, MRes> super::internal::MatcherImpl<Token, MRes> for AnyToken {
+impl<InpFam, MRes> super::internal::MatcherImpl<InpFam, MRes> for AnyToken
+where
+    InpFam: InputFamily + ?Sized,
+{
     const CAN_MATCH_DIRECTLY: bool = true;
     const HAS_PROPERTY: bool = false;
     const CAN_FAIL: bool = true;
 
-    fn match_with_runner<'a, 'ctx, Runner>(
+    fn match_with_runner<'a, 'src, Runner>(
         &'a self,
-        runner: &mut Runner,
+        _runner: &mut Runner,
         _error_handler: &mut impl ErrorHandler,
-        pos: &mut usize,
+        input: &mut InputStream<'src, InpFam::In<'src>>,
     ) -> Result<bool, FurthestFailError>
     where
-        Runner: MatchRunner<'a, 'ctx, Token = Token, MRes = MRes>,
-        'ctx: 'a,
-        Token: 'ctx,
+        Runner: MatchRunner<'a, 'src, InpFam, MRes = MRes>,
+        'src: 'a,
     {
-        let context = runner.get_parser_context();
-        if *pos < context.tokens.len() {
-            *pos += 1; // Advance position
-            Ok(true)
-        } else {
-            Ok(false)
-        }
+        Ok(input.next().is_some())
     }
 }

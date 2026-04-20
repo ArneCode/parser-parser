@@ -4,6 +4,7 @@
 
 use crate::{
     error::{FurthestFailError, error_handler::ErrorHandler},
+    input::{InputFamily, InputStream},
     matcher::{MatchRunner, Matcher},
 };
 // pub struct Sequence<Tuple> {
@@ -21,10 +22,11 @@ use crate::{
 macro_rules! impl_matcher_for_seq_tuples {
     () => {};
     ($head:ident $(,$tail:ident)*) => {
-        impl<Token, MRes, $head, $($tail),*> super::internal::MatcherImpl<Token, MRes> for ($head, $($tail,)*)
+        impl<InpFam, MRes, $head, $($tail),*> super::internal::MatcherImpl<InpFam, MRes> for ($head, $($tail,)*)
         where
-            $head: Matcher<Token, MRes>,
-            $($tail: Matcher<Token, MRes>,)*
+            InpFam: InputFamily + ?Sized,
+            $head: Matcher<InpFam, MRes>,
+            $($tail: Matcher<InpFam, MRes>,)*
         {
             const CAN_MATCH_DIRECTLY: bool = {
                 if !($head::CAN_MATCH_DIRECTLY $(&& $tail::CAN_MATCH_DIRECTLY)*) {
@@ -58,21 +60,21 @@ macro_rules! impl_matcher_for_seq_tuples {
             const HAS_PROPERTY: bool = $head::HAS_PROPERTY  $(|| $tail::HAS_PROPERTY)*;
             const CAN_FAIL: bool = $head::CAN_FAIL  $(|| $tail::CAN_FAIL)*;
 
-            fn match_with_runner<'a, 'ctx, Runner>(&'a self, runner: &mut Runner, error_handler: &mut impl ErrorHandler, pos: &mut usize) -> Result<bool, FurthestFailError>
+            fn match_with_runner<'a, 'src, Runner>(&'a self, runner: &mut Runner, error_handler: &mut impl ErrorHandler, input: &mut InputStream<'src, InpFam::In<'src>>) -> Result<bool, FurthestFailError>
             where
-                Runner: MatchRunner<'a, 'ctx, Token = Token, MRes = MRes>,
-                'ctx: 'a,
+                Runner: MatchRunner<'a, 'src, InpFam, MRes = MRes>,
+                'src: 'a,
             {
 
                 #[allow(non_snake_case)]
                 let ($head, $($tail,)*) = &self;
 
-                if !runner.run_match($head, error_handler, pos)? {
+                if !runner.run_match($head, error_handler, input)? {
                     return Ok(false);
                 }
 
                 $(
-                    if !runner.run_match($tail, error_handler, pos)? {
+                    if !runner.run_match($tail, error_handler, input)? {
                         return Ok(false);
                     }
                 )*

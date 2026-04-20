@@ -3,6 +3,7 @@
 use crate::{
     context::ParserContext,
     error::{FurthestFailError, error_handler::ErrorHandler},
+    input::{InputFamily, InputStream},
 };
 
 /// [`crate::parser::Parser`] built from a predicate and a projection function.
@@ -34,26 +35,30 @@ where
     TokenParser::new(check_fn, parse_fn)
 }
 
-impl<Token, Out, CheckF, ParseF> super::internal::ParserImpl<Token> for TokenParser<CheckF, ParseF>
+impl<InpFam, Out, CheckF, ParseF> super::internal::ParserImpl<InpFam>
+    for TokenParser<CheckF, ParseF>
 where
-    CheckF: for<'a> Fn(&'a Token) -> bool,
-    ParseF: Fn(&Token) -> Out,
+    InpFam: InputFamily + ?Sized,
+    CheckF: for<'src> Fn(&<InpFam::In<'src> as crate::input::Input<'src>>::Token) -> bool,
+    ParseF: for<'src> Fn(&<InpFam::In<'src> as crate::input::Input<'src>>::Token) -> Out,
 {
-    type Output = Out;
+    type Output<'src> = Out;
     const CAN_FAIL: bool = true;
 
-    fn parse(
+    fn parse<'src>(
         &self,
-        context: &mut ParserContext<Token>,
+        _context: &mut ParserContext,
         _error_handler: &mut impl ErrorHandler,
-        pos: &mut usize,
-    ) -> Result<Option<Self::Output>, FurthestFailError> {
-        if *pos < context.tokens.len() && (self.check_fn)(&context.tokens[*pos]) {
-            let token = &context.tokens[*pos];
-            *pos += 1; // Advance position on success
-            Ok(Some((self.parse_fn)(token)))
-        } else {
-            Ok(None)
+        input: &mut InputStream<'src, InpFam::In<'src>>,
+    ) -> Result<Option<Self::Output<'src>>, FurthestFailError> {
+        let start = input.get_pos();
+        let Some(token) = input.next() else {
+            return Ok(None);
+        };
+        if (self.check_fn)(&token) {
+            return Ok(Some((self.parse_fn)(&token)));
         }
+        input.set_pos(start);
+        Ok(None)
     }
 }

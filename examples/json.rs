@@ -3,10 +3,14 @@ use std::{collections::HashMap, rc::Rc};
 use marser_macros::capture;
 
 use marser::{
-    error::FurthestFailError, label::WithLabel, matcher::{
-        Matcher, commit_matcher::commit_on, multiple::many, 
-        one_or_more::one_or_more, optional::optional,
-    }, one_of::one_of, parser::{Parser, deferred::recursive, token_parser::TokenParser}
+    error::FurthestFailError,
+    label::WithLabel,
+    matcher::{
+        Matcher, commit_matcher::commit_on, multiple::many, one_or_more::one_or_more,
+        optional::optional,
+    },
+    one_of::one_of,
+    parser::{Parser, deferred::recursive, token_parser::TokenParser},
 };
 
 #[derive(Debug, Clone, PartialEq)]
@@ -41,7 +45,7 @@ impl JsonValue {
     }
 }
 
-pub fn get_json_grammar() -> impl Parser<char, Output = JsonValue> {
+pub fn get_json_grammar() -> impl for<'src> Parser<str, Output<'src> = JsonValue> {
     recursive(|element| {
         let element = Rc::new(element.with_label("element"));
         let ws = Rc::new(many(one_of((' ', '\t', '\n', '\r'))));
@@ -159,7 +163,7 @@ pub fn get_json_grammar() -> impl Parser<char, Output = JsonValue> {
                         capture!((
                             bind_span!(",",comma),
                             ws.clone(),
-                            '}') => move |err: &mut FurthestFailError|{
+                            &'}') => move |err: &mut FurthestFailError|{
                             err.add_extra_label(comma,"trailing comma",ariadne::Color::Blue);
                         }),
                     ),

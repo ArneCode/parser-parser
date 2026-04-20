@@ -5,6 +5,7 @@ use std::fmt::Debug;
 use crate::{
     context::ParserContext,
     error::{FurthestFailError, error_handler::ErrorHandler},
+    input::{InputFamily, InputStream},
 };
 
 /// Matches `token` and advances by one on success.
@@ -62,47 +63,54 @@ impl<Token> SingleTokenParser<Token> {
 //         }
 //     }
 // }
-impl<Token: PartialEq + Clone + Debug> super::internal::ParserImpl<Token> for SingleTokenParser<Token> {
-    type Output = Token;
+impl<InpFam, Token: PartialEq + Clone + Debug> super::internal::ParserImpl<InpFam>
+    for SingleTokenParser<Token>
+where
+    InpFam: InputFamily + ?Sized,
+    for<'src> InpFam::In<'src>: crate::input::Input<'src, Token = Token>,
+{
+    type Output<'src> = Token;
     const CAN_FAIL: bool = true;
-    fn parse(
+    fn parse<'src>(
         &self,
-        context: &mut ParserContext<Token>,
+        _context: &mut ParserContext,
         _error_handler: &mut impl ErrorHandler,
-        pos: &mut usize,
-    ) -> Result<Option<Self::Output>, FurthestFailError> {
-        if *pos < context.tokens.len() {
-            let token = &context.tokens[*pos];
-            if token == &self.token {
-                *pos += 1; // Advance position on success
-                return Ok(Some(self.token.clone()));
-            }
+        input: &mut InputStream<'src, InpFam::In<'src>>,
+    ) -> Result<Option<Self::Output<'src>>, FurthestFailError> {
+        let start = input.get_pos();
+        if let Some(token) = input.next()
+            && token == self.token
+        {
+            return Ok(Some(self.token.clone()));
         }
-
+        input.set_pos(start);
         Ok(None)
     }
 }
 
 // impl<Token, Label> MaybeLabel<Label> for SingleTokenParser<Token> {}
 
-impl super::internal::ParserImpl<char> for char {
-    type Output = char;
+impl<InpFam> super::internal::ParserImpl<InpFam> for char
+where
+    InpFam: InputFamily + ?Sized,
+    for<'src> InpFam::In<'src>: crate::input::Input<'src, Token = char>,
+{
+    type Output<'src> = char;
     const CAN_FAIL: bool = true;
 
-    fn parse(
+    fn parse<'src>(
         &self,
-        context: &mut ParserContext<char>,
+        _context: &mut ParserContext,
         _error_handler: &mut impl ErrorHandler,
-        pos: &mut usize,
-    ) -> Result<Option<Self::Output>, FurthestFailError> {
-        if *pos < context.tokens.len() {
-            let token = &context.tokens[*pos];
-            if token == self {
-                *pos += 1; // Advance position on success
-                return Ok(Some(*self));
-            }
+        input: &mut InputStream<'src, InpFam::In<'src>>,
+    ) -> Result<Option<Self::Output<'src>>, FurthestFailError> {
+        let start = input.get_pos();
+        if let Some(token) = input.next()
+            && token == *self
+        {
+            return Ok(Some(*self));
         }
-
+        input.set_pos(start);
         Ok(None)
     }
 }

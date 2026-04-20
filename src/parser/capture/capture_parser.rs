@@ -3,6 +3,7 @@ use std::marker::PhantomData;
 use crate::{
     context::ParserContext,
     error::{FurthestFailError, error_handler::ErrorHandler},
+    input::{InputFamily, InputStream},
     matcher::{DirectMatchRunner, Matcher, NoMemoizeBacktrackingRunner, runner::MatchRunner},
     parser::internal::ParserImpl,
 };
@@ -34,14 +35,11 @@ where
         'a,
         'ctx: 'a,
         GF: Fn(MResSingle::Properties, MResMultiple::Properties, MResOptional::Properties) -> Match,
-        Token: 'ctx,
+        InpFam: InputFamily + ?Sized,
     >(
         grammar_factory: GF,
         constructor: F,
-    ) -> Self
-    where
-        Match: Matcher<Token, (MResSingle, MResMultiple, MResOptional)>,
-    {
+    ) -> Self where Match: Matcher<InpFam, (MResSingle, MResMultiple, MResOptional)>{
         let properties_single = MResSingle::new_properties();
         let properties_multiple = MResMultiple::new_properties();
         let properties_optional = MResOptional::new_properties();
@@ -53,32 +51,34 @@ where
     }
 }
 
-impl<Token, Out, MResSingle, MResMultiple, MResOptional, Match, F> ParserImpl<Token>
+impl<InpFam, Out, MResSingle, MResMultiple, MResOptional, Match, F> ParserImpl<InpFam>
     for Capture<(MResSingle, MResMultiple, MResOptional), Match, F>
 where
+    InpFam: InputFamily + ?Sized,
     MResSingle: MatchResultSingle,
     MResMultiple: MatchResultMultiple,
     MResOptional: MatchResultOptional,
-    Match: Matcher<Token, (MResSingle, MResMultiple, MResOptional)>,
+    Match: Matcher<InpFam, (MResSingle, MResMultiple, MResOptional)>,
     F: Fn(MResSingle::Output, MResMultiple, MResOptional) -> Out,
 {
-    type Output = Out;
+    type Output<'src> = Out;
     const CAN_FAIL: bool = Match::CAN_FAIL;
 
-    fn parse<'ctx>(
+    fn parse<'src>(
         &self,
-        context: &mut ParserContext<'ctx, Token>,
+        context: &mut ParserContext,
         error_handler: &mut impl ErrorHandler,
-        pos: &mut usize,
-    ) -> Result<Option<Self::Output>, FurthestFailError> {
+        input: &mut InputStream<'src, InpFam::In<'src>>,
+    ) -> Result<Option<Self::Output<'src>>, FurthestFailError> {
         // let old_match_start = context.match_start;
         // context.match_start = *pos;
         if Match::CAN_MATCH_DIRECTLY {
             let mut runner = DirectMatchRunner::new(
                 context,
                 (MResSingle::new(), MResMultiple::new(), MResOptional::new()),
+                PhantomData::<&'src ()>,
             );
-            if runner.run_match(&self.matcher, error_handler, pos)? {
+            if runner.run_match(&self.matcher, error_handler, input)? {
                 let (res_single, res_multiple, res_optional) = runner.get_match_result();
                 let result = (self.constructor)(res_single.to_output(), res_multiple, res_optional);
                 // context.match_start = old_match_start;
@@ -89,8 +89,8 @@ where
                 Ok(None)
             }
         } else {
-            let mut runner = NoMemoizeBacktrackingRunner::new(context);
-            if runner.run_match(&self.matcher, error_handler, pos)? {
+            let mut runner = NoMemoizeBacktrackingRunner::new(context, PhantomData::<&'src ()>);
+            if runner.run_match(&self.matcher, error_handler, input)? {
                 let (res_single, res_multiple, res_optional) = runner.get_match_result();
                 let result = (self.constructor)(res_single.to_output(), res_multiple, res_optional);
                 // context.match_start = old_match_start;
