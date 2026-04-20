@@ -3,7 +3,7 @@ use std::panic::Location;
 
 use crate::{
     error::{FurthestFailError, error_handler::ErrorHandler},
-    input::{InputFamily, InputStream},
+    input::{Input, InputStream},
     matcher::{internal::MatcherImpl, runner::MatchRunner},
     parser::Parser,
 };
@@ -11,14 +11,14 @@ use crate::{
 use super::property::{BindDebugInfo, Property};
 
 /// [`crate::matcher::Matcher`] that runs parser `Pars` and stores its output with `Prop`.
-pub struct ResultBinder<Pars, Prop, InpFam> where InpFam: InputFamily + ?Sized {
+pub struct ResultBinder<Pars, Prop, Inp> {
     pub(super) parser: Pars,
     pub(super) property: Prop,
     pub(super) debug: Option<BindDebugInfo>,
-    pub(super) _phantom: PhantomData<InpFam>,
+    pub(super) _phantom: PhantomData<Inp>,
 }
 
-impl<Pars, Prop, InpFam> ResultBinder<Pars, Prop, InpFam>  where InpFam: InputFamily + ?Sized {
+impl<Pars, Prop, Inp> ResultBinder<Pars, Prop, Inp> {
     /// Wraps `parser` and `property`; `debug` is passed through on bind (for duplicate detection).
     pub fn new(parser: Pars, property: Prop, debug: Option<BindDebugInfo>) -> Self {
         Self {
@@ -31,19 +31,19 @@ impl<Pars, Prop, InpFam> ResultBinder<Pars, Prop, InpFam>  where InpFam: InputFa
 }
 
 /// Same as [`bind_result_with_unknown_debug`] (caller location is used for debug metadata).
-pub fn bind_result<Pars, Prop, InpFam>(
+pub fn bind_result<Pars, Prop, Inp>(
     parser: Pars,
     property: Prop,
-) -> ResultBinder<Pars, Prop, InpFam> where InpFam: InputFamily + ?Sized {
+) -> ResultBinder<Pars, Prop, Inp> {
     bind_result_with_unknown_debug(parser, property)
 }
 
 /// Like [`bind_result`] but attaches file/line/column from the caller for panic messages.
 #[track_caller]
-pub fn bind_result_with_unknown_debug<Pars, Prop, InpFam>(
+pub fn bind_result_with_unknown_debug<Pars, Prop, Inp>(
     parser: Pars,
     property: Prop,
-) -> ResultBinder<Pars, Prop, InpFam>  where InpFam: InputFamily + ?Sized {
+) -> ResultBinder<Pars, Prop, Inp> {
     let location = Location::caller();
     ResultBinder::new(
         parser,
@@ -58,33 +58,32 @@ pub fn bind_result_with_unknown_debug<Pars, Prop, InpFam>(
 }
 
 /// Binds parse output to `property` with explicit [`BindDebugInfo`].
-pub fn bind_result_with_debug<Pars, Prop, InpFam>(
+pub fn bind_result_with_debug<Pars, Prop, Inp>(
     parser: Pars,
     property: Prop,
     debug: BindDebugInfo,
-) -> ResultBinder<Pars, Prop, InpFam> where InpFam: InputFamily + ?Sized {
+) -> ResultBinder<Pars, Prop, Inp> {
     ResultBinder::new(parser, property, Some(debug))
 }
 
-impl<InpFam, Pars, Prop, MRes> MatcherImpl<InpFam, MRes>
-    for ResultBinder<Pars, Prop, InpFam>
+impl<'src, Inp: Input<'src>, Pars, Prop, MRes> MatcherImpl<'src, Inp, MRes> for ResultBinder<Pars, Prop, Inp>
 where
-    InpFam: InputFamily + ?Sized,
-    Pars: Parser<InpFam>,
-    Prop: for<'src> Property<Pars::Output<'src>, MRes> + Clone,
+    Pars: Parser<'src, Inp>,
+    Inp: Input<'src>,
+    Prop: Property<Pars::Output, MRes> + Clone,
 {
     const CAN_MATCH_DIRECTLY: bool = true;
     const HAS_PROPERTY: bool = true;
     const CAN_FAIL: bool = Pars::CAN_FAIL;
 
-    fn match_with_runner<'a, 'src, Runner>(
+    fn match_with_runner<'a, Runner>(
         &'a self,
         runner: &mut Runner,
         error_handler: &mut impl ErrorHandler,
-        input: &mut InputStream<'src, InpFam::In<'src>>,
+        input: &mut InputStream<'src, Inp>,
     ) -> Result<bool, FurthestFailError>
     where
-        Runner: MatchRunner<'a, 'src, InpFam, MRes = MRes>,
+        Runner: MatchRunner<'a, 'src, Inp, MRes = MRes>,
         'src: 'a,
     {
         if let Some(result) = self

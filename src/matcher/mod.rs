@@ -45,7 +45,7 @@ use std::{fmt::Display, ops::Deref, rc::Rc};
 
 use crate::{
     error::{FurthestFailError, error_handler::ErrorHandler},
-    input::{InputFamily, InputStream},
+    input::{Input, InputStream},
     matcher::{
         error_contextualizer::ErrorContextualizer as ErrorContextualizerInner,
         insert_on_error::InsertOnErrorMatcher as InsertOnErrorMatcherInner,
@@ -58,14 +58,14 @@ pub(crate) mod internal {
 
     use crate::{
         error::{FurthestFailError, error_handler::ErrorHandler},
-        input::{InputFamily, InputStream},
+        input::{Input, InputStream},
         matcher::runner::MatchRunner,
     };
 
     /// Crate-private matching interface used by [`super::Matcher`].
-    pub trait MatcherImpl<InpFam, MRes>
+    pub trait MatcherImpl<'src, Inp, MRes>
     where
-        InpFam: InputFamily + ?Sized,
+        Inp: Input<'src>,
     {
         /// `true` when matching can run directly into the active result buffer
         /// without temporary backtracking storage.
@@ -82,14 +82,14 @@ pub(crate) mod internal {
         const CAN_FAIL: bool;
 
         /// Run this matcher via `runner`, updating `pos` and possibly `MRes` on success.
-        fn match_with_runner<'a, 'src, Runner>(
+        fn match_with_runner<'a, Runner>(
             &'a self,
             runner: &mut Runner,
             error_handler: &mut impl ErrorHandler,
-            input: &mut InputStream<'src, InpFam::In<'src>>,
+            input: &mut InputStream<'src, Inp>,
         ) -> Result<bool, FurthestFailError>
         where
-            Runner: MatchRunner<'a, 'src, InpFam, MRes = MRes>,
+            Runner: MatchRunner<'a, 'src, Inp, MRes = MRes>,
             'src: 'a;
 
         fn maybe_label_internal(&self) -> Option<Box<dyn Display>> {
@@ -102,10 +102,7 @@ pub(crate) mod internal {
 ///
 /// `MRes` is usually the capture bucket type in [`crate::parser::capture::Capture`].
 /// Blanket-implemented for all types that implement the crate-private matcher implementation trait.
-pub trait Matcher<InpFam, MRes>: internal::MatcherImpl<InpFam, MRes>
-where
-    InpFam: InputFamily + ?Sized,
-{
+pub trait Matcher<'src, Inp: Input<'src>, MRes>: internal::MatcherImpl<'src, Inp, MRes> {
     /// Wrap this matcher so that on furthest-failure, `error_parser` runs to attach diagnostics.
     fn add_error_info<Pars, F>(
         self,
@@ -113,14 +110,14 @@ where
     ) -> ErrorContextualizerInner<Self, Pars, F, MRes>
     where
         Self: Sized,
-        Pars: for<'src> Parser<InpFam, Output<'src> = F>,
+        Pars: Parser<'src, Inp, Output = F>,
         F: Fn(&mut FurthestFailError),
     {
         ErrorContextualizerInner::new(self, error_parser)
     }
     /// Optional label used when reporting errors for this matcher.
     fn maybe_label(&self) -> Option<Box<dyn Display>> {
-        <Self as internal::MatcherImpl<InpFam, MRes>>::maybe_label_internal(self)
+        <Self as internal::MatcherImpl<'src, Inp, MRes>>::maybe_label_internal(self)
     }
     /// If the matcher fails to extend the furthest error, insert `message` into that error.
     fn try_insert_if_missing<M: Display>(self, message: M) -> InsertOnErrorMatcherInner<Self>
@@ -134,98 +131,91 @@ where
     }
 }
 
-impl<InpFam, MRes, M> Matcher<InpFam, MRes> for M
+impl<'src, Inp: Input<'src>, MRes, M> Matcher<'src, Inp, MRes> for M
 where
-    InpFam: InputFamily + ?Sized,
-    M: internal::MatcherImpl<InpFam, MRes>,
+    M: internal::MatcherImpl<'src, Inp, MRes>,
 {
 }
 
-impl<InpFam, MRes, Inner> internal::MatcherImpl<InpFam, MRes> for &Inner
+impl<'src, Inp: Input<'src>, MRes, Inner> internal::MatcherImpl<'src, Inp, MRes> for &Inner
 where
-    InpFam: InputFamily + ?Sized,
-    Inner: Matcher<InpFam, MRes>,
+    Inner: Matcher<'src, Inp, MRes>,
 {
     const CAN_MATCH_DIRECTLY: bool = Inner::CAN_MATCH_DIRECTLY;
     const HAS_PROPERTY: bool = Inner::HAS_PROPERTY;
     const CAN_FAIL: bool = Inner::CAN_FAIL;
 
-    fn match_with_runner<'a, 'src, Runner>(
+    fn match_with_runner<'a, Runner>(
         &'a self,
         runner: &mut Runner,
         error_handler: &mut impl ErrorHandler,
-        input: &mut InputStream<'src, InpFam::In<'src>>,
+        input: &mut InputStream<'src, Inp>,
     ) -> Result<bool, FurthestFailError>
     where
-        Runner: MatchRunner<'a, 'src, InpFam, MRes = MRes>,
+        Runner: MatchRunner<'a, 'src, Inp, MRes = MRes>,
         'src: 'a,
     {
         (**self).match_with_runner(runner, error_handler, input)
     }
 }
 
-impl<InpFam, MRes, Inner> internal::MatcherImpl<InpFam, MRes> for Rc<Inner>
+impl<'src, Inp: Input<'src>, MRes, Inner> internal::MatcherImpl<'src, Inp, MRes> for Rc<Inner>
 where
-    InpFam: InputFamily + ?Sized,
-    Inner: Matcher<InpFam, MRes>,
+    Inner: Matcher<'src, Inp, MRes>,
 {
     const CAN_MATCH_DIRECTLY: bool = Inner::CAN_MATCH_DIRECTLY;
     const HAS_PROPERTY: bool = Inner::HAS_PROPERTY;
     const CAN_FAIL: bool = Inner::CAN_FAIL;
 
-    fn match_with_runner<'a, 'src, Runner>(
+    fn match_with_runner<'a, Runner>(
         &'a self,
         runner: &mut Runner,
         error_handler: &mut impl ErrorHandler,
-        input: &mut InputStream<'src, InpFam::In<'src>>,
+        input: &mut InputStream<'src, Inp>,
     ) -> Result<bool, FurthestFailError>
     where
-        Runner: MatchRunner<'a, 'src, InpFam, MRes = MRes>,
+        Runner: MatchRunner<'a, 'src, Inp, MRes = MRes>,
         'src: 'a,
     {
         self.deref().match_with_runner(runner, error_handler, input)
     }
 }
 
-impl<InpFam, MRes, Inner> internal::MatcherImpl<InpFam, MRes> for Box<Inner>
+impl<'src, Inp: Input<'src>, MRes, Inner> internal::MatcherImpl<'src, Inp, MRes> for Box<Inner>
 where
-    InpFam: InputFamily + ?Sized,
-    Inner: Matcher<InpFam, MRes>,
+    Inner: Matcher<'src, Inp, MRes>,
 {
     const CAN_MATCH_DIRECTLY: bool = Inner::CAN_MATCH_DIRECTLY;
     const HAS_PROPERTY: bool = Inner::HAS_PROPERTY;
     const CAN_FAIL: bool = Inner::CAN_FAIL;
 
-    fn match_with_runner<'a, 'src, Runner>(
+    fn match_with_runner<'a, Runner>(
         &'a self,
         runner: &mut Runner,
         error_handler: &mut impl ErrorHandler,
-        input: &mut InputStream<'src, InpFam::In<'src>>,
+        input: &mut InputStream<'src, Inp>,
     ) -> Result<bool, FurthestFailError>
     where
-        Runner: MatchRunner<'a, 'src, InpFam, MRes = MRes>,
+        Runner: MatchRunner<'a, 'src, Inp, MRes = MRes>,
         'src: 'a,
     {
         (**self).match_with_runner(runner, error_handler, input)
     }
 }
 
-impl<InpFam, MRes> internal::MatcherImpl<InpFam, MRes> for ()
-where
-    InpFam: InputFamily + ?Sized,
-{
+impl<'src, Inp: Input<'src>, MRes> internal::MatcherImpl<'src, Inp, MRes> for () {
     const CAN_MATCH_DIRECTLY: bool = true;
     const HAS_PROPERTY: bool = false;
     const CAN_FAIL: bool = false;
 
-    fn match_with_runner<'a, 'src, Runner>(
+    fn match_with_runner<'a, Runner>(
         &'a self,
         _runner: &mut Runner,
         _error_handler: &mut impl ErrorHandler,
-        _input: &mut InputStream<'src, InpFam::In<'src>>,
+        _input: &mut InputStream<'src, Inp>,
     ) -> Result<bool, FurthestFailError>
     where
-        Runner: MatchRunner<'a, 'src, InpFam, MRes = MRes>,
+        Runner: MatchRunner<'a, 'src, Inp, MRes = MRes>,
         'src: 'a,
     {
         Ok(true)

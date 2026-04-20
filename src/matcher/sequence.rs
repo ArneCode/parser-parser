@@ -4,7 +4,7 @@
 
 use crate::{
     error::{FurthestFailError, error_handler::ErrorHandler},
-    input::{InputFamily, InputStream},
+    input::{Input, InputStream},
     matcher::{MatchRunner, Matcher},
 };
 // pub struct Sequence<Tuple> {
@@ -22,11 +22,11 @@ use crate::{
 macro_rules! impl_matcher_for_seq_tuples {
     () => {};
     ($head:ident $(,$tail:ident)*) => {
-        impl<InpFam, MRes, $head, $($tail),*> super::internal::MatcherImpl<InpFam, MRes> for ($head, $($tail,)*)
+        impl<'src, Inp: Input<'src>, MRes, $head, $($tail),*> super::internal::MatcherImpl<'src, Inp, MRes> for ($head, $($tail,)*)
         where
-            InpFam: InputFamily + ?Sized,
-            $head: Matcher<InpFam, MRes>,
-            $($tail: Matcher<InpFam, MRes>,)*
+            $head: Matcher<'src, Inp, MRes>,
+            $($tail: Matcher<'src, Inp, MRes>,)*
+            Inp: Input<'src>,
         {
             const CAN_MATCH_DIRECTLY: bool = {
                 if !($head::CAN_MATCH_DIRECTLY $(&& $tail::CAN_MATCH_DIRECTLY)*) {
@@ -60,9 +60,9 @@ macro_rules! impl_matcher_for_seq_tuples {
             const HAS_PROPERTY: bool = $head::HAS_PROPERTY  $(|| $tail::HAS_PROPERTY)*;
             const CAN_FAIL: bool = $head::CAN_FAIL  $(|| $tail::CAN_FAIL)*;
 
-            fn match_with_runner<'a, 'src, Runner>(&'a self, runner: &mut Runner, error_handler: &mut impl ErrorHandler, input: &mut InputStream<'src, InpFam::In<'src>>) -> Result<bool, FurthestFailError>
+            fn match_with_runner<'a, Runner>(&'a self, runner: &mut Runner, error_handler: &mut impl ErrorHandler, input: &mut InputStream<'src, Inp>) -> Result<bool, FurthestFailError>
             where
-                Runner: MatchRunner<'a, 'src, InpFam, MRes = MRes>,
+                Runner: MatchRunner<'a, 'src, Inp, MRes = MRes>,
                 'src: 'a,
             {
 

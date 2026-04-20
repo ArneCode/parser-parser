@@ -2,7 +2,7 @@
 
 use crate::{
     error::error_handler::ErrorHandler,
-    input::{InputFamily, InputStream},
+    input::{Input, InputStream},
     matcher::{MatchRunner, Matcher},
 };
 
@@ -23,11 +23,11 @@ pub fn negative_lookahead<Check>(checker: Check) -> NegativeLookahead<Check> {
     NegativeLookahead::new(checker)
 }
 
-impl<InpFam, MRes, Match> super::internal::MatcherImpl<InpFam, MRes>
+impl<'src, Inp: Input<'src>, MRes, Match> super::internal::MatcherImpl<'src, Inp, MRes>
     for NegativeLookahead<Match>
 where
-    InpFam: InputFamily + ?Sized,
-    Match: Matcher<InpFam, MRes>,
+    Match: Matcher<'src, Inp, MRes>,
+    Inp: Input<'src>,
 {
     const CAN_MATCH_DIRECTLY: bool = Match::CAN_MATCH_DIRECTLY;
 
@@ -35,14 +35,14 @@ where
 
     const CAN_FAIL: bool = true;
 
-    fn match_with_runner<'a, 'src, Runner>(
+    fn match_with_runner<'a, Runner>(
         &'a self,
         runner: &mut Runner,
         error_handler: &mut impl ErrorHandler,
-        input: &mut InputStream<'src, InpFam::In<'src>>,
+        input: &mut InputStream<'src, Inp>,
     ) -> Result<bool, crate::error::FurthestFailError>
     where
-        Runner: MatchRunner<'a, 'src, InpFam, MRes = MRes>,
+        Runner: MatchRunner<'a, 'src, Inp, MRes = MRes>,
         'src: 'a,
     {
         let original_pos = input.get_pos();

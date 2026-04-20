@@ -6,7 +6,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use crate::{
     context::ParserContext,
     error::{FurthestFailError, error_handler::ErrorHandler},
-    input::{InputFamily, InputStream},
+    input::{Input, InputStream},
     parser::Parser,
 };
 
@@ -28,27 +28,27 @@ impl<P> Memoized<P> {
     }
 }
 
-impl<InpFam, P> super::internal::ParserImpl<InpFam> for Memoized<P>
+impl<'src, Inp: Input<'src>, P, POut> super::internal::ParserImpl<'src, Inp> for Memoized<P>
 where
-    InpFam: InputFamily + ?Sized,
-    P: Parser<InpFam>,
-    for<'src> P::Output<'src>: 'static,
+    P: Parser<'src, Inp, Output = POut>,
+    Inp: Input<'src>,
+    POut: 'static,
 {
-    type Output<'src> = Rc<P::Output<'src>>;
+    type Output = Rc<POut>;
     const CAN_FAIL: bool = P::CAN_FAIL;
 
-    fn parse<'src>(
+    fn parse(
         &self,
         context: &mut ParserContext,
         error_handler: &mut impl ErrorHandler,
-        input: &mut InputStream<'src, InpFam::In<'src>>,
-    ) -> Result<Option<Self::Output<'src>>, FurthestFailError> {
+        input: &mut InputStream<'src, Inp>,
+    ) -> Result<Option<Self::Output>, FurthestFailError> {
         let pos = input.get_pos();
         let key = (self.id, pos.clone().into());
 
         if let Some(entry) = context.memo_table.get(&key) {
             return match entry
-                .downcast_ref::<Option<(Rc<P::Output<'src>>, usize)>>()
+                .downcast_ref::<Option<(Rc<POut>, usize)>>()
                 .expect("memo table entry type mismatch")
             {
                 None => Ok(None),
@@ -67,7 +67,7 @@ where
             Ok(None) => {
                 context
                     .memo_table
-                    .insert(key, Box::new(None::<(Rc<P::Output<'src>>, usize)>));
+                    .insert(key, Box::new(None::<(Rc<POut>, usize)>));
                 Ok(None)
             }
             Ok(Some(output)) => {

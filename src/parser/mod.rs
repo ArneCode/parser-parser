@@ -40,7 +40,7 @@ use crate::{
         FurthestFailError,
         error_handler::{ErrorHandler, ErrorHandlerChoice},
     },
-    input::{InputFamily, InputStream},
+    input::{Input, InputStream},
     parser::recover_error::ErrorRecoverer as ErrorRecovererInner,
 };
 
@@ -48,16 +48,16 @@ pub(crate) mod internal {
     use crate::{
         context::ParserContext,
         error::{FurthestFailError, error_handler::ErrorHandler},
-        input::{InputFamily, InputStream},
+        input::{Input, InputStream},
     };
 
     /// Crate-private parsing interface used by [`super::Parser`].
-    pub trait ParserImpl<InpFam>
+    pub trait ParserImpl<'src, Inp>
     where
-        InpFam: InputFamily + ?Sized,
+        Inp: Input<'src>,
     {
         /// Successful parse value when the parser matches at `pos`.
-        type Output<'src>;
+        type Output;
         /// `true` when this parser can return `Ok(None)` on a normal parse path.
         ///
         /// This constant models parse absence and does not indicate whether
@@ -65,12 +65,12 @@ pub(crate) mod internal {
         const CAN_FAIL: bool;
 
         /// Run the parser at `pos` against `context`, reporting secondary issues through `error_handler`.
-        fn parse<'src>(
+        fn parse(
             &self,
             context: &mut ParserContext,
             error_handler: &mut impl ErrorHandler,
-            input: &mut InputStream<'src, InpFam::In<'src>>,
-        ) -> Result<Option<Self::Output<'src>>, FurthestFailError>;
+            input: &mut InputStream<'src, Inp>,
+        ) -> Result<Option<Self::Output>, FurthestFailError>;
     }
 }
 
@@ -80,10 +80,7 @@ pub(crate) mod internal {
 /// trait used internally. Use [`recover_with`](Self::recover_with) and
 /// [`memoized`](Self::memoized) for common extensions; the `parse` method is
 /// inherited from that internal trait and drives the actual parse step.
-pub trait Parser<InpFam>: internal::ParserImpl<InpFam>
-where
-    InpFam: InputFamily + ?Sized,
-{
+pub trait Parser<'src, Inp: Input<'src>>: internal::ParserImpl<'src, Inp> {
     /// On parse failure, run `recover_matcher` and yield `recover_output` if it matches.
     fn recover_with<Match, Output>(
         self,
@@ -100,41 +97,36 @@ where
     fn memoized(self) -> memoized::Memoized<Self>
     where
         Self: Sized,
-        for<'src> Self::Output<'src>: 'static,
+        Self::Output: 'static,
     {
         memoized::Memoized::new(self)
     }
 }
 
-impl<InpFam, P> Parser<InpFam> for P
+impl<'src, Inp: Input<'src>, P> Parser<'src, Inp> for P
 where
-    InpFam: InputFamily + ?Sized,
-    P: internal::ParserImpl<InpFam>,
+    P: internal::ParserImpl<'src, Inp>,
 {
 }
 
-pub(crate) trait ParserObjSafe<InpFam, Output>
-where
-    InpFam: InputFamily + ?Sized,
-{
-    fn parse<'src>(
+pub(crate) trait ParserObjSafe<'src, Inp: Input<'src>, Output> {
+    fn parse(
         &self,
         context: &mut ParserContext,
         error_handler: ErrorHandlerChoice<'_>,
-        input: &mut InputStream<'src, InpFam::In<'src>>,
+        input: &mut InputStream<'src, Inp>,
     ) -> Result<Option<Output>, FurthestFailError>;
 }
 
-impl<InpFam, Output, P> ParserObjSafe<InpFam, Output> for P
+impl<'src, Inp: Input<'src>, Output, P> ParserObjSafe<'src, Inp, Output> for P
 where
-    InpFam: InputFamily + ?Sized,
-    P: for<'src> internal::ParserImpl<InpFam, Output<'src> = Output>,
+    P: internal::ParserImpl<'src, Inp, Output = Output>,
 {
-    fn parse<'src>(
+    fn parse(
         &self,
         context: &mut ParserContext,
         error_handler: ErrorHandlerChoice<'_>,
-        input: &mut InputStream<'src, InpFam::In<'src>>,
+        input: &mut InputStream<'src, Inp>,
     ) -> Result<Option<Output>, FurthestFailError> {
         match error_handler {
             ErrorHandlerChoice::Empty(handler) => self.parse(context, handler, input),
@@ -144,54 +136,51 @@ where
 }
 
 // impl Parser for all types that deref to a parser
-impl<Inner, InpFam> internal::ParserImpl<InpFam> for &Inner
+impl<'src, Inner, Inp: Input<'src>> internal::ParserImpl<'src, Inp> for &Inner
 where
-    InpFam: InputFamily + ?Sized,
-    Inner: Parser<InpFam>,
+    Inner: Parser<'src, Inp>,
 {
-    type Output<'src> = Inner::Output<'src>;
+    type Output = <Inner as internal::ParserImpl<'src, Inp>>::Output;
     const CAN_FAIL: bool = Inner::CAN_FAIL;
 
-    fn parse<'src>(
+    fn parse(
         &self,
         context: &mut ParserContext,
         error_handler: &mut impl ErrorHandler,
-        input: &mut InputStream<'src, InpFam::In<'src>>,
-    ) -> Result<Option<Self::Output<'src>>, FurthestFailError> {
+        input: &mut InputStream<'src, Inp>,
+    ) -> Result<Option<Self::Output>, FurthestFailError> {
         (**self).parse(context, error_handler, input)
     }
 }
-impl<Inner, InpFam> internal::ParserImpl<InpFam> for Rc<Inner>
+impl<'src, Inner, Inp: Input<'src>> internal::ParserImpl<'src, Inp> for Rc<Inner>
 where
-    InpFam: InputFamily + ?Sized,
-    Inner: Parser<InpFam>,
+    Inner: Parser<'src, Inp>,
 {
-    type Output<'src> = Inner::Output<'src>;
+    type Output = <Inner as internal::ParserImpl<'src, Inp>>::Output;
     const CAN_FAIL: bool = Inner::CAN_FAIL;
 
-    fn parse<'src>(
+    fn parse(
         &self,
         context: &mut ParserContext,
         error_handler: &mut impl ErrorHandler,
-        input: &mut InputStream<'src, InpFam::In<'src>>,
-    ) -> Result<Option<Self::Output<'src>>, FurthestFailError> {
+        input: &mut InputStream<'src, Inp>,
+    ) -> Result<Option<Self::Output>, FurthestFailError> {
         (**self).parse(context, error_handler, input)
     }
 }
-impl<Inner, InpFam> internal::ParserImpl<InpFam> for Box<Inner>
+impl<'src, Inner, Inp: Input<'src>> internal::ParserImpl<'src, Inp> for Box<Inner>
 where
-    InpFam: InputFamily + ?Sized,
-    Inner: Parser<InpFam>,
+    Inner: Parser<'src, Inp>,
 {
-    type Output<'src> = Inner::Output<'src>;
+    type Output = <Inner as internal::ParserImpl<'src, Inp>>::Output;
     const CAN_FAIL: bool = Inner::CAN_FAIL;
 
-    fn parse<'src>(
+    fn parse(
         &self,
         context: &mut ParserContext,
         error_handler: &mut impl ErrorHandler,
-        input: &mut InputStream<'src, InpFam::In<'src>>,
-    ) -> Result<Option<Self::Output<'src>>, FurthestFailError> {
+        input: &mut InputStream<'src, Inp>,
+    ) -> Result<Option<Self::Output>, FurthestFailError> {
         (**self).parse(context, error_handler, input)
     }
 }

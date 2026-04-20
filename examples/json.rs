@@ -45,7 +45,7 @@ impl JsonValue {
     }
 }
 
-pub fn get_json_grammar() -> impl for<'src> Parser<str, Output<'src> = JsonValue> {
+pub fn get_json_grammar<'src>() -> impl Parser<'src, &'src str, Output = JsonValue> {
     recursive(|element| {
         let element = Rc::new(element.with_label("element"));
         let ws = Rc::new(many(one_of((' ', '\t', '\n', '\r'))));

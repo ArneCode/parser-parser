@@ -3,7 +3,7 @@
 use crate::{
     context::ParserContext,
     error::{FurthestFailError, error_handler::ErrorHandler},
-    input::{InputFamily, InputStream},
+    input::{Input, InputStream},
     parser::Parser,
 };
 
@@ -36,22 +36,25 @@ impl<Pars, CombF> MultipleParser<Pars, CombF> {
 //     }
 // }
 
-impl<InpFam, NodeIn, NodeOut, Pars, CombF> super::internal::ParserImpl<InpFam>
+impl<'src, Inp: Input<'src>, NodeIn, NodeOut, Pars, CombF> super::internal::ParserImpl<'src, Inp>
     for MultipleParser<Pars, CombF>
 where
-    InpFam: InputFamily + ?Sized,
-    Pars: for<'src> Parser<InpFam, Output<'src> = NodeIn>,
+    Pars: Parser<'src, Inp, Output = NodeIn>,
+    Inp: Input<'src>,
     CombF: Fn(Vec<NodeIn>) -> NodeOut,
 {
-    type Output<'src> = NodeOut;
+    type Output = NodeOut;
     const CAN_FAIL: bool = Pars::CAN_FAIL;
 
-    fn parse<'src>(
+    fn parse(
         &self,
         context: &mut ParserContext,
         error_handler: &mut impl ErrorHandler,
-        input: &mut InputStream<'src, InpFam::In<'src>>,
-    ) -> Result<Option<Self::Output<'src>>, FurthestFailError> {
+        input: &mut InputStream<'src, Inp>,
+    ) -> Result<Option<Self::Output>, FurthestFailError>
+    where
+        Inp: Input<'src>,
+    {
         let mut results = Vec::new();
         while let Some(result) = self.parser.parse(context, error_handler, input)? {
             results.push(result);

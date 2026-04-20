@@ -5,7 +5,7 @@ use std::marker::PhantomData;
 use crate::{
     context::ParserContext,
     error::error_handler::ErrorHandler,
-    input::{InputFamily, InputStream},
+    input::{Input, InputStream},
     matcher::{MatchRunner, Matcher, NoMemoizeBacktrackingRunner},
     parser::Parser,
 };
@@ -29,23 +29,23 @@ impl<Pars, Match, Output> ErrorRecoverer<Pars, Match, Output> {
 }
 
 //TODO: ensure that Match cannot error with trait CanNotError
-impl<InpFam, Pars, Match, Output> super::internal::ParserImpl<InpFam>
+impl<'src, Inp: Input<'src>, Pars, Match, Output> super::internal::ParserImpl<'src, Inp>
     for ErrorRecoverer<Pars, Match, Output>
 where
-    InpFam: InputFamily + ?Sized,
-    Pars: for<'src> Parser<InpFam, Output<'src> = Output>,
-    Match: Matcher<InpFam, ((), (), ())>,
+    Pars: Parser<'src, Inp, Output = Output>,
+    Match: Matcher<'src, Inp, ((), (), ())>,
+    Inp: Input<'src>,
     Output: Clone,
 {
-    type Output<'src> = Output;
+    type Output = Output;
     const CAN_FAIL: bool = Pars::CAN_FAIL;
 
-    fn parse<'src>(
+    fn parse(
         &self,
         context: &mut ParserContext,
         error_handler: &mut impl ErrorHandler,
-        input: &mut InputStream<'src, InpFam::In<'src>>,
-    ) -> Result<Option<Self::Output<'src>>, crate::error::FurthestFailError> {
+        input: &mut InputStream<'src, Inp>,
+    ) -> Result<Option<Self::Output>, crate::error::FurthestFailError> {
         let start_pos = input.get_pos();
         match self.happy.parse(context, error_handler, input) {
             Err(e) => {

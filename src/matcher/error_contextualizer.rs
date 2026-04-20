@@ -4,7 +4,7 @@ use std::marker::PhantomData;
 
 use crate::{
     error::{FurthestFailError, error_handler::ErrorHandler},
-    input::{InputFamily, InputStream},
+    input::{Input, InputStream},
     matcher::{MatchRunner, Matcher},
     parser::Parser,
 };
@@ -28,26 +28,26 @@ impl<Matcher, Pars, F, MRes> ErrorContextualizer<Matcher, Pars, F, MRes> {
 }
 
 //TODO: ensure that Pars cannot error with trait CanNotError
-impl<InpFam, MRes, Match, Pars, F> super::internal::MatcherImpl<InpFam, MRes>
+impl<'src, Inp: Input<'src>, MRes, Match, Pars, F> super::internal::MatcherImpl<'src, Inp, MRes>
     for ErrorContextualizer<Match, Pars, F, MRes>
 where
-    InpFam: InputFamily + ?Sized,
-    Match: Matcher<InpFam, MRes>,
-    Pars: for<'src> Parser<InpFam, Output<'src> = F>,
+    Match: Matcher<'src, Inp, MRes>,
+    Pars: Parser<'src, Inp, Output = F>,
+    Inp: Input<'src>,
     F: Fn(&mut FurthestFailError),
 {
     const CAN_MATCH_DIRECTLY: bool = Match::CAN_MATCH_DIRECTLY;
     const HAS_PROPERTY: bool = Match::HAS_PROPERTY;
     const CAN_FAIL: bool = Match::CAN_FAIL;
 
-    fn match_with_runner<'a, 'src, Runner>(
+    fn match_with_runner<'a, Runner>(
         &'a self,
         runner: &mut Runner,
         error_handler: &mut impl ErrorHandler,
-        input: &mut InputStream<'src, InpFam::In<'src>>,
+        input: &mut InputStream<'src, Inp>,
     ) -> Result<bool, FurthestFailError>
     where
-        Runner: MatchRunner<'a, 'src, InpFam, MRes = MRes>,
+        Runner: MatchRunner<'a, 'src, Inp, MRes = MRes>,
         'src: 'a,
     {
         let start_pos = input.get_pos();

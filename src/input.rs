@@ -7,18 +7,6 @@ pub trait Input<'src> {
     fn read_token(&mut self, pos: &mut Self::Pos) -> Option<Self::Token>;
 }
 
-pub trait InputFamily {
-    type In<'src>: Input<'src>;
-}
-
-impl InputFamily for str {
-    type In<'src> = &'src str;
-}
-
-impl<T: 'static> InputFamily for [T] {
-    type In<'src> = &'src [T];
-}
-
 pub trait SliceableInput<'src>: Input<'src> {
     type Slice: 'src;
     fn slice(&self, range: Range<&Self::Pos>) -> Self::Slice;

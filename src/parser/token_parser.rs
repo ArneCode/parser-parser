@@ -3,7 +3,7 @@
 use crate::{
     context::ParserContext,
     error::{FurthestFailError, error_handler::ErrorHandler},
-    input::{InputFamily, InputStream},
+    input::{Input, InputStream},
 };
 
 /// [`crate::parser::Parser`] built from a predicate and a projection function.
@@ -35,22 +35,21 @@ where
     TokenParser::new(check_fn, parse_fn)
 }
 
-impl<InpFam, Out, CheckF, ParseF> super::internal::ParserImpl<InpFam>
+impl<'src, Inp: Input<'src>, Out, CheckF, ParseF> super::internal::ParserImpl<'src, Inp>
     for TokenParser<CheckF, ParseF>
 where
-    InpFam: InputFamily + ?Sized,
-    CheckF: for<'src> Fn(&<InpFam::In<'src> as crate::input::Input<'src>>::Token) -> bool,
-    ParseF: for<'src> Fn(&<InpFam::In<'src> as crate::input::Input<'src>>::Token) -> Out,
+    CheckF: Fn(&<Inp as Input<'src>>::Token) -> bool,
+    ParseF: Fn(&<Inp as Input<'src>>::Token) -> Out,
 {
-    type Output<'src> = Out;
+    type Output = Out;
     const CAN_FAIL: bool = true;
 
-    fn parse<'src>(
+    fn parse(
         &self,
         _context: &mut ParserContext,
         _error_handler: &mut impl ErrorHandler,
-        input: &mut InputStream<'src, InpFam::In<'src>>,
-    ) -> Result<Option<Self::Output<'src>>, FurthestFailError> {
+        input: &mut InputStream<'src, Inp>,
+    ) -> Result<Option<Self::Output>, FurthestFailError> {
         let start = input.get_pos();
         let Some(token) = input.next() else {
             return Ok(None);

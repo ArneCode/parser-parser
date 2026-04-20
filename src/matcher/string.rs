@@ -2,7 +2,7 @@
 
 use crate::{
     error::{FurthestFailError, error_handler::ErrorHandler},
-    input::{InputFamily, InputStream},
+    input::{Input, InputStream},
     matcher::MatchRunner,
 };
 
@@ -20,23 +20,21 @@ impl StringMatcher {
     }
 }
 
-impl<InpFam, MRes> super::internal::MatcherImpl<InpFam, MRes> for StringMatcher
-where
-    InpFam: InputFamily + ?Sized,
-    for<'src> InpFam::In<'src>: crate::input::Input<'src, Token = char>,
+impl<'src, Inp: Input<'src, Token = char>, MRes> super::internal::MatcherImpl<'src, Inp, MRes>
+    for StringMatcher
 {
     const CAN_MATCH_DIRECTLY: bool = true;
     const HAS_PROPERTY: bool = false;
     const CAN_FAIL: bool = true;
 
-    fn match_with_runner<'a, 'src, Runner>(
+    fn match_with_runner<'a, Runner>(
         &'a self,
         _runner: &mut Runner,
         _error_handler: &mut impl ErrorHandler,
-        input: &mut InputStream<'src, InpFam::In<'src>>,
+        input: &mut InputStream<'src, Inp>,
     ) -> Result<bool, FurthestFailError>
     where
-        Runner: MatchRunner<'a, 'src, InpFam, MRes = MRes>,
+        Runner: MatchRunner<'a, 'src, Inp, MRes = MRes>,
         'src: 'a,
     {
         for expected in &self.expected {
@@ -52,23 +50,21 @@ where
     }
 }
 
-impl<InpFam, MRes> super::internal::MatcherImpl<InpFam, MRes> for &str
-where
-    InpFam: InputFamily + ?Sized,
-    for<'src> InpFam::In<'src>: crate::input::Input<'src, Token = char>,
+impl<'src, Inp: Input<'src, Token = char>, MRes> super::internal::MatcherImpl<'src, Inp, MRes>
+    for &str
 {
     const CAN_MATCH_DIRECTLY: bool = true;
     const HAS_PROPERTY: bool = false;
     const CAN_FAIL: bool = true;
 
-    fn match_with_runner<'a, 'src, Runner>(
+    fn match_with_runner<'a, Runner>(
         &'a self,
         _runner: &mut Runner,
         _error_handler: &mut impl ErrorHandler,
-        input: &mut InputStream<'src, InpFam::In<'src>>,
+        input: &mut InputStream<'src, Inp>,
     ) -> Result<bool, FurthestFailError>
     where
-        Runner: MatchRunner<'a, 'src, InpFam, MRes = MRes>,
+        Runner: MatchRunner<'a, 'src, Inp, MRes = MRes>,
         'src: 'a,
     {
         for expected in self.chars() {
@@ -85,23 +81,21 @@ where
 }
 
 // impl for char
-impl<InpFam, MRes> super::internal::MatcherImpl<InpFam, MRes> for char
-where
-    InpFam: InputFamily + ?Sized,
-    for<'src> InpFam::In<'src>: crate::input::Input<'src, Token = char>,
+impl<'src, Inp: Input<'src, Token = char>, MRes> super::internal::MatcherImpl<'src, Inp, MRes>
+    for char
 {
     const CAN_MATCH_DIRECTLY: bool = true;
     const HAS_PROPERTY: bool = false;
     const CAN_FAIL: bool = true;
 
-    fn match_with_runner<'a, 'src, Runner>(
+    fn match_with_runner<'a, Runner>(
         &'a self,
         _runner: &mut Runner,
         _error_handler: &mut impl ErrorHandler,
-        input: &mut InputStream<'src, InpFam::In<'src>>,
+        input: &mut InputStream<'src, Inp>,
     ) -> Result<bool, FurthestFailError>
     where
-        Runner: MatchRunner<'a, 'src, InpFam, MRes = MRes>,
+        Runner: MatchRunner<'a, 'src, Inp, MRes = MRes>,
         'src: 'a,
     {
         if input.next() == Some(*self) {

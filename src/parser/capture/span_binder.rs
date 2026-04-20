@@ -1,6 +1,6 @@
 use crate::{
     error::{FurthestFailError, error_handler::ErrorHandler},
-    input::{InputFamily, InputStream},
+    input::{Input, InputStream},
     matcher::{Matcher, internal::MatcherImpl, runner::MatchRunner},
 };
 
@@ -24,24 +24,24 @@ pub fn bind_span<Match, Prop>(matcher: Match, property: Prop) -> SpanBinder<Matc
     SpanBinder::new(matcher, property)
 }
 
-impl<InpFam, MRes, Match, Prop> MatcherImpl<InpFam, MRes> for SpanBinder<Match, Prop>
+impl<'src, Inp: Input<'src>, MRes, Match, Prop> MatcherImpl<'src, Inp, MRes> for SpanBinder<Match, Prop>
 where
-    InpFam: InputFamily + ?Sized,
-    Match: Matcher<InpFam, MRes>,
+    Match: Matcher<'src, Inp, MRes>,
+    Inp: Input<'src>,
     Prop: Property<(usize, usize), MRes> + Clone,
 {
     const CAN_MATCH_DIRECTLY: bool = Match::CAN_MATCH_DIRECTLY;
     const HAS_PROPERTY: bool = true;
     const CAN_FAIL: bool = Match::CAN_FAIL;
 
-    fn match_with_runner<'a, 'src, Runner>(
+    fn match_with_runner<'a, Runner>(
         &'a self,
         runner: &mut Runner,
         error_handler: &mut impl ErrorHandler,
-        input: &mut InputStream<'src, InpFam::In<'src>>,
+        input: &mut InputStream<'src, Inp>,
     ) -> Result<bool, FurthestFailError>
     where
-        Runner: MatchRunner<'a, 'src, InpFam, MRes = MRes>,
+        Runner: MatchRunner<'a, 'src, Inp, MRes = MRes>,
         'src: 'a,
     {
         let start_pos: usize = input.get_pos().into();

@@ -3,7 +3,7 @@ use std::marker::PhantomData;
 use crate::{
     context::ParserContext,
     error::{FurthestFailError, error_handler::ErrorHandler},
-    input::{InputFamily, InputStream},
+    input::{Input, InputStream},
     matcher::Matcher,
     parser::capture::{BoundResult, MatchResult},
 };
@@ -13,9 +13,9 @@ use crate::{
 /// `'a` is the lifetime of the runner borrow passed into nested `match_with_runner` calls.
 /// Deferred captures are stored as [`BoundResult`] trait objects at lifetime **`'src`**
 /// (the parse / input-stream invocation), so values may borrow the input for `'src`.
-pub(crate) trait MatchRunner<'a, 'src, InpFam>
+pub(crate) trait MatchRunner<'a, 'src, Inp>
 where
-    InpFam: InputFamily + ?Sized,
+    Inp: Input<'src>,
 {
     type MRes: MatchResult;
 
@@ -23,10 +23,10 @@ where
         &mut self,
         matcher: &'a Match,
         error_handler: &mut EHandler,
-        input: &mut InputStream<'src, InpFam::In<'src>>,
+        input: &mut InputStream<'src, Inp>,
     ) -> Result<bool, FurthestFailError>
     where
-        Match: Matcher<InpFam, Self::MRes>,
+        Match: Matcher<'src, Inp, Self::MRes>,
         'src: 'a,
         Self: Sized;
 
@@ -37,14 +37,14 @@ where
     fn get_parser_context<'b>(&'b mut self) -> &'b mut ParserContext;
 }
 
-pub(crate) struct NoMemoizeBacktrackingRunner<'a, 'src, InpFam: ?Sized, MRes> {
+pub(crate) struct NoMemoizeBacktrackingRunner<'a, 'src, Inp, MRes> {
     parser_context: &'a mut ParserContext,
-    _phantom_inp: PhantomData<InpFam>,
+    _phantom_inp: PhantomData<Inp>,
     _phantom_src: PhantomData<&'src ()>,
     stack: Vec<Box<dyn BoundResult<MRes> + 'a>>,
 }
 
-impl<'a, 'src, InpFam: ?Sized, MRes> NoMemoizeBacktrackingRunner<'a, 'src, InpFam, MRes> {
+impl<'a, 'src, Inp: Input<'src>, MRes> NoMemoizeBacktrackingRunner<'a, 'src, Inp, MRes> {
     pub(crate) fn new(
         parser_context: &'a mut ParserContext,
         _marker: PhantomData<&'src ()>,
@@ -58,10 +58,9 @@ impl<'a, 'src, InpFam: ?Sized, MRes> NoMemoizeBacktrackingRunner<'a, 'src, InpFa
     }
 }
 
-impl<'a, 'src, InpFam, MRes> MatchRunner<'a, 'src, InpFam>
-    for NoMemoizeBacktrackingRunner<'a, 'src, InpFam, MRes>
+impl<'a, 'src, Inp: Input<'src>, MRes> MatchRunner<'a, 'src, Inp>
+    for NoMemoizeBacktrackingRunner<'a, 'src, Inp, MRes>
 where
-    InpFam: InputFamily + ?Sized,
     MRes: MatchResult,
 {
     type MRes = MRes;
@@ -70,10 +69,10 @@ where
         &mut self,
         matcher: &'a Match,
         error_handler: &mut EHandler,
-        input: &mut InputStream<'src, InpFam::In<'src>>,
+        input: &mut InputStream<'src, Inp>,
     ) -> Result<bool, FurthestFailError>
     where
-        Match: Matcher<InpFam, Self::MRes>,
+        Match: Matcher<'src, Inp, Self::MRes>,
         'src: 'a,
         Self: Sized,
     {
@@ -109,14 +108,14 @@ where
     }
 }
 
-pub(crate) struct DirectMatchRunner<'a, 'src, InpFam: ?Sized, MRes> {
+pub(crate) struct DirectMatchRunner<'a, 'src, Inp, MRes> {
     parser_context: &'a mut ParserContext,
-    _phantom_inp: PhantomData<InpFam>,
+    _phantom_inp: PhantomData<Inp>,
     _phantom_src: PhantomData<&'src ()>,
     result: MRes,
 }
 
-impl<'a, 'src, InpFam: ?Sized, MRes> DirectMatchRunner<'a, 'src, InpFam, MRes> {
+impl<'a, 'src, Inp: Input<'src>, MRes> DirectMatchRunner<'a, 'src, Inp, MRes> {
     pub(crate) fn new(
         parser_context: &'a mut ParserContext,
         result: MRes,
@@ -131,9 +130,8 @@ impl<'a, 'src, InpFam: ?Sized, MRes> DirectMatchRunner<'a, 'src, InpFam, MRes> {
     }
 }
 
-impl<'a, 'src, InpFam, MRes> MatchRunner<'a, 'src, InpFam> for DirectMatchRunner<'a, 'src, InpFam, MRes>
+impl<'a, 'src, Inp: Input<'src>, MRes> MatchRunner<'a, 'src, Inp> for DirectMatchRunner<'a, 'src, Inp, MRes>
 where
-    InpFam: InputFamily + ?Sized,
     MRes: MatchResult,
 {
     type MRes = MRes;
@@ -142,10 +140,10 @@ where
         &mut self,
         matcher: &'a Match,
         error_handler: &mut EHandler,
-        input: &mut InputStream<'src, InpFam::In<'src>>,
+        input: &mut InputStream<'src, Inp>,
     ) -> Result<bool, FurthestFailError>
     where
-        Match: Matcher<InpFam, Self::MRes>,
+        Match: Matcher<'src, Inp, Self::MRes>,
         'src: 'a,
         Self: Sized,
     {

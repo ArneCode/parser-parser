@@ -7,7 +7,7 @@
 use crate::{
     context::ParserContext,
     error::{FurthestFailError, error_handler::ErrorHandler},
-    input::{InputFamily, InputStream},
+    input::{Input, InputStream},
     matcher::{MatchRunner, Matcher},
     parser::Parser,
 };
@@ -32,19 +32,19 @@ pub fn one_of<Options>(options: Options) -> OneOf<Options> {
 macro_rules! impl_one_of_tuples {
     () => {};
     ($head:ident $(,$tail:ident)*) => {
-        impl<InpFam, MRes, $head, $($tail),*> crate::matcher::internal::MatcherImpl<InpFam, MRes> for OneOf<($head, $($tail,)*)>
+        impl<'src, Inp: Input<'src>, MRes, $head, $($tail),*> crate::matcher::internal::MatcherImpl<'src, Inp, MRes> for OneOf<($head, $($tail,)*)>
         where
-            InpFam: InputFamily + ?Sized,
-            $head: Matcher<InpFam, MRes>,
-            $($tail: Matcher<InpFam, MRes>,)*
+            $head: Matcher<'src, Inp, MRes>,
+            $($tail: Matcher<'src, Inp, MRes>,)*
+            Inp: Input<'src>,
         {
             const CAN_MATCH_DIRECTLY: bool = $head::CAN_MATCH_DIRECTLY  $(&& $tail::CAN_MATCH_DIRECTLY)*;
             const HAS_PROPERTY: bool = $head::HAS_PROPERTY  $(|| $tail::HAS_PROPERTY)*;
             const CAN_FAIL: bool = $head::CAN_FAIL  $(&& $tail::CAN_FAIL)*;
 
-            fn match_with_runner<'a, 'src, Runner>(&'a self, runner: &mut Runner, error_handler: &mut impl ErrorHandler, input: &mut InputStream<'src, InpFam::In<'src>>) -> Result<bool, FurthestFailError>
+            fn match_with_runner<'a, Runner>(&'a self, runner: &mut Runner, error_handler: &mut impl ErrorHandler, input: &mut InputStream<'src, Inp>) -> Result<bool, FurthestFailError>
             where
-                Runner: MatchRunner<'a, 'src, InpFam, MRes = MRes>,
+                Runner: MatchRunner<'a, 'src, Inp, MRes = MRes>,
                 'src: 'a,
             {
                 #[allow(non_snake_case)]
@@ -63,15 +63,15 @@ macro_rules! impl_one_of_tuples {
                 Ok(false)
             }
         }
-        impl<InpFam, Output, $head, $($tail),*> crate::parser::internal::ParserImpl<InpFam> for OneOf<($head, $($tail,)*)>
+        impl<'src, Inp: Input<'src>, Output, $head, $($tail),*> crate::parser::internal::ParserImpl<'src, Inp> for OneOf<($head, $($tail,)*)>
         where
-            InpFam: InputFamily + ?Sized,
-            $head: for<'src> Parser<InpFam, Output<'src> = Output>,
-            $($tail: for<'src> Parser<InpFam, Output<'src> = Output>,)*
+            $head: Parser<'src, Inp, Output = Output>,
+            $($tail: Parser<'src, Inp, Output = Output>,)*
+            Inp: Input<'src>,
         {
-            type Output<'src> = Output;
+            type Output = Output;
             const CAN_FAIL: bool = $head::CAN_FAIL  $(&& $tail::CAN_FAIL)*;
-            fn parse<'src>(&self, context: &mut ParserContext, error_handler: &mut impl ErrorHandler, input: &mut InputStream<'src, InpFam::In<'src>>) -> Result<Option<Output>, FurthestFailError> {
+            fn parse(&self, context: &mut ParserContext, error_handler: &mut impl ErrorHandler, input: &mut InputStream<'src, Inp>) -> Result<Option<Output>, FurthestFailError> {
 
                 #[allow(non_snake_case)]
                 let ($head, $($tail,)*) = &self.options;

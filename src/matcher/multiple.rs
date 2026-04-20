@@ -2,7 +2,7 @@
 
 use crate::{
     error::{FurthestFailError, error_handler::ErrorHandler},
-    input::{InputFamily, InputStream},
+    input::{Input, InputStream},
     matcher::{MatchRunner, Matcher},
 };
 
@@ -24,22 +24,22 @@ pub fn many<Match>(matcher: Match) -> Multiple<Match> {
 
 // impl<Match> Matcher for Multiple<Match> where Match: Matcher {}
 
-impl<InpFam, MRes, Match> super::internal::MatcherImpl<InpFam, MRes> for Multiple<Match>
+impl<'src, Inp: Input<'src>, MRes, Match> super::internal::MatcherImpl<'src, Inp, MRes> for Multiple<Match>
 where
-    InpFam: InputFamily + ?Sized,
-    Match: Matcher<InpFam, MRes>,
+    Match: Matcher<'src, Inp, MRes>,
+    Inp: Input<'src>,
 {
     const CAN_MATCH_DIRECTLY: bool = Match::CAN_MATCH_DIRECTLY;
     const HAS_PROPERTY: bool = Match::HAS_PROPERTY;
     const CAN_FAIL: bool = false;
-    fn match_with_runner<'a, 'src, Runner>(
+    fn match_with_runner<'a, Runner>(
         &'a self,
         runner: &mut Runner,
         error_handler: &mut impl ErrorHandler,
-        input: &mut InputStream<'src, InpFam::In<'src>>,
+        input: &mut InputStream<'src, Inp>,
     ) -> Result<bool, FurthestFailError>
     where
-        Runner: MatchRunner<'a, 'src, InpFam, MRes = MRes>,
+        Runner: MatchRunner<'a, 'src, Inp, MRes = MRes>,
         'src: 'a,
     {
         loop {

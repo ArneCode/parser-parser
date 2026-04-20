@@ -2,7 +2,7 @@
 
 use crate::{
     error::{FurthestFailError, error_handler::ErrorHandler},
-    input::{InputFamily, InputStream},
+    input::{Input, InputStream},
     matcher::MatchRunner,
     parser::Parser,
 };
@@ -23,25 +23,25 @@ impl<Pars, ParserOutput> ParserMatcher<Pars, ParserOutput> {
     }
 }
 
-impl<InpFam, MRes, Pars, ParserOutput> super::internal::MatcherImpl<InpFam, MRes>
+impl<'src, Inp: Input<'src>, MRes, Pars, ParserOutput> super::internal::MatcherImpl<'src, Inp, MRes>
     for ParserMatcher<Pars, ParserOutput>
 where
-    InpFam: InputFamily + ?Sized,
-    Pars: for<'src> Parser<InpFam, Output<'src> = ParserOutput>,
+    Pars: Parser<'src, Inp, Output = ParserOutput>,
+    Inp: Input<'src>,
     ParserOutput: PartialEq,
 {
     const CAN_MATCH_DIRECTLY: bool = true;
     const HAS_PROPERTY: bool = false;
     const CAN_FAIL: bool = Pars::CAN_FAIL;
 
-    fn match_with_runner<'a, 'src, Runner>(
+    fn match_with_runner<'a, Runner>(
         &'a self,
         runner: &mut Runner,
         error_handler: &mut impl ErrorHandler,
-        input: &mut InputStream<'src, InpFam::In<'src>>,
+        input: &mut InputStream<'src, Inp>,
     ) -> Result<bool, FurthestFailError>
     where
-        Runner: MatchRunner<'a, 'src, InpFam, MRes = MRes>,
+        Runner: MatchRunner<'a, 'src, Inp, MRes = MRes>,
         'src: 'a,
     {
         if let Some(output) = self

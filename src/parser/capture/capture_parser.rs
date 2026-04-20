@@ -3,7 +3,7 @@ use std::marker::PhantomData;
 use crate::{
     context::ParserContext,
     error::{FurthestFailError, error_handler::ErrorHandler},
-    input::{InputFamily, InputStream},
+    input::{Input, InputStream},
     matcher::{DirectMatchRunner, Matcher, NoMemoizeBacktrackingRunner, runner::MatchRunner},
     parser::internal::ParserImpl,
 };
@@ -35,11 +35,10 @@ where
         'a,
         'ctx: 'a,
         GF: Fn(MResSingle::Properties, MResMultiple::Properties, MResOptional::Properties) -> Match,
-        InpFam: InputFamily + ?Sized,
     >(
         grammar_factory: GF,
         constructor: F,
-    ) -> Self where Match: Matcher<InpFam, (MResSingle, MResMultiple, MResOptional)>{
+    ) -> Self {
         let properties_single = MResSingle::new_properties();
         let properties_multiple = MResMultiple::new_properties();
         let properties_optional = MResOptional::new_properties();
@@ -51,25 +50,25 @@ where
     }
 }
 
-impl<InpFam, Out, MResSingle, MResMultiple, MResOptional, Match, F> ParserImpl<InpFam>
+impl<'src, Inp: Input<'src>, Out, MResSingle, MResMultiple, MResOptional, Match, F> ParserImpl<'src, Inp>
     for Capture<(MResSingle, MResMultiple, MResOptional), Match, F>
 where
-    InpFam: InputFamily + ?Sized,
     MResSingle: MatchResultSingle,
     MResMultiple: MatchResultMultiple,
     MResOptional: MatchResultOptional,
-    Match: Matcher<InpFam, (MResSingle, MResMultiple, MResOptional)>,
+    Match: Matcher<'src, Inp, (MResSingle, MResMultiple, MResOptional)>,
+    Inp: Input<'src>,
     F: Fn(MResSingle::Output, MResMultiple, MResOptional) -> Out,
 {
-    type Output<'src> = Out;
+    type Output = Out;
     const CAN_FAIL: bool = Match::CAN_FAIL;
 
-    fn parse<'src>(
+    fn parse(
         &self,
         context: &mut ParserContext,
         error_handler: &mut impl ErrorHandler,
-        input: &mut InputStream<'src, InpFam::In<'src>>,
-    ) -> Result<Option<Self::Output<'src>>, FurthestFailError> {
+        input: &mut InputStream<'src, Inp>,
+    ) -> Result<Option<Self::Output>, FurthestFailError> {
         // let old_match_start = context.match_start;
         // context.match_start = *pos;
         if Match::CAN_MATCH_DIRECTLY {

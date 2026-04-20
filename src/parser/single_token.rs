@@ -5,7 +5,7 @@ use std::fmt::Debug;
 use crate::{
     context::ParserContext,
     error::{FurthestFailError, error_handler::ErrorHandler},
-    input::{InputFamily, InputStream},
+    input::{Input, InputStream},
 };
 
 /// Matches `token` and advances by one on success.
@@ -63,20 +63,17 @@ impl<Token> SingleTokenParser<Token> {
 //         }
 //     }
 // }
-impl<InpFam, Token: PartialEq + Clone + Debug> super::internal::ParserImpl<InpFam>
-    for SingleTokenParser<Token>
-where
-    InpFam: InputFamily + ?Sized,
-    for<'src> InpFam::In<'src>: crate::input::Input<'src, Token = Token>,
+impl<'src, Inp: Input<'src, Token = Token>, Token: PartialEq + Clone + Debug>
+    super::internal::ParserImpl<'src, Inp> for SingleTokenParser<Token>
 {
-    type Output<'src> = Token;
+    type Output = Token;
     const CAN_FAIL: bool = true;
-    fn parse<'src>(
+    fn parse(
         &self,
         _context: &mut ParserContext,
         _error_handler: &mut impl ErrorHandler,
-        input: &mut InputStream<'src, InpFam::In<'src>>,
-    ) -> Result<Option<Self::Output<'src>>, FurthestFailError> {
+        input: &mut InputStream<'src, Inp>,
+    ) -> Result<Option<Self::Output>, FurthestFailError> {
         let start = input.get_pos();
         if let Some(token) = input.next()
             && token == self.token
@@ -90,20 +87,16 @@ where
 
 // impl<Token, Label> MaybeLabel<Label> for SingleTokenParser<Token> {}
 
-impl<InpFam> super::internal::ParserImpl<InpFam> for char
-where
-    InpFam: InputFamily + ?Sized,
-    for<'src> InpFam::In<'src>: crate::input::Input<'src, Token = char>,
-{
-    type Output<'src> = char;
+impl<'src, Inp: Input<'src, Token = char>> super::internal::ParserImpl<'src, Inp> for char {
+    type Output = char;
     const CAN_FAIL: bool = true;
 
-    fn parse<'src>(
+    fn parse(
         &self,
         _context: &mut ParserContext,
         _error_handler: &mut impl ErrorHandler,
-        input: &mut InputStream<'src, InpFam::In<'src>>,
-    ) -> Result<Option<Self::Output<'src>>, FurthestFailError> {
+        input: &mut InputStream<'src, Inp>,
+    ) -> Result<Option<Self::Output>, FurthestFailError> {
         let start = input.get_pos();
         if let Some(token) = input.next()
             && token == *self

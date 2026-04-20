@@ -7,7 +7,7 @@ use crate::{
         FurthestFailError,
         error_handler::{ErrorHandler, MultiErrorHandler},
     },
-    input::{InputFamily, InputStream},
+    input::{Input, InputStream},
     matcher::{MatchRunner, Matcher, NoMemoizeBacktrackingRunner},
     parser::capture::MatchResult,
 };
@@ -28,12 +28,12 @@ impl<Commit, Match> CommitMatcher<Commit, Match> {
     }
 }
 
-impl<InpFam, MRes, CommitOn, ThenMatch> super::internal::MatcherImpl<InpFam, MRes>
+impl<'src, Inp: Input<'src>, MRes, CommitOn, ThenMatch> super::internal::MatcherImpl<'src, Inp, MRes>
     for CommitMatcher<CommitOn, ThenMatch>
 where
-    InpFam: InputFamily + ?Sized,
-    CommitOn: Matcher<InpFam, MRes>,
-    ThenMatch: Matcher<InpFam, MRes>,
+    CommitOn: Matcher<'src, Inp, MRes>,
+    ThenMatch: Matcher<'src, Inp, MRes>,
+    Inp: Input<'src>,
     MRes: MatchResult,
 {
     const CAN_MATCH_DIRECTLY: bool =
@@ -41,14 +41,14 @@ where
     const HAS_PROPERTY: bool = CommitOn::HAS_PROPERTY || ThenMatch::HAS_PROPERTY;
     const CAN_FAIL: bool = CommitOn::CAN_FAIL;
 
-    fn match_with_runner<'a, 'src, Runner>(
+    fn match_with_runner<'a, Runner>(
         &'a self,
         runner: &mut Runner,
         error_handler: &mut impl ErrorHandler,
-        input: &mut InputStream<'src, InpFam::In<'src>>,
+        input: &mut InputStream<'src, Inp>,
     ) -> Result<bool, FurthestFailError>
     where
-        Runner: MatchRunner<'a, 'src, InpFam, MRes = MRes>,
+        Runner: MatchRunner<'a, 'src, Inp, MRes = MRes>,
         'src: 'a,
     {
         if runner.run_match(&self.commit_on, error_handler, input)? {
@@ -58,7 +58,7 @@ where
 
             let mut error_handler = MultiErrorHandler::new(input.get_pos().into());
             // starting new runner to find the error. we can't use the same runner again because then the properties of the match result will be written twice.
-            let mut inner_runner: NoMemoizeBacktrackingRunner<'_, 'src, InpFam, MRes> =
+            let mut inner_runner: NoMemoizeBacktrackingRunner<'_, 'src, Inp, MRes> =
                 NoMemoizeBacktrackingRunner::new(runner.get_parser_context(), PhantomData::<&'src ()>);
             inner_runner.run_match(&self.then_matcher, &mut error_handler, input)?;
             let err = error_handler.to_parser_error();

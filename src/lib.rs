@@ -39,12 +39,12 @@ use crate::{
 /// On success returns the parsed output and any collected [`error::ParserError`] values.
 /// On hard failure returns [`error::FurthestFailError`]. For a custom token type or context,
 /// call `parse` on your [`parser::Parser`] implementation directly instead.
-pub fn parse<Pars, Out>(
+pub fn parse<'src, Pars, Out>(
     parser: Pars,
-    src: &str,
+    src: &'src str,
 ) -> Result<(Out, Vec<ParserError>), FurthestFailError>
 where
-    Pars: for<'src> Parser<str, Output<'src> = Out>,
+    Pars: Parser<'src, &'src str, Output = Out>,
 {
     let mut error_handler = EmptyErrorHandler;
     let mut context = ParserContext::new();
