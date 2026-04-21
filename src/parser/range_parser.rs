@@ -8,7 +8,7 @@ use std::{
 use crate::{
     context::ParserContext,
     error::{FurthestFailError, error_handler::ErrorHandler},
-    input::{Input, InputStream},
+    input::{Input, InputStream}, matcher::{MatchRunner, internal::MatcherImpl},
 };
 
 /// Named wrapper holding a [`RangeBounds`] value; accepts one in-range token (same idea as the [`Range`] / [`RangeInclusive`] impls below).
@@ -99,5 +99,61 @@ where
         }
         input.set_pos(old_pos);
         Ok(None)
+    }
+}
+
+impl<'src, Inp: Input<'src, Token = Token>, Token, MRes> MatcherImpl<'src, Inp, MRes> for Range<Token>
+where
+    Token: PartialOrd + Clone,
+    Range<Token>: Debug,
+{
+    const CAN_MATCH_DIRECTLY: bool = true;
+    const HAS_PROPERTY: bool = false;
+    const CAN_FAIL: bool = true;
+
+    fn match_with_runner<'a, Runner>(
+        &'a self,
+        runner: &mut Runner,
+        error_handler: &mut impl ErrorHandler,
+        input: &mut InputStream<'src, Inp>,
+    ) -> Result<bool, FurthestFailError>
+    where
+        Runner: MatchRunner<'a, 'src, Inp, MRes = MRes>,
+        'src: 'a,
+    {
+        if let Some(token) = input.next()
+            && self.contains(&token)
+        {
+            return Ok(true);
+        }
+        Ok(false)
+    }
+}
+
+impl<'src, Inp: Input<'src, Token = Token>, Token, MRes> MatcherImpl<'src, Inp, MRes> for RangeInclusive<Token>
+where
+    Token: PartialOrd + Clone,
+    Range<Token>: Debug,
+{
+    const CAN_MATCH_DIRECTLY: bool = true;
+    const HAS_PROPERTY: bool = false;
+    const CAN_FAIL: bool = true;
+
+    fn match_with_runner<'a, Runner>(
+        &'a self,
+        runner: &mut Runner,
+        error_handler: &mut impl ErrorHandler,
+        input: &mut InputStream<'src, Inp>,
+    ) -> Result<bool, FurthestFailError>
+    where
+        Runner: MatchRunner<'a, 'src, Inp, MRes = MRes>,
+        'src: 'a,
+    {
+        if let Some(token) = input.next()
+            && self.contains(&token)
+        {
+            return Ok(true);
+        }
+        Ok(false)
     }
 }
