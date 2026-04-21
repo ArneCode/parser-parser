@@ -179,6 +179,9 @@ impl MultiErrorHandler {
             annotations: ParserErrorAnnotations::default(),
         }
     }
+    pub fn write_stack_errors(self, ctx: &mut ParserContext) {
+        ctx.error_sink.extend(self.error_stack.into_iter());
+    }
 }
 
 impl Display for FurthestFailError {
@@ -201,6 +204,7 @@ impl Display for FurthestFailError {
 
 use std::fmt::{Debug, Formatter};
 
+use crate::context::ParserContext;
 use crate::error::{ExtraLabel, FurthestFailError, ParserError, ParserErrorAnnotations};
 
 impl Debug for ExtraLabel {

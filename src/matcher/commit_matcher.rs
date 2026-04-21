@@ -1,6 +1,6 @@
 //! Committing sequence: after `commit_on` succeeds, failure in `then_matcher` becomes a hard error.
 
-use std::marker::PhantomData;
+use std::{collections::HashMap, marker::PhantomData, mem::swap};
 
 use crate::{
     error::{
@@ -28,8 +28,8 @@ impl<Commit, Match> CommitMatcher<Commit, Match> {
     }
 }
 
-impl<'src, Inp: Input<'src>, MRes, CommitOn, ThenMatch> super::internal::MatcherImpl<'src, Inp, MRes>
-    for CommitMatcher<CommitOn, ThenMatch>
+impl<'src, Inp: Input<'src>, MRes, CommitOn, ThenMatch>
+    super::internal::MatcherImpl<'src, Inp, MRes> for CommitMatcher<CommitOn, ThenMatch>
 where
     CommitOn: Matcher<'src, Inp, MRes>,
     ThenMatch: Matcher<'src, Inp, MRes>,
@@ -58,11 +58,25 @@ where
 
             let mut error_handler = MultiErrorHandler::new(input.get_pos().into());
             // starting new runner to find the error. we can't use the same runner again because then the properties of the match result will be written twice.
+            let context = runner.get_parser_context();
+            // use empty cache so that every Symbol is explored fully, otherwise we might miss some errors due to memoization.
+            let mut cache = HashMap::new();
+            swap(&mut context.memo_table, &mut cache);
             let mut inner_runner: NoMemoizeBacktrackingRunner<'_, 'src, Inp, MRes> =
-                NoMemoizeBacktrackingRunner::new(runner.get_parser_context(), PhantomData::<&'src ()>);
-            inner_runner.run_match(&self.then_matcher, &mut error_handler, input)?;
-            let err = error_handler.to_parser_error();
-            return Err(err);
+                NoMemoizeBacktrackingRunner::new(context, PhantomData::<&'src ()>);
+            let result = inner_runner.run_match(&self.then_matcher, &mut error_handler, input)?;
+            drop(inner_runner);
+            // swap back cache so that the original runner can continue to use it.
+            swap(&mut context.memo_table, &mut cache);
+            if result {
+                // error recovery succeeded
+                // writing stack errors that have been fixed during recovery.
+                error_handler.write_stack_errors(context);
+                return Ok(true);
+            } else {
+                let err = error_handler.to_parser_error();
+                return Err(err);
+            }
         }
         Ok(false)
     }
