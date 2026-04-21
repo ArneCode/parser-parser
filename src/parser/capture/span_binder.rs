@@ -24,11 +24,12 @@ pub fn bind_span<Match, Prop>(matcher: Match, property: Prop) -> SpanBinder<Matc
     SpanBinder::new(matcher, property)
 }
 
-impl<'src, Inp: Input<'src>, MRes, Match, Prop> MatcherImpl<'src, Inp, MRes> for SpanBinder<Match, Prop>
+impl<'src, Inp: Input<'src>, MRes, Match, Prop> MatcherImpl<'src, Inp, MRes>
+    for SpanBinder<Match, Prop>
 where
     Match: Matcher<'src, Inp, MRes>,
     Inp: Input<'src>,
-    Prop: Property<(usize, usize), MRes> + Clone,
+    Prop: Property<(Inp::Pos, Inp::Pos), MRes> + Clone,
 {
     const CAN_MATCH_DIRECTLY: bool = Match::CAN_MATCH_DIRECTLY;
     const HAS_PROPERTY: bool = true;
@@ -44,12 +45,13 @@ where
         Runner: MatchRunner<'a, 'src, Inp, MRes = MRes>,
         'src: 'a,
     {
-        let start_pos: usize = input.get_pos().into();
+        let start_pos = input.get_pos();
         if !runner.run_match(&self.matcher, error_handler, input)? {
             return Ok(false);
         }
-        let end_pos: usize = input.get_pos().into();
-        let bound: BoundValue<(usize, usize), _> = self.property.bind_result((start_pos, end_pos));
+        let end_pos = input.get_pos();
+        let bound: BoundValue<(Inp::Pos, Inp::Pos), _> =
+            self.property.bind_result((start_pos, end_pos));
         runner.register_result(bound);
         Ok(true)
     }

@@ -295,9 +295,9 @@ pub fn capture(input: TokenStream) -> TokenStream {
             quote! { ::std::option::Option<_>          }
         };
         let span_ty = if is_vec {
-            quote! { ::std::vec::Vec<(usize, usize)> }
+            quote! { ::std::vec::Vec<(_, _)> }
         } else {
-            quote! { ::std::option::Option<(usize, usize)> }
+            quote! { ::std::option::Option<(_, _)> }
         };
 
         let val_types: Vec<_> = values.iter().map(|_| val_ty.clone()).collect();
