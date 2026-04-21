@@ -9,7 +9,7 @@ pub trait Input<'src> {
 
 pub trait SliceableInput<'src>: Input<'src> {
     type Slice: 'src;
-    fn slice(&self, range: Range<&Self::Pos>) -> Self::Slice;
+    fn slice(&self, range: Range<Self::Pos>) -> Self::Slice;
 }
 
 impl<'src> Input<'src> for &'src str {
@@ -31,8 +31,8 @@ impl<'src> Input<'src> for &'src str {
 impl<'src> SliceableInput<'src> for &'src str {
     type Slice = &'src str;
 
-    fn slice(&self, range: Range<&Self::Pos>) -> Self::Slice {
-        &self[*range.start..*range.end]
+    fn slice(&self, range: Range<Self::Pos>) -> Self::Slice {
+        &self[range.start..range.end]
     }
 }
 
@@ -58,8 +58,8 @@ impl<'src, T> Input<'src> for &'src [T] {
 impl<'src, T> SliceableInput<'src> for &'src [T] {
     type Slice = &'src [T];
 
-    fn slice(&self, range: Range<&Self::Pos>) -> Self::Slice {
-        &self[*range.start..*range.end]
+    fn slice(&self, range: Range<Self::Pos>) -> Self::Slice {
+        &self[range.start..range.end]
     }
 }
 
@@ -87,10 +87,10 @@ impl<'src, I: Input<'src>> InputStream<'src, I> {
         self.pos = pos;
     }
 
-    pub(crate) fn slice(&self, range: Range<&I::Pos>) -> Option<I::Slice>
+    pub(crate) fn slice(&self, range: Range<I::Pos>) -> I::Slice
     where
         I: SliceableInput<'src>,
     {
-        Some(self.input.slice(range))
+        self.input.slice(range)
     }
 }

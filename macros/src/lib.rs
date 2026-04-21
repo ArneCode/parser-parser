@@ -107,6 +107,26 @@ impl Parse for BindSpanInfo {
     }
 }
 
+/// `bind_slice!(parser, [*|?]slice_ident)` – binds only the consumed slice.
+struct BindSliceInfo {
+    parser: Expr,
+    slice_ident: Ident,
+    kind: BindKind,
+}
+
+impl Parse for BindSliceInfo {
+    fn parse(input: ParseStream) -> Result<Self> {
+        let parser: Expr = input.parse()?;
+        let _: Token![,] = input.parse()?;
+        let (kind, slice_ident) = parse_kind_and_ident(input)?;
+        Ok(BindSliceInfo {
+            parser,
+            slice_ident,
+            kind,
+        })
+    }
+}
+
 // ---------------------------------------------------------------------------
 // Visitor
 // ---------------------------------------------------------------------------
@@ -225,6 +245,20 @@ impl VisitMut for BindVisitor {
                     return;
                 }
             }
+
+            // ── bind_slice!(parser, [*|?]slice_ident) ───────────────────────
+            if m.mac.path.is_ident("bind_slice") {
+                if let Ok(info) = m.mac.parse_body::<BindSliceInfo>() {
+                    let slice_id = &info.slice_ident;
+                    let parser = &info.parser;
+
+                    self.register_value(slice_id.clone(), &info.kind);
+
+                    let marser = self.marser_path.clone();
+                    *i = parse_quote! { #marser::parser::capture::bind_slice(#parser, #slice_id.clone()) };
+                    return;
+                }
+            }
         }
         visit_mut::visit_expr_mut(self, i);
     }
@@ -255,6 +289,8 @@ impl VisitMut for BindVisitor {
 /// - **`bind!(parser, ident, *span_ident)`** (and `?` / `*` on the value) — value plus span tuple `(usize, usize)`.
 /// - **`bind_span!(parser, ident)`** / **`bind_span!(parser, *ident)`** / **`bind_span!(parser, ?ident)`** —
 ///   capture only a span (expands to `marser::parser::capture::bind_span`).
+/// - **`bind_slice!(parser, ident)`** / **`bind_slice!(parser, *ident)`** / **`bind_slice!(parser, ?ident)`** —
+///   capture only the consumed input slice (expands to `marser::parser::capture::bind_slice`).
 ///
 /// Each binding becomes a parameter to both the grammar closure and the result closure generated
 /// by this macro.
