@@ -9,7 +9,7 @@ use proc_macro2::Span;
 use quote::quote;
 use syn::parse::{Parse, ParseStream};
 use syn::visit_mut::{self, VisitMut};
-use syn::{Expr, Ident, Path, Result, Token, parse_macro_input, parse_quote};
+use syn::{Expr, Ident, Path, Result, Token, Type, parse_macro_input, parse_quote};
 
 // ---------------------------------------------------------------------------
 // Input structs
@@ -54,75 +54,101 @@ fn parse_kind_and_ident(input: ParseStream) -> Result<(BindKind, Ident)> {
     }
 }
 
-/// `bind!(parser, [*|?]ident [, [*|?]span_ident])`
+#[derive(Clone)]
+struct TypedBindTarget {
+    kind: BindKind,
+    ident: Ident,
+    ty: Option<Type>,
+}
+
+fn parse_typed_target(input: ParseStream) -> Result<TypedBindTarget> {
+    let (kind, ident) = parse_kind_and_ident(input)?;
+    let ty = if input.peek(Token![as]) {
+        input.parse::<Token![as]>()?;
+        Some(input.parse::<Type>()?)
+    } else {
+        None
+    };
+    Ok(TypedBindTarget { kind, ident, ty })
+}
+
+/// `bind!(parser, [*|?]ident [as Type] [, [*|?]span_ident [as Type]])`
 struct BindInfo {
     parser: Expr,
     ident: Ident,
     kind: BindKind,
+    value_ty: Option<Type>,
     span_ident: Option<Ident>,
     span_kind: Option<BindKind>,
+    span_ty: Option<Type>,
 }
 
 impl Parse for BindInfo {
     fn parse(input: ParseStream) -> Result<Self> {
         let parser: Expr = input.parse()?;
         let _: Token![,] = input.parse()?;
-        let (kind, ident) = parse_kind_and_ident(input)?;
+        let value_target = parse_typed_target(input)?;
 
-        let (span_ident, span_kind) = if input.peek(Token![,]) {
+        let (span_ident, span_kind, span_ty) = if input.peek(Token![,]) {
             let _: Token![,] = input.parse()?;
-            let (sk, si) = parse_kind_and_ident(input)?;
-            (Some(si), Some(sk))
+            let span_target = parse_typed_target(input)?;
+            (Some(span_target.ident), Some(span_target.kind), span_target.ty)
         } else {
-            (None, None)
+            (None, None, None)
         };
 
         Ok(BindInfo {
             parser,
-            ident,
-            kind,
+            ident: value_target.ident,
+            kind: value_target.kind,
+            value_ty: value_target.ty,
             span_ident,
             span_kind,
+            span_ty,
         })
     }
 }
 
-/// `bind_span!(parser, [*|?]span_ident)` – binds only the span, no value capture.
+/// `bind_span!(parser, [*|?]span_ident [as Type])` – binds only the span, no value capture.
 struct BindSpanInfo {
     parser: Expr,
     span_ident: Ident,
     kind: BindKind,
+    ty: Option<Type>,
 }
 
 impl Parse for BindSpanInfo {
     fn parse(input: ParseStream) -> Result<Self> {
         let parser: Expr = input.parse()?;
         let _: Token![,] = input.parse()?;
-        let (kind, span_ident) = parse_kind_and_ident(input)?;
+        let target = parse_typed_target(input)?;
         Ok(BindSpanInfo {
             parser,
-            span_ident,
-            kind,
+            span_ident: target.ident,
+            kind: target.kind,
+            ty: target.ty,
         })
     }
 }
 
-/// `bind_slice!(parser, [*|?]slice_ident)` – binds only the consumed slice.
+/// `bind_slice!(parser, [*|?]slice_ident [as Type])` – binds only the consumed slice.
 struct BindSliceInfo {
     parser: Expr,
     slice_ident: Ident,
     kind: BindKind,
+    ty: Option<Type>,
 }
 
 impl Parse for BindSliceInfo {
     fn parse(input: ParseStream) -> Result<Self> {
         let parser: Expr = input.parse()?;
         let _: Token![,] = input.parse()?;
-        let (kind, slice_ident) = parse_kind_and_ident(input)?;
+        let target = parse_typed_target(input)?;
         Ok(BindSliceInfo {
             parser,
-            slice_ident,
-            kind,
+            slice_ident: target.ident,
+            kind: target.kind,
+            ty: target.ty,
         })
     }
 }
@@ -136,14 +162,20 @@ impl Parse for BindSliceInfo {
 struct BindVisitor {
     marser_path: Path,
     // Singles (Option<_> / Option<Span>)
-    single_values: Vec<Ident>,
-    single_spans: Vec<Ident>,
+    single_values: Vec<TypedBinding>,
+    single_spans: Vec<TypedBinding>,
     // Multiples (Vec<_> / Vec<Span>)
-    multiple_values: Vec<Ident>,
-    multiple_spans: Vec<Ident>,
+    multiple_values: Vec<TypedBinding>,
+    multiple_spans: Vec<TypedBinding>,
     // Optionals (Option<_> / Option<Span>)
-    optional_values: Vec<Ident>,
-    optional_spans: Vec<Ident>,
+    optional_values: Vec<TypedBinding>,
+    optional_spans: Vec<TypedBinding>,
+}
+
+#[derive(Clone)]
+struct TypedBinding {
+    ident: Ident,
+    ty: Option<Type>,
 }
 
 impl BindVisitor {
@@ -159,25 +191,25 @@ impl BindVisitor {
         }
     }
 
-    fn push_unique(list: &mut Vec<Ident>, ident: Ident) {
-        if !list.contains(&ident) {
-            list.push(ident);
+    fn push_unique(list: &mut Vec<TypedBinding>, ident: Ident, ty: Option<Type>) {
+        if list.iter().all(|entry| entry.ident != ident) {
+            list.push(TypedBinding { ident, ty });
         }
     }
 
-    fn register_value(&mut self, ident: Ident, kind: &BindKind) {
+    fn register_value(&mut self, ident: Ident, ty: Option<Type>, kind: &BindKind) {
         match kind {
-            BindKind::Single => Self::push_unique(&mut self.single_values, ident),
-            BindKind::Multiple => Self::push_unique(&mut self.multiple_values, ident),
-            BindKind::Optional => Self::push_unique(&mut self.optional_values, ident),
+            BindKind::Single => Self::push_unique(&mut self.single_values, ident, ty),
+            BindKind::Multiple => Self::push_unique(&mut self.multiple_values, ident, ty),
+            BindKind::Optional => Self::push_unique(&mut self.optional_values, ident, ty),
         }
     }
 
-    fn register_span(&mut self, ident: Ident, kind: &BindKind) {
+    fn register_span(&mut self, ident: Ident, ty: Option<Type>, kind: &BindKind) {
         match kind {
-            BindKind::Single => Self::push_unique(&mut self.single_spans, ident),
-            BindKind::Multiple => Self::push_unique(&mut self.multiple_spans, ident),
-            BindKind::Optional => Self::push_unique(&mut self.optional_spans, ident),
+            BindKind::Single => Self::push_unique(&mut self.single_spans, ident, ty),
+            BindKind::Multiple => Self::push_unique(&mut self.multiple_spans, ident, ty),
+            BindKind::Optional => Self::push_unique(&mut self.optional_spans, ident, ty),
         }
     }
 }
@@ -191,12 +223,12 @@ impl VisitMut for BindVisitor {
                     let id = &info.ident;
                     let parser = &info.parser;
 
-                    self.register_value(id.clone(), &info.kind);
+                    self.register_value(id.clone(), info.value_ty.clone(), &info.kind);
 
                     *i = if let Some(span_id) = &info.span_ident {
                         let marser = self.marser_path.clone();
                         let span_kind = info.span_kind.as_ref().unwrap();
-                        self.register_span(span_id.clone(), span_kind);
+                        self.register_span(span_id.clone(), info.span_ty.clone(), span_kind);
                         // wrap: bind_span( bind_result(parser, id), span_id )
                         parse_quote! {
                             #marser::parser::capture::bind_span(
@@ -238,7 +270,7 @@ impl VisitMut for BindVisitor {
                     let span_id = &info.span_ident;
                     let parser = &info.parser;
 
-                    self.register_span(span_id.clone(), &info.kind);
+                    self.register_span(span_id.clone(), info.ty.clone(), &info.kind);
 
                     let marser = self.marser_path.clone();
                     *i = parse_quote! { #marser::parser::capture::bind_span(#parser, #span_id.clone()) };
@@ -252,7 +284,7 @@ impl VisitMut for BindVisitor {
                     let slice_id = &info.slice_ident;
                     let parser = &info.parser;
 
-                    self.register_value(slice_id.clone(), &info.kind);
+                    self.register_value(slice_id.clone(), info.ty.clone(), &info.kind);
 
                     let marser = self.marser_path.clone();
                     *i = parse_quote! { #marser::parser::capture::bind_slice(#parser, #slice_id.clone()) };
@@ -286,10 +318,12 @@ impl VisitMut for BindVisitor {
 /// - **`bind!(parser, ident)`** — single capture into `ident` (`Option<_>` in the bucket).
 /// - **`bind!(parser, *ident)`** — repeated capture into `ident` (`Vec<_>`).
 /// - **`bind!(parser, ?ident)`** — optional capture (`Option<_>`).
-/// - **`bind!(parser, ident, *span_ident)`** (and `?` / `*` on the value) — value plus span tuple `(usize, usize)`.
-/// - **`bind_span!(parser, ident)`** / **`bind_span!(parser, *ident)`** / **`bind_span!(parser, ?ident)`** —
+/// - **`bind!(parser, ident as T)`** / **`bind!(parser, *ident as T)`** / **`bind!(parser, ?ident as T)`** —
+///   typed captures. With `*` / `?`, the sigil still wraps `T` (Option A semantics).
+/// - **`bind!(parser, ident [as T], *span_ident [as U])`** (and `?` / `*` on the value) — value plus span capture.
+/// - **`bind_span!(parser, ident)`** / **`bind_span!(parser, *ident)`** / **`bind_span!(parser, ?ident)`** / **`bind_span!(parser, ident as T)`** —
 ///   capture only a span (expands to `marser::parser::capture::bind_span`).
-/// - **`bind_slice!(parser, ident)`** / **`bind_slice!(parser, *ident)`** / **`bind_slice!(parser, ?ident)`** —
+/// - **`bind_slice!(parser, ident)`** / **`bind_slice!(parser, *ident)`** / **`bind_slice!(parser, ?ident)`** / **`bind_slice!(parser, ident as T)`** —
 ///   capture only the consumed input slice (expands to `marser::parser::capture::bind_slice`).
 ///
 /// Each binding becomes a parameter to both the grammar closure and the result closure generated
@@ -312,8 +346,8 @@ pub fn capture(input: TokenStream) -> TokenStream {
 
     // Build `(ident0, ident1, …)` pattern for a bucket.
     // Values always come first, spans are appended afterwards.
-    let pat_tuple = |values: &[Ident], spans: &[Ident]| {
-        let all: Vec<_> = values.iter().chain(spans.iter()).collect();
+    let pat_tuple = |values: &[TypedBinding], spans: &[TypedBinding]| {
+        let all: Vec<_> = values.iter().chain(spans.iter()).map(|x| &x.ident).collect();
         if all.is_empty() {
             quote! { () }
         } else {
@@ -324,20 +358,37 @@ pub fn capture(input: TokenStream) -> TokenStream {
     // Build the corresponding type tuple.
     //   Values → Option<_>  / Vec<_>
     //   Spans  → Option<span::Span> / Vec<span::Span>
-    let type_tuple = |values: &[Ident], spans: &[Ident], is_vec: bool| {
-        let val_ty = if is_vec {
-            quote! { ::std::vec::Vec<_> }
-        } else {
-            quote! { ::std::option::Option<_>          }
-        };
-        let span_ty = if is_vec {
-            quote! { ::std::vec::Vec<(_, _)> }
-        } else {
-            quote! { ::std::option::Option<(_, _)> }
+    let type_tuple = |values: &[TypedBinding], spans: &[TypedBinding], is_vec: bool| {
+        let wrap = |inner: proc_macro2::TokenStream| {
+            if is_vec {
+                quote! { ::std::vec::Vec<#inner> }
+            } else {
+                quote! { ::std::option::Option<#inner> }
+            }
         };
 
-        let val_types: Vec<_> = values.iter().map(|_| val_ty.clone()).collect();
-        let span_types: Vec<_> = spans.iter().map(|_| span_ty.clone()).collect();
+        let val_types: Vec<_> = values
+            .iter()
+            .map(|binding| {
+                let inner = if let Some(ty) = &binding.ty {
+                    quote! { #ty }
+                } else {
+                    quote! { _ }
+                };
+                wrap(inner)
+            })
+            .collect();
+        let span_types: Vec<_> = spans
+            .iter()
+            .map(|binding| {
+                let inner = if let Some(ty) = &binding.ty {
+                    quote! { #ty }
+                } else {
+                    quote! { (_, _) }
+                };
+                wrap(inner)
+            })
+            .collect();
         let all: Vec<_> = val_types.into_iter().chain(span_types).collect();
 
         if all.is_empty() {
