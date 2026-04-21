@@ -1,4 +1,4 @@
-use std::{collections::HashMap, rc::Rc};
+use std::{collections::HashMap, env, fs, process, rc::Rc};
 
 use marser_macros::capture;
 
@@ -55,29 +55,25 @@ pub fn get_json_grammar<'src>() -> impl Parser<'src, &'src str, Output = JsonVal
         let bool_true = capture!(("true", ws.clone())  => JsonValue::Boolean(true) );
         let boolean = one_of((bool_true, bool_false));
 
-        let number = capture!((
-            optional(bind!('-', *digits)),
-            one_of((
-                bind!('0', *digits),
-                (
-                    bind!('1'..='9', *digits),
-                    many(bind!('0'..='9', *digits))
-                )
-            )),
-            optional((
-                bind!('.', *digits), one_or_more(bind!('0'..='9', *digits))
-            )),
-            optional((
-                bind!(one_of(('e', 'E')), *digits),
-                optional(bind!(one_of(('+', '-')), *digits)),
-                one_or_more(bind!('0'..='9', *digits))
-            )),
-            ws.clone()
-        )
-         => {
-            let s: String = digits.into_iter().collect();
-            JsonValue::Number(s.parse().unwrap_or(0.0))
-        });
+        let number = capture!(
+            bind_slice!((
+                optional('-'),
+                one_of((
+                    '0',
+                    ('1'..='9',many('0'..='9'))
+                )),
+                optional((
+                    '.', one_or_more('0'..='9')
+                )),
+                optional((
+                    one_of(('e', 'E')),
+                    optional(one_of(('+', '-'))),
+                    one_or_more('0'..='9')
+                ))
+            ), slice as &str) => {
+                JsonValue::Number(slice.parse().unwrap_or(0.0))
+            }
+        );
 
         let character = Rc::new(TokenParser::new(
             |c| *c != '"' && *c != '\\' && (*c as u32) >= 0x20,
@@ -188,15 +184,34 @@ pub fn get_json_grammar<'src>() -> impl Parser<'src, &'src str, Output = JsonVal
 }
 
 fn main() {
+    let mut args = env::args();
+    let program = args.next().unwrap_or_else(|| "json".to_string());
+    let Some(path) = args.next() else {
+        eprintln!("Usage: {program} <path-to-json-file>");
+        process::exit(2);
+    };
+
+    if args.next().is_some() {
+        eprintln!("Usage: {program} <path-to-json-file>");
+        process::exit(2);
+    }
+
+    let sample = match fs::read_to_string(&path) {
+        Ok(content) => content,
+        Err(err) => {
+            eprintln!("Failed to read '{path}': {err}");
+            process::exit(1);
+        }
+    };
+
     let parser = get_json_grammar();
-    let sample = r#"{"hello": ["world", 42, true]}"#;
-    match marser::parse(parser, sample) {
+    match marser::parse(parser, sample.as_str()) {
         Ok((value, warnings)) => {
-            println!("Parsed value: {value:?}");
+            println!("{}", value.serialize());
             if !warnings.is_empty() {
                 println!("Warnings: {}", warnings.len());
             }
         }
-        Err(err) => err.eprint_ariadne("example.json", sample),
+        Err(err) => err.eprint_ariadne(path.as_str(), sample.as_str()),
     }
 }
