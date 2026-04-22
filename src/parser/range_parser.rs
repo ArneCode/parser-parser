@@ -113,8 +113,8 @@ where
 
     fn match_with_runner<'a, Runner>(
         &'a self,
-        runner: &mut Runner,
-        error_handler: &mut impl ErrorHandler,
+        _runner: &mut Runner,
+        _error_handler: &mut impl ErrorHandler,
         input: &mut InputStream<'src, Inp>,
     ) -> Result<bool, FurthestFailError>
     where
@@ -147,8 +147,8 @@ where
 
     fn match_with_runner<'a, Runner>(
         &'a self,
-        runner: &mut Runner,
-        error_handler: &mut impl ErrorHandler,
+        _runner: &mut Runner,
+        _error_handler: &mut impl ErrorHandler,
         input: &mut InputStream<'src, Inp>,
     ) -> Result<bool, FurthestFailError>
     where

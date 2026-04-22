@@ -71,7 +71,7 @@ where
         *property_slot = Some(value);
     }
 
-    fn remove_from_result(&self, result: &mut MRes, debug: Option<BindDebugInfo>) {
+    fn remove_from_result(&self, result: &mut MRes, _debug: Option<BindDebugInfo>) {
         let property_slot = (self.setter)(result.single());
         if property_slot.is_some() {
             *property_slot = None;
@@ -144,7 +144,7 @@ where
         *property_slot = Some(value);
     }
 
-    fn remove_from_result(&self, result: &mut MRes, debug: Option<BindDebugInfo>) {
+    fn remove_from_result(&self, result: &mut MRes, _debug: Option<BindDebugInfo>) {
         let property_slot = (self.setter)(result.optional());
         if property_slot.is_some() {
             *property_slot = None;

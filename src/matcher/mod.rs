@@ -47,7 +47,6 @@ use std::{fmt::Display, ops::Deref, rc::Rc};
 use crate::{
     error::{FurthestFailError, error_handler::ErrorHandler},
     input::{Input, InputStream},
-    parser::Parser,
 };
 
 pub(crate) mod internal {

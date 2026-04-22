@@ -1,6 +1,5 @@
 //! Enrich [`crate::error::FurthestFailError`] from `happy_matcher` using a small [`crate::parser::Parser`] callback.
 
-use std::marker::PhantomData;
 
 use crate::{
     context::ParserContext, error::{FurthestFailError, error_handler::ErrorHandler}, input::{Input, InputStream}, matcher::{MatchRunner, Matcher, MatcherCombinator}, parser::{Parser, ParserCombinator, internal::ParserImpl}
@@ -19,7 +18,7 @@ impl<Matcher, Pars> ErrorContextualizer<Matcher, Pars> {
     /// See [`crate::matcher::Matcher::add_error_info`].
     pub fn new(happy: Matcher, error_parser: Pars) -> Self {
         Self {
-            happy: happy,
+            happy,
             error_parser,
         }
     }

@@ -1,6 +1,15 @@
 //! User-facing parse errors and pretty-printing via [ariadne](https://docs.rs/ariadne) and [miette](https://docs.rs/miette).
 
 use ariadne::{Color, Label, Report, ReportKind, Source};
+use annotate_snippets::{
+    AnnotationKind as SnippetAnnotationKind, Level as SnippetLevel, Renderer as SnippetRenderer,
+    Snippet,
+};
+use codespan_reporting::{
+    diagnostic::{Diagnostic, Label as CodespanLabel},
+    files::SimpleFile,
+    term::{Config as CodespanConfig, emit_to_io_write},
+};
 use miette::{
     GraphicalReportHandler, LabeledSpan, MietteDiagnostic, NamedSource, Report as MietteReport,
 };
@@ -38,6 +47,339 @@ impl ParserError {
             ParserError::Missing(err) => err.eprint(source_id, source_text),
             ParserError::Unwanted(err) => err.eprint(source_id, source_text),
         }
+    }
+
+    /// Print a single ariadne report containing all supplied parser errors.
+    pub fn eprint_many(errors: &[ParserError], source_id: &str, source_text: &str) {
+        if errors.is_empty() {
+            return;
+        }
+
+        Self::build_many_report(errors, source_id, source_text)
+            .finish()
+            .eprint((source_id, Source::from(source_text)))
+            .unwrap();
+    }
+
+    /// Write a single ariadne report containing all supplied parser errors.
+    pub fn write_many(
+        errors: &[ParserError],
+        source_id: &str,
+        source_text: &str,
+        sink: impl std::io::Write,
+    ) {
+        if errors.is_empty() {
+            return;
+        }
+
+        Self::build_many_report(errors, source_id, source_text)
+            .finish()
+            .write((source_id, Source::from(source_text)), sink)
+            .unwrap();
+    }
+
+    /// Print a single miette report containing all supplied parser errors.
+    pub fn eprint_many_miette(errors: &[ParserError], source_id: &str, source_text: &str) {
+        if errors.is_empty() {
+            return;
+        }
+
+        let mut output = String::new();
+        Self::render_many_miette_into(errors, &mut output, source_id, source_text);
+        eprint!("{}", output);
+    }
+
+    /// Write a single miette report containing all supplied parser errors.
+    pub fn write_many_miette(
+        errors: &[ParserError],
+        source_id: &str,
+        source_text: &str,
+        mut sink: impl std::io::Write,
+    ) {
+        if errors.is_empty() {
+            return;
+        }
+
+        let mut output = String::new();
+        Self::render_many_miette_into(errors, &mut output, source_id, source_text);
+        sink.write_all(output.as_bytes()).unwrap();
+    }
+
+    /// Print a single annotate-snippets report containing all supplied parser errors.
+    pub fn eprint_many_annotate_snippets(
+        errors: &[ParserError],
+        source_id: &str,
+        source_text: &str,
+    ) {
+        if errors.is_empty() {
+            return;
+        }
+
+        let mut output = String::new();
+        Self::render_many_annotate_snippets_into(errors, &mut output, source_id, source_text);
+        eprint!("{}", output);
+    }
+
+    /// Write a single annotate-snippets report containing all supplied parser errors.
+    pub fn write_many_annotate_snippets(
+        errors: &[ParserError],
+        source_id: &str,
+        source_text: &str,
+        mut sink: impl std::io::Write,
+    ) {
+        if errors.is_empty() {
+            return;
+        }
+
+        let mut output = String::new();
+        Self::render_many_annotate_snippets_into(errors, &mut output, source_id, source_text);
+        sink.write_all(output.as_bytes()).unwrap();
+    }
+
+    /// Print a single codespan-reporting report containing all supplied parser errors.
+    pub fn eprint_many_codespan(errors: &[ParserError], source_id: &str, source_text: &str) {
+        if errors.is_empty() {
+            return;
+        }
+
+        let mut output = Vec::new();
+        Self::render_many_codespan_into(errors, &mut output, source_id, source_text);
+        eprint!("{}", String::from_utf8_lossy(&output));
+    }
+
+    /// Write a single codespan-reporting report containing all supplied parser errors.
+    pub fn write_many_codespan(
+        errors: &[ParserError],
+        source_id: &str,
+        source_text: &str,
+        mut sink: impl std::io::Write,
+    ) {
+        if errors.is_empty() {
+            return;
+        }
+
+        let mut output = Vec::new();
+        Self::render_many_codespan_into(errors, &mut output, source_id, source_text);
+        sink.write_all(&output).unwrap();
+    }
+
+    fn build_many_report<'s>(
+        errors: &[ParserError],
+        source_id: &'s str,
+        source_text: &str,
+    ) -> ariadne::ReportBuilder<'s, (&'s str, std::ops::Range<usize>)> {
+        let anchor = errors
+            .iter()
+            .map(|error| error.span())
+            .min_by_key(|(start, _)| *start)
+            .unwrap_or((0, 0));
+
+        let anchor_range = Self::normalized_span(anchor, source_text.len());
+        let mut report = Report::build(ReportKind::Error, (source_id, anchor_range))
+            .with_message("Parse Errors");
+
+        for error in errors {
+            let span = Self::normalized_span(error.span(), source_text.len());
+            report = report.with_label(
+                Label::new((source_id, span.clone()))
+                    .with_message(error.main_message(source_text))
+                    .with_color(Color::Red)
+                    // .with_order(span.start as i32),
+            );
+
+            if let ParserError::FurthestFail(furthest_fail) = error {
+                for label in &furthest_fail.annotations.extra_labels {
+                    let label_span = Self::normalized_span(label.span, source_text.len());
+                    report = report.with_label(
+                        Label::new((source_id, label_span.clone()))
+                            .with_message(label.message.clone())
+                            .with_color(label.color)
+                            // .with_order(label_span.start as i32),
+                    );
+                }
+
+                for note in &furthest_fail.annotations.notes {
+                    report = report.with_note(note.clone());
+                }
+
+                for help in &furthest_fail.annotations.help {
+                    report = report.with_help(help.clone());
+                }
+            }
+        }
+
+        report
+    }
+
+    fn render_many_miette_into(
+        errors: &[ParserError],
+        out: &mut String,
+        source_id: &str,
+        source_text: &str,
+    ) {
+        let mut labels = Vec::new();
+        let mut notes = Vec::new();
+        let mut help = Vec::new();
+
+        for error in errors {
+            let span = Self::normalized_span(error.span(), source_text.len());
+            if labels.is_empty() {
+                labels.push(LabeledSpan::new_primary_with_span(
+                    Some(error.main_message(source_text)),
+                    span.clone(),
+                ));
+            } else {
+                labels.push(LabeledSpan::at(span.clone(), error.main_message(source_text)));
+            }
+
+            if let ParserError::FurthestFail(furthest_fail) = error {
+                for label in &furthest_fail.annotations.extra_labels {
+                    let label_span = Self::normalized_span(label.span, source_text.len());
+                    labels.push(LabeledSpan::at(label_span, label.message.clone()));
+                }
+                notes.extend(furthest_fail.annotations.notes.iter().cloned());
+                help.extend(furthest_fail.annotations.help.iter().cloned());
+            }
+        }
+
+        let mut diag = MietteDiagnostic::new("Parse Errors").with_labels(labels);
+        let combined_help = notes
+            .into_iter()
+            .map(|note| format!("note: {}", note))
+            .chain(help)
+            .collect::<Vec<_>>()
+            .join("\n");
+        if !combined_help.is_empty() {
+            diag = diag.with_help(combined_help);
+        }
+
+        let report = MietteReport::new(diag)
+            .with_source_code(NamedSource::new(source_id, source_text.to_string()));
+        let handler = GraphicalReportHandler::new().with_context_lines(1);
+        handler.render_report(out, report.as_ref()).unwrap();
+    }
+
+    fn render_many_annotate_snippets_into(
+        errors: &[ParserError],
+        out: &mut String,
+        source_id: &str,
+        source_text: &str,
+    ) {
+        let mut snippet = Snippet::source(source_text).path(source_id).line_start(1);
+        let mut notes = Vec::new();
+        let mut help = Vec::new();
+        for (idx, error) in errors.iter().enumerate() {
+            let span = Self::normalized_span(error.span(), source_text.len());
+            let kind = if idx == 0 {
+                SnippetAnnotationKind::Primary
+            } else {
+                SnippetAnnotationKind::Context
+            };
+            snippet = snippet.annotation(
+                kind.span(span).label(error.main_message(source_text)),
+            );
+
+            if let ParserError::FurthestFail(furthest_fail) = error {
+                for label in &furthest_fail.annotations.extra_labels {
+                    let label_span = Self::normalized_span(label.span, source_text.len());
+                    snippet = snippet.annotation(
+                        SnippetAnnotationKind::Context
+                            .span(label_span)
+                            .label(label.message.clone()),
+                    );
+                }
+                notes.extend(furthest_fail.annotations.notes.iter().cloned());
+                help.extend(furthest_fail.annotations.help.iter().cloned());
+            }
+        }
+
+        let mut group = SnippetLevel::ERROR
+            .primary_title("Parse Errors")
+            .element(snippet);
+
+        for note in notes {
+            group = group.element(SnippetLevel::NOTE.message(note));
+        }
+        for help_line in help {
+            group = group.element(SnippetLevel::HELP.message(help_line));
+        }
+        let report = [group];
+
+        let rendered = SnippetRenderer::styled().render(&report).to_string();
+        out.push_str(&rendered);
+        if !rendered.ends_with('\n') {
+            out.push('\n');
+        }
+    }
+
+    fn render_many_codespan_into(
+        errors: &[ParserError],
+        out: &mut Vec<u8>,
+        source_id: &str,
+        source_text: &str,
+    ) {
+        let mut labels = Vec::new();
+        let mut notes = Vec::new();
+
+        for (idx, error) in errors.iter().enumerate() {
+            let span = Self::normalized_span(error.span(), source_text.len());
+            let range = span.start..span.end;
+            let label = if idx == 0 {
+                CodespanLabel::primary((), range).with_message(error.main_message(source_text))
+            } else {
+                CodespanLabel::secondary((), range).with_message(error.main_message(source_text))
+            };
+            labels.push(label);
+
+            if let ParserError::FurthestFail(furthest_fail) = error {
+                for label in &furthest_fail.annotations.extra_labels {
+                    let label_span = Self::normalized_span(label.span, source_text.len());
+                    labels.push(
+                        CodespanLabel::secondary((), label_span.start..label_span.end)
+                            .with_message(label.message.clone()),
+                    );
+                }
+                notes.extend(
+                    furthest_fail
+                        .annotations
+                        .notes
+                        .iter()
+                        .map(|note| format!("note: {}", note)),
+                );
+                notes.extend(furthest_fail.annotations.help.iter().cloned());
+            }
+        }
+
+        let diagnostic = Diagnostic::error()
+            .with_message("Parse Errors")
+            .with_labels(labels)
+            .with_notes(notes);
+        let file = SimpleFile::new(source_id, source_text);
+        let config = CodespanConfig::default();
+        emit_to_io_write(out, &config, &file, &diagnostic).unwrap();
+    }
+
+    fn span(&self) -> (usize, usize) {
+        match self {
+            ParserError::FurthestFail(error) => error.span,
+            ParserError::Missing(error) => error.span,
+            ParserError::Unwanted(error) => error.span,
+        }
+    }
+
+    fn main_message(&self, source_text: &str) -> String {
+        match self {
+            ParserError::FurthestFail(error) => error.main_message(source_text),
+            ParserError::Missing(error) => error.message.clone(),
+            ParserError::Unwanted(error) => error.message.clone(),
+        }
+    }
+
+    fn normalized_span(span: (usize, usize), source_len: usize) -> std::ops::Range<usize> {
+        let start = span.0.min(source_len);
+        let end = span.1.min(source_len);
+
+        start..end
     }
 }
 
@@ -181,7 +523,7 @@ impl FurthestFailError {
 
     // ── private helpers ───────────────────────────────────────────────────────
 
-    fn main_message(&self, source_text: &str) -> String {
+    pub(crate) fn main_message(&self, source_text: &str) -> String {
         let found = source_text
             .get(self.span.0..self.span.1)
             .filter(|s| !s.is_empty())

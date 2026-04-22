@@ -92,21 +92,21 @@ impl MatchResultSingle for () {
     fn new() -> Self {}
     fn new_properties() -> Self::Properties {}
     fn to_output(self) -> Self::Output {}
-    fn subtract_from_result(&self, result: &mut Self) {}
+    fn subtract_from_result(&self, _result: &mut Self) {}
 }
 
 impl MatchResultMultiple for () {
     type Properties = ();
     fn new() -> Self {}
     fn new_properties() -> Self::Properties {}
-    fn subtract_from_result(&self, result: &mut Self) {}
+    fn subtract_from_result(&self, _result: &mut Self) {}
 }
 
 impl MatchResultOptional for () {
     type Properties = ();
     fn new() -> Self {}
     fn new_properties() -> Self::Properties {}
-    fn subtract_from_result(&self, result: &mut Self) {}
+    fn subtract_from_result(&self, _result: &mut Self) {}
 }
 
 fn unwrap_single<T>(option: Option<T>) -> T {

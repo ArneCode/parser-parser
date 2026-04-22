@@ -3,10 +3,10 @@ use std::{collections::HashMap, env, fs, process, rc::Rc};
 use marser_macros::capture;
 
 use marser::{
-    error::FurthestFailError,
+    error::{FurthestFailError, ParserError},
     label::WithLabel,
     matcher::{
-        ErrorContextualizer, Matcher, MatcherCombinator, commit_matcher::commit_on, multiple::many,
+        MatcherCombinator, commit_matcher::commit_on, multiple::many,
         negative_lookahead, one_or_more::one_or_more, optional::optional, positive_lookahead,
         unwanted::unwanted,
     },
@@ -225,7 +225,7 @@ pub fn get_json_grammar<'src>() -> impl Parser<'src, &'src str, Output = JsonVal
                         bind!(element.clone(), *elements)
                     ))
                 )), ws.clone(), unwanted(',', "trailing comma"), ws.clone(),
-                ']', ws.clone()
+                ']'.try_insert_if_missing("missing closing ']'"), ws.clone()
             ))
         } =>  {
             JsonValue::Array(elements)
@@ -299,9 +299,14 @@ fn main() {
     let parser = get_json_grammar();
     match marser::parse(parser, sample.as_str()) {
         Ok((value, errors)) => {
-            for error in errors {
-                error.eprint(path.as_str(), sample.as_str());
-            }
+            // eprintln!("--- Ariadne ---");
+            // ParserError::eprint_many(&errors, path.as_str(), sample.as_str());
+            eprintln!("--- Miette ---");
+            ParserError::eprint_many_miette(&errors, path.as_str(), sample.as_str());
+            // eprintln!("--- annotate-snippets ---");
+            // ParserError::eprint_many_annotate_snippets(&errors, path.as_str(), sample.as_str());
+            // eprintln!("--- codespan-reporting ---");
+            // ParserError::eprint_many_codespan(&errors, path.as_str(), sample.as_str());
             println!("{}", value.serialize_pretty());
         }
         Err(err) => err.eprint_ariadne(path.as_str(), sample.as_str()),

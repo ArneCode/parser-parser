@@ -61,7 +61,7 @@ where
 
     fn get_match_result(self) -> Self::MRes;
 
-    fn get_parser_context<'b>(&'b mut self) -> &'b mut ParserContext;
+    fn get_parser_context(&mut self) -> &mut ParserContext;
 
     fn apply_results(&mut self, results: Vec<Box<dyn BoundResult<Self::MRes> + 'src>>);
     fn maybe_get_as_direct_match_runner(&mut self) -> Option<&mut DirectMatchRunner<'a, 'src, Inp, Self::MRes>>{
@@ -131,7 +131,7 @@ where
         mres
     }
 
-    fn get_parser_context<'b>(&'b mut self) -> &'b mut ParserContext {
+    fn get_parser_context(&mut self) -> &mut ParserContext {
         self.parser_context
     }
 
@@ -179,7 +179,7 @@ where
         'src: 'a,
         Self: Sized,
     {
-        return matcher.match_with_runner(self, error_handler, input);
+        matcher.match_with_runner(self, error_handler, input)
     }
 
     fn register_result<Res: BoundResult<Self::MRes> + 'src>(&mut self, result: Res) {
@@ -190,7 +190,7 @@ where
         self.result
     }
 
-    fn get_parser_context<'b>(&'b mut self) -> &'b mut ParserContext {
+    fn get_parser_context(&mut self) -> &mut ParserContext {
         self.parser_context
     }
 

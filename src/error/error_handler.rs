@@ -180,7 +180,7 @@ impl MultiErrorHandler {
         }
     }
     pub fn write_stack_errors(self, ctx: &mut ParserContext) {
-        ctx.error_sink.extend(self.error_stack.into_iter());
+        ctx.error_sink.extend(self.error_stack);
     }
 }
 

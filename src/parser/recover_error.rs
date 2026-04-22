@@ -1,6 +1,6 @@
 //! Error recovery: if the inner parser fails with [`crate::error::FurthestFailError`], try an alternate matcher.
 
-use std::{marker::PhantomData, sync::atomic::{AtomicUsize, Ordering}};
+use std::sync::atomic::{AtomicUsize, Ordering};
 
 use crate::{
     context::ParserContext,

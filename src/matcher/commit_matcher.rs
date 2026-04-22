@@ -1,6 +1,6 @@
 //! Committing sequence: after `commit_on` succeeds, failure in `then_matcher` becomes a hard error.
 
-use std::{collections::HashMap, marker::PhantomData, mem::swap};
+use std::{collections::HashMap, mem::swap};
 
 use crate::{
     error::{
