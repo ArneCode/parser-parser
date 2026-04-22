@@ -46,6 +46,55 @@ impl JsonValue {
             }
         }
     }
+    /// Public method for pretty-printed JSON
+    pub fn serialize_pretty(&self) -> String {
+        self.serialize_internal(0)
+    }
+
+    fn serialize_internal(&self, indent_level: usize) -> String {
+        let indent_size = 4;
+        let current_indent = " ".repeat(indent_level * indent_size);
+        let nested_indent = " ".repeat((indent_level + 1) * indent_size);
+
+        match self {
+            Self::Invalid => "invalid".to_string(),
+            Self::Null => "null".to_string(),
+            Self::Boolean(b) => b.to_string(),
+            Self::Number(n) => n.to_string(),
+            Self::String(s) => format!("\"{}\"", s.replace('\\', "\\\\").replace('"', "\\\"")),
+            
+            Self::Array(arr) => {
+                if arr.is_empty() {
+                    return "[]".to_string();
+                }
+                let items: Vec<String> = arr
+                    .iter()
+                    .map(|v| format!("{}{}", nested_indent, v.serialize_internal(indent_level + 1)))
+                    .collect();
+                format!("[\n{},\n{current_indent}]", items.join(",\n"))
+            }
+
+            Self::Object(obj) => {
+                if obj.is_empty() {
+                    return "{}".to_string();
+                }
+                // Note: HashMap iteration order is random. 
+                // For deterministic output, you could collect and sort keys here.
+                let pairs: Vec<String> = obj
+                    .iter()
+                    .map(|(k, v)| {
+                        format!(
+                            "{}\"{}\": {}",
+                            nested_indent,
+                            k,
+                            v.serialize_internal(indent_level + 1)
+                        )
+                    })
+                    .collect();
+                format!("{{\n{},\n{current_indent}}}", pairs.join(",\n"))
+            }
+        }
+    }
 }
 
 pub fn get_json_grammar<'src>() -> impl Parser<'src, &'src str, Output = JsonValue> {
@@ -249,11 +298,11 @@ fn main() {
 
     let parser = get_json_grammar();
     match marser::parse(parser, sample.as_str()) {
-        Ok((value, warnings)) => {
-            println!("{}", value.serialize());
-            for warning in warnings {
-                warning.eprint(path.as_str(), sample.as_str());
+        Ok((value, errors)) => {
+            for error in errors {
+                error.eprint(path.as_str(), sample.as_str());
             }
+            println!("{}", value.serialize_pretty());
         }
         Err(err) => err.eprint_ariadne(path.as_str(), sample.as_str()),
     }

@@ -1,6 +1,6 @@
 //! Error recovery: if the inner parser fails with [`crate::error::FurthestFailError`], try an alternate matcher.
 
-use std::marker::PhantomData;
+use std::{marker::PhantomData, sync::atomic::{AtomicUsize, Ordering}};
 
 use crate::{
     context::ParserContext,
@@ -10,11 +10,14 @@ use crate::{
     parser::Parser,
 };
 
+static NEXT_RECOVER_ID: AtomicUsize = AtomicUsize::new(0);
+
 /// On hard failure of `happy`, resets position and runs `recover_matcher`; on success yields `recover_output` and records the error.
 pub struct ErrorRecoverer<Pars, Match, Output> {
     happy: Pars,
     recover_matcher: Match,
     recover_output: Output,
+    id: usize,
 }
 
 impl<Pars, Match, Output> ErrorRecoverer<Pars, Match, Output> {
@@ -24,6 +27,7 @@ impl<Pars, Match, Output> ErrorRecoverer<Pars, Match, Output> {
             happy,
             recover_matcher,
             recover_output,
+            id: NEXT_RECOVER_ID.fetch_add(1, Ordering::Relaxed),
         }
     }
 }
@@ -49,14 +53,19 @@ where
         let start_pos = input.get_pos();
         match self.happy.parse(context, error_handler, input) {
             Err(e) => {
-                input.set_pos(start_pos);
+                input.set_pos(start_pos.clone());
                 let mut runner = NoMemoizeBacktrackingRunner::new(context);
                 if runner
                     .run_match(&self.recover_matcher, error_handler, input)
                     .unwrap_or(false)
                 {
                     drop(runner);
-                    context.error_sink.push(e.as_parser_error());
+                    // TODO: maybe find a way to avoid registering the same error multiple times.
+                    if !context.registered_error_set.contains(&(self.id, start_pos.clone().into())) {
+                        context.error_sink.push(e.as_parser_error());
+                        context.registered_error_set.insert((self.id, start_pos.into()));
+                    }
+
                     return Ok(Some(self.recover_output.clone()));
                 }
                 Err(e)
