@@ -29,7 +29,7 @@ impl<'src, Inp: Input<'src>, MRes, Match, Prop> MatcherImpl<'src, Inp, MRes>
 where
     Match: Matcher<'src, Inp, MRes>,
     Inp: Input<'src>,
-    Prop: Property<(Inp::Pos, Inp::Pos), MRes> + Clone,
+    Prop: Property<(Inp::Pos, Inp::Pos), MRes> + Clone + 'src,
 {
     const CAN_MATCH_DIRECTLY: bool = Match::CAN_MATCH_DIRECTLY;
     const HAS_PROPERTY: bool = true;

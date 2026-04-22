@@ -26,7 +26,7 @@ impl<'src, Inp: SliceableInput<'src>, MRes, Match, Prop> MatcherImpl<'src, Inp, 
     for SliceBinder<Match, Prop>
 where
     Match: Matcher<'src, Inp, MRes>,
-    Prop: Property<Inp::Slice, MRes> + Clone,
+    Prop: Property<Inp::Slice, MRes> + Clone + 'src,
 {
     const CAN_MATCH_DIRECTLY: bool = Match::CAN_MATCH_DIRECTLY;
     const HAS_PROPERTY: bool = true;

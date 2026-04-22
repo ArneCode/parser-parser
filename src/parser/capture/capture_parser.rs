@@ -5,7 +5,7 @@ use crate::{
     error::{FurthestFailError, error_handler::ErrorHandler},
     input::{Input, InputStream},
     matcher::{DirectMatchRunner, Matcher, NoMemoizeBacktrackingRunner, runner::MatchRunner},
-    parser::internal::ParserImpl,
+    parser::{ParserCombinator, internal::ParserImpl},
 };
 
 use super::match_result::{MatchResultMultiple, MatchResultOptional, MatchResultSingle};
@@ -21,6 +21,8 @@ pub struct Capture<MRes, Match, F> {
     pub(super) _phantom: PhantomData<MRes>,
 }
 
+impl<MResSingle, MResMultiple, MResOptional, Match, F> ParserCombinator for Capture<(MResSingle, MResMultiple, MResOptional), Match, F> {}
+
 impl<Out, MResSingle, MResMultiple, MResOptional, Match, F>
     Capture<(MResSingle, MResMultiple, MResOptional), Match, F>
 where
@@ -34,7 +36,7 @@ where
     pub fn new<
         'a,
         'ctx: 'a,
-        GF: Fn(MResSingle::Properties, MResMultiple::Properties, MResOptional::Properties) -> Match,
+        GF: FnOnce(MResSingle::Properties, MResMultiple::Properties, MResOptional::Properties) -> Match,
     >(
         grammar_factory: GF,
         constructor: F,
@@ -71,11 +73,9 @@ where
     ) -> Result<Option<Self::Output>, FurthestFailError> {
         // let old_match_start = context.match_start;
         // context.match_start = *pos;
-        if Match::CAN_MATCH_DIRECTLY {
+        if Match::CAN_MATCH_DIRECTLY && !error_handler.is_real() {
             let mut runner = DirectMatchRunner::new(
                 context,
-                (MResSingle::new(), MResMultiple::new(), MResOptional::new()),
-                PhantomData::<&'src ()>,
             );
             if runner.run_match(&self.matcher, error_handler, input)? {
                 let (res_single, res_multiple, res_optional) = runner.get_match_result();
@@ -88,7 +88,7 @@ where
                 Ok(None)
             }
         } else {
-            let mut runner = NoMemoizeBacktrackingRunner::new(context, PhantomData::<&'src ()>);
+            let mut runner = NoMemoizeBacktrackingRunner::new(context);
             if runner.run_match(&self.matcher, error_handler, input)? {
                 let (res_single, res_multiple, res_optional) = runner.get_match_result();
                 let result = (self.constructor)(res_single.to_output(), res_multiple, res_optional);

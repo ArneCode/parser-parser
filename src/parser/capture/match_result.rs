@@ -6,18 +6,21 @@ pub trait MatchResultSingle {
     fn new() -> Self;
     fn new_properties() -> Self::Properties;
     fn to_output(self) -> Self::Output;
+    fn subtract_from_result(&self, result: &mut Self);
 }
 
 pub trait MatchResultMultiple {
     type Properties;
     fn new() -> Self;
     fn new_properties() -> Self::Properties;
+    fn subtract_from_result(&self, result: &mut Self);
 }
 
 pub trait MatchResultOptional {
     type Properties;
     fn new() -> Self;
     fn new_properties() -> Self::Properties;
+    fn subtract_from_result(&self, result: &mut Self);
 }
 
 pub trait MatchResult {
@@ -42,6 +45,7 @@ pub trait MatchResult {
     fn single(&mut self) -> &mut Self::Single;
     fn multiple(&mut self) -> &mut Self::Multiple;
     fn optional(&mut self) -> &mut Self::Optional;
+    fn subtract_from_result(&self, result: &mut Self);
 }
 
 impl<MResSingle, MResMultiple, MResOptional> MatchResult
@@ -74,6 +78,12 @@ where
     fn optional(&mut self) -> &mut MResOptional {
         &mut self.2
     }
+
+    fn subtract_from_result(&self, result: &mut Self) {
+        self.0.subtract_from_result(result.single());
+        self.1.subtract_from_result(result.multiple());
+        self.2.subtract_from_result(result.optional());
+    }
 }
 
 impl MatchResultSingle for () {
@@ -82,18 +92,21 @@ impl MatchResultSingle for () {
     fn new() -> Self {}
     fn new_properties() -> Self::Properties {}
     fn to_output(self) -> Self::Output {}
+    fn subtract_from_result(&self, result: &mut Self) {}
 }
 
 impl MatchResultMultiple for () {
     type Properties = ();
     fn new() -> Self {}
     fn new_properties() -> Self::Properties {}
+    fn subtract_from_result(&self, result: &mut Self) {}
 }
 
 impl MatchResultOptional for () {
     type Properties = ();
     fn new() -> Self {}
     fn new_properties() -> Self::Properties {}
+    fn subtract_from_result(&self, result: &mut Self) {}
 }
 
 fn unwrap_single<T>(option: Option<T>) -> T {
@@ -128,6 +141,14 @@ macro_rules! impl_match_results_for_tuple {
                 let ($( $T, )+) = self;
                 ($(unwrap_single($T),)+)
             }
+
+            fn subtract_from_result(&self, result: &mut Self) {
+                // check if the result is set, then remove it if it is
+                $(if self.$idx.is_some() {
+                    result.$idx = None;
+                })+;
+
+            }
         }
 
         impl<$($T),+> MatchResultMultiple for ($(Vec<$T>,)+) {
@@ -147,6 +168,16 @@ macro_rules! impl_match_results_for_tuple {
                     ),
                 )+)
             }
+
+            fn subtract_from_result(&self, result: &mut Self) {
+                $(
+                    {
+                        let n = self.$idx.len();
+                        // remove the last n elements from the result
+                        result.$idx.truncate(result.$idx.len() - n);
+                    }
+                )+;
+            }
         }
 
         impl<$($T),+> MatchResultOptional for ($(Option<$T>,)+) {
@@ -165,6 +196,12 @@ macro_rules! impl_match_results_for_tuple {
                             as fn(&mut Self) -> &mut Option<$T>,
                     ),
                 )+)
+            }
+
+            fn subtract_from_result(&self, result: &mut Self) {
+                $(if self.$idx.is_some() {
+                    result.$idx = None;
+                })+;
             }
         }
     };

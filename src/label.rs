@@ -45,7 +45,7 @@ where
     {
         runner.run_match(&self.inner, error_handler, input)
     }
-    fn maybe_label_internal(&self) -> Option<Box<dyn Display>> {
+    fn maybe_label(&self) -> Option<Box<dyn Display>> {
         Some(Box::new(self.label.clone()))
     }
 }

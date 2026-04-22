@@ -4,6 +4,8 @@ use super::property::{BindDebugInfo, Property};
 pub trait BoundResult<MRes> {
     /// Write this capture into `result`.
     fn put_in_result(self, result: &mut MRes);
+    /// Remove this capture from the result.
+    fn remove_from_result(&self, result: &mut MRes);
     /// Write a boxed capture into `result`.
     fn put_boxed_in_result(self: Box<Self>, result: &mut MRes);
 }
@@ -31,6 +33,10 @@ where
 {
     fn put_in_result(self, result: &mut MRes) {
         self.property.put_in_result(result, self.value, self.debug);
+    }
+
+    fn remove_from_result(&self, result: &mut MRes) {
+        self.property.remove_from_result(result, self.debug);
     }
 
     fn put_boxed_in_result(self: Box<Self>, result: &mut MRes) {

@@ -35,13 +35,10 @@ use std::rc::Rc;
 pub use token_parser::{TokenParser, token_parser};
 
 use crate::{
-    context::ParserContext,
-    error::{
+    context::ParserContext, error::{
         FurthestFailError,
         error_handler::{ErrorHandler, ErrorHandlerChoice},
-    },
-    input::{Input, InputStream},
-    parser::recover_error::ErrorRecoverer as ErrorRecovererInner,
+    }, input::{Input, InputStream}, matcher::ErrorContextualizer, parser::recover_error::ErrorRecoverer as ErrorRecovererInner
 };
 
 pub(crate) mod internal {
@@ -81,6 +78,20 @@ pub(crate) mod internal {
 /// [`memoized`](Self::memoized) for common extensions; the `parse` method is
 /// inherited from that internal trait and drives the actual parse step.
 pub trait Parser<'src, Inp: Input<'src>>: internal::ParserImpl<'src, Inp> {
+
+
+
+}
+
+pub trait ParserCombinator {   
+    /// Memoize parse results keyed by input position (output type must be `'static`).
+    fn memoized(self) -> memoized::Memoized<Self>
+    where
+        Self: Sized,
+    {
+        memoized::Memoized::new(self)
+    }
+
     /// On parse failure, run `recover_matcher` and yield `recover_output` if it matches.
     fn recover_with<Match, Output>(
         self,
@@ -93,13 +104,14 @@ pub trait Parser<'src, Inp: Input<'src>>: internal::ParserImpl<'src, Inp> {
         ErrorRecovererInner::new(self, recover_matcher, recover_output)
     }
 
-    /// Memoize parse results keyed by input position (output type must be `'static`).
-    fn memoized(self) -> memoized::Memoized<Self>
+    fn add_error_info<Pars>(
+        self,
+        error_parser: Pars,
+    ) -> ErrorContextualizer<Self, Pars>
     where
         Self: Sized,
-        Self::Output: 'static,
     {
-        memoized::Memoized::new(self)
+        ErrorContextualizer::new(self, error_parser)
     }
 }
 

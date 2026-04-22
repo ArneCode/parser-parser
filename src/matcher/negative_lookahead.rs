@@ -1,7 +1,7 @@
 //! `!e` — succeeds when `checker` does *not* match at the current position (no input consumed).
 
 use crate::{
-    error::error_handler::ErrorHandler,
+    error::error_handler::{EmptyErrorHandler, ErrorHandler},
     input::{Input, InputStream},
     matcher::{MatchRunner, Matcher},
 };
@@ -46,7 +46,8 @@ where
         'src: 'a,
     {
         let original_pos = input.get_pos();
-        let can_match = runner.run_match(&self.checker, error_handler, input)?;
+        let mut inner_error_handler = EmptyErrorHandler::new(0);
+        let can_match = runner.run_match(&self.checker, &mut inner_error_handler, input)?;
         input.set_pos(original_pos);
         Ok(!can_match)
     }

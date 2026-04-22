@@ -50,7 +50,7 @@ where
         match self.happy.parse(context, error_handler, input) {
             Err(e) => {
                 input.set_pos(start_pos);
-                let mut runner = NoMemoizeBacktrackingRunner::new(context, PhantomData::<&'src ()>);
+                let mut runner = NoMemoizeBacktrackingRunner::new(context);
                 if runner
                     .run_match(&self.recover_matcher, error_handler, input)
                     .unwrap_or(false)

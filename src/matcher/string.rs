@@ -3,7 +3,7 @@
 use crate::{
     error::{FurthestFailError, error_handler::ErrorHandler},
     input::{Input, InputStream},
-    matcher::MatchRunner,
+    matcher::{MatchRunner, MatcherCombinator},
 };
 
 /// Matches a fixed run of characters (by Unicode scalar values).
@@ -45,7 +45,7 @@ impl<'src, Inp: Input<'src, Token = char>, MRes> super::internal::MatcherImpl<'s
         Ok(true)
     }
 
-    fn maybe_label_internal(&self) -> Option<Box<dyn std::fmt::Display>> {
+    fn maybe_label(&self) -> Option<Box<dyn std::fmt::Display>> {
         Some(Box::new(self.expected.iter().collect::<String>()))
     }
 }
@@ -75,7 +75,7 @@ impl<'src, Inp: Input<'src, Token = char>, MRes> super::internal::MatcherImpl<'s
         Ok(true)
     }
 
-    fn maybe_label_internal(&self) -> Option<Box<dyn std::fmt::Display>> {
+    fn maybe_label(&self) -> Option<Box<dyn std::fmt::Display>> {
         Some(Box::new(self.to_string()))
     }
 }
@@ -103,10 +103,12 @@ impl<'src, Inp: Input<'src, Token = char>, MRes> super::internal::MatcherImpl<'s
         }
         Ok(false)
     }
-    fn maybe_label_internal(&self) -> Option<Box<dyn std::fmt::Display>> {
+    fn maybe_label(&self) -> Option<Box<dyn std::fmt::Display>> {
         Some(Box::new(*self))
     }
 }
+
+impl MatcherCombinator for char{}
 
 // impl MaybeLabel<String> for StringMatcher {
 //     fn maybe_label(&self) -> Option<String> {

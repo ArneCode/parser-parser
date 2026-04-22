@@ -66,11 +66,12 @@ pub fn bind_result_with_debug<Pars, Prop, Inp>(
     ResultBinder::new(parser, property, Some(debug))
 }
 
-impl<'src, Inp: Input<'src>, Pars, Prop, MRes> MatcherImpl<'src, Inp, MRes> for ResultBinder<Pars, Prop, Inp>
+impl<'src, Inp: Input<'src> + 'src, Pars, Prop, MRes> MatcherImpl<'src, Inp, MRes>
+    for ResultBinder<Pars, Prop, Inp>
 where
-    Pars: Parser<'src, Inp>,
+    Pars: Parser<'src, Inp> + 'src,
     Inp: Input<'src>,
-    Prop: Property<Pars::Output, MRes> + Clone,
+    Prop: Property<Pars::Output, MRes> + Clone + 'src,
 {
     const CAN_MATCH_DIRECTLY: bool = true;
     const HAS_PROPERTY: bool = true;

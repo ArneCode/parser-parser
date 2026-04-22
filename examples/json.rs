@@ -6,15 +6,17 @@ use marser::{
     error::FurthestFailError,
     label::WithLabel,
     matcher::{
-        Matcher, commit_matcher::commit_on, multiple::many, one_or_more::one_or_more,
-        optional::optional,
+        ErrorContextualizer, Matcher, MatcherCombinator, commit_matcher::commit_on, multiple::many,
+        negative_lookahead, one_or_more::one_or_more, optional::optional, positive_lookahead,
+        unwanted::unwanted,
     },
     one_of::one_of,
-    parser::{Parser, deferred::recursive, token_parser::TokenParser},
+    parser::{Parser, ParserCombinator, deferred::recursive, token_parser::TokenParser},
 };
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum JsonValue {
+    Invalid,
     Null,
     Boolean(bool),
     Number(f64),
@@ -26,6 +28,7 @@ pub enum JsonValue {
 impl JsonValue {
     pub fn serialize(&self) -> String {
         match self {
+            Self::Invalid => "invalid".to_string(),
             Self::Null => "null".to_string(),
             Self::Boolean(b) => b.to_string(),
             Self::Number(n) => n.to_string(),
@@ -47,7 +50,6 @@ impl JsonValue {
 
 pub fn get_json_grammar<'src>() -> impl Parser<'src, &'src str, Output = JsonValue> {
     recursive(|element| {
-        let element = Rc::new(element.with_label("element"));
         let ws = Rc::new(many(one_of((' ', '\t', '\n', '\r'))));
 
         let null = capture!(("null", ws.clone())  => JsonValue::Null );
@@ -56,6 +58,7 @@ pub fn get_json_grammar<'src>() -> impl Parser<'src, &'src str, Output = JsonVal
         let boolean = one_of((bool_true, bool_false));
 
         let number = capture!(
+            commit_on(positive_lookahead(one_of(('-', '0'..='9'))),
             bind_slice!((
                 optional('-'),
                 one_of((
@@ -69,10 +72,39 @@ pub fn get_json_grammar<'src>() -> impl Parser<'src, &'src str, Output = JsonVal
                     one_of(('e', 'E')),
                     optional(one_of(('+', '-'))),
                     one_or_more('0'..='9')
-                ))
-            ), slice as &str) => {
+                )),
+                negative_lookahead(one_of(('+','-','0'..='9','.','e','E')))
+            ), slice as &'src str))
+             => {
                 JsonValue::Number(slice.parse().unwrap_or(0.0))
             }
+        )
+        .add_error_info(one_of((
+            capture!(
+                (
+                    optional('-'),
+                    bind_span!('0', zero),
+                    '0'..='9'
+                )
+                => Box::new(move |err: &mut FurthestFailError|{
+                    err.add_extra_label(zero,"leading zero",ariadne::Color::Blue);
+                    err.add_note("Leading zeros are not allowed in JSON numbers".to_string());
+                }) as Box<dyn Fn(&mut FurthestFailError)>
+            ),
+            capture!(
+                (
+                    optional('-'),
+                    bind_span!('.', dot),
+                )
+                => Box::new(move |err: &mut FurthestFailError|{
+                    err.add_extra_label(dot,"missing integer part",ariadne::Color::Blue);
+                    err.add_note("Floating point numbers need an integer part".to_string());
+            }) as Box<dyn Fn(&mut FurthestFailError)>
+            ),
+        )))
+        .recover_with(
+            many(one_of(('+', '-', '0'..='9', '.', 'e', 'E'))),
+            JsonValue::Invalid,
         );
 
         let character = Rc::new(TokenParser::new(
@@ -80,7 +112,7 @@ pub fn get_json_grammar<'src>() -> impl Parser<'src, &'src str, Output = JsonVal
             |x| *x,
         ));
         let hex_digit = Rc::new(one_of(('0'..='9', 'a'..='f', 'A'..='F')));
-        let escaped_char = Rc::new(capture!({
+        let escaped_char = capture!({
             (
                 '\\',
                 bind!(one_of(('\"', '\\', '/', 'b', 'f', 'n', 'r', 't')), esc)
@@ -97,8 +129,8 @@ pub fn get_json_grammar<'src>() -> impl Parser<'src, &'src str, Output = JsonVal
                 't' => '\t',
                 _ => esc,
             }
-        }));
-        let unicode_escape = Rc::new(capture!({
+        });
+        let unicode_escape = capture!({
             (
                 '\\', 'u',
                 bind!(hex_digit.clone(), *digits),
@@ -110,29 +142,41 @@ pub fn get_json_grammar<'src>() -> impl Parser<'src, &'src str, Output = JsonVal
             let hex: String = digits.into_iter().collect();
             let codepoint = u32::from_str_radix(&hex, 16).unwrap_or(0xFFFD);
             std::char::from_u32(codepoint).unwrap_or('\u{FFFD}')
-        }));
-        let raw_string = Rc::new(capture!({
-                commit_on('"',(
-                many(one_of((
-                    bind!(character.clone(), *chars),
-                    bind!(escaped_char.clone(), *chars),
-                    bind!(unicode_escape.clone(), *chars),
-                ))),
-                '"',
-                ws.clone()
-            ))
-        } =>  {
-            chars.into_iter().collect::<String>()
-        }));
+        });
+        let raw_string = Rc::new(
+            capture!({
+                commit_on(
+                    '"',(
+                    many(one_of((
+                        bind!(character.clone(), *chars),
+                        bind!(escaped_char, *chars),
+                        bind!(unicode_escape, *chars),
+                    ))),
+                    '"',
+                    ws.clone()
+                ))
+            } =>  {
+                chars.into_iter().collect::<String>()
+            })
+            .add_error_info(capture!(
+                bind_span!('"', quote) => Box::new(move |err: &mut FurthestFailError|{
+                err.add_extra_label(quote,"unmatched quote",ariadne::Color::Blue);
+            }) as Box<dyn Fn(&mut FurthestFailError)>
+            )),
+        );
 
         let array = capture!({
-                commit_on((ws.clone(), '['), (ws.clone(),
-                optional((bind!(element.clone(), *elements),
-                many((
-                    ',', ws.clone(),
-                    bind!(element.clone(), *elements)
-                )))),
-                ']'.with_label("]"), ws.clone()
+            commit_on((ws.clone(), '['),
+            (
+                ws.clone(),
+                optional((
+                    bind!(element.clone(), *elements),
+                    many((
+                        ','.try_insert_if_missing("missing comma"), ws.clone(),
+                        bind!(element.clone(), *elements)
+                    ))
+                )), ws.clone(), unwanted(',', "trailing comma"), ws.clone(),
+                ']', ws.clone()
             ))
         } =>  {
             JsonValue::Array(elements)
@@ -159,9 +203,9 @@ pub fn get_json_grammar<'src>() -> impl Parser<'src, &'src str, Output = JsonVal
                         capture!((
                             bind_span!(",",comma),
                             ws.clone(),
-                            &'}') => move |err: &mut FurthestFailError|{
+                            &'}') => Box::new(move |err: &mut FurthestFailError|{
                             err.add_extra_label(comma,"trailing comma",ariadne::Color::Blue);
-                        }),
+                        }) as Box<dyn Fn(&mut FurthestFailError)>),
                     ),
                 ),
                 '}'.with_label("}"), ws.clone()
@@ -172,14 +216,13 @@ pub fn get_json_grammar<'src>() -> impl Parser<'src, &'src str, Output = JsonVal
             JsonValue::Object(map)
         });
 
-        one_of((
-            object,
-            array,
-            capture!( bind!(raw_string.clone(), s)  => JsonValue::String(s)),
-            number,
-            boolean,
-            null,
-        ))
+        let string = capture!( bind!(raw_string.clone(), s)  => JsonValue::String(s));
+
+        capture!((
+            ws.clone(), 
+            bind!(one_of((object, array, string, number, boolean, null)), result), 
+            ws.clone()
+        ) => result)
     })
 }
 
@@ -208,8 +251,8 @@ fn main() {
     match marser::parse(parser, sample.as_str()) {
         Ok((value, warnings)) => {
             println!("{}", value.serialize());
-            if !warnings.is_empty() {
-                println!("Warnings: {}", warnings.len());
+            for warning in warnings {
+                warning.eprint(path.as_str(), sample.as_str());
             }
         }
         Err(err) => err.eprint_ariadne(path.as_str(), sample.as_str()),

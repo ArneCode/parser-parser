@@ -14,6 +14,8 @@ pub enum ParserError {
     FurthestFail(FurthestFailError),
     /// Synthetic “missing” insertion (e.g. error recovery).
     Missing(MissingError),
+    /// Found token that should not have been present.
+    Unwanted(UnwantedError),
 }
 impl ParserError {
     /// Build an [ariadne](https://docs.rs/ariadne) report for this error.
@@ -25,6 +27,7 @@ impl ParserError {
         match self {
             ParserError::FurthestFail(err) => err.build_report(source_id, source_text),
             ParserError::Missing(err) => err.build_report(source_id),
+            ParserError::Unwanted(err) => err.build_report(source_id),
         }
     }
 
@@ -33,6 +36,7 @@ impl ParserError {
         match self {
             ParserError::FurthestFail(err) => err.eprint(source_id, source_text),
             ParserError::Missing(err) => err.eprint(source_id, source_text),
+            ParserError::Unwanted(err) => err.eprint(source_id, source_text),
         }
     }
 }
@@ -316,6 +320,63 @@ impl MissingError {
 
         Report::build(ReportKind::Error, (source_id, span_range.clone()))
             .with_message("Missing Syntax")
+            .with_label(
+                Label::new((source_id, span_range.clone()))
+                    .with_message(self.message.clone())
+                    .with_color(Color::Red)
+                    .with_order(span_range.start as i32),
+            )
+    }
+}
+
+pub struct UnwantedError {
+    /// Span associated with the unwanted construct (often empty or a single point).
+    pub span: (usize, usize),
+    /// Message shown in the “Unwanted Syntax” report.
+    pub message: String,
+}
+
+impl UnwantedError {
+    /// Wrap as [`ParserError::Unwanted`].
+    pub fn as_parser_error(self) -> ParserError {
+        ParserError::Unwanted(self)
+    }
+
+    /// Print to stderr (ariadne).
+    pub fn eprint(&self, source_id: &str, source_text: &str) {
+        self.eprint_ariadne(source_id, source_text);
+    }
+
+    /// Print with ariadne.
+    pub fn eprint_ariadne(&self, source_id: &str, source_text: &str) {
+        self.build_report(source_id)
+            .finish()
+            .eprint((source_id, Source::from(source_text)))
+            .unwrap();
+    }
+
+    /// Write ariadne report to `sink`.
+    pub fn write(&self, source_id: &str, source_text: &str, sink: impl std::io::Write) {
+        self.write_ariadne(source_id, source_text, sink);
+    }
+
+    /// Write ariadne report to `sink` (explicit).
+    pub fn write_ariadne(&self, source_id: &str, source_text: &str, sink: impl std::io::Write) {
+        self.build_report(source_id)
+            .finish()
+            .write((source_id, Source::from(source_text)), sink)
+            .unwrap();
+    }
+
+    /// Build an ariadne “Unwanted Syntax” report.
+    pub fn build_report<'s>(
+        &self,
+        source_id: &'s str,
+    ) -> ariadne::ReportBuilder<'_, (&'s str, std::ops::Range<usize>)> {
+        let span_range = self.span.0..self.span.1;
+
+        Report::build(ReportKind::Error, (source_id, span_range.clone()))
+            .with_message("Unwanted Syntax")
             .with_label(
                 Label::new((source_id, span_range.clone()))
                     .with_message(self.message.clone())

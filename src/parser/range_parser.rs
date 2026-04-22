@@ -1,7 +1,7 @@
 //! Parse a single token that lies in a Rust [`RangeBounds`] (or use [`Range`] / [`RangeInclusive`] directly as parsers).
 
 use std::{
-    fmt::Debug,
+    fmt::{Debug, Display},
     ops::{Range, RangeBounds, RangeInclusive},
 };
 
@@ -104,7 +104,7 @@ where
 
 impl<'src, Inp: Input<'src, Token = Token>, Token, MRes> MatcherImpl<'src, Inp, MRes> for Range<Token>
 where
-    Token: PartialOrd + Clone,
+    Token: PartialOrd + Clone + Display,
     Range<Token>: Debug,
 {
     const CAN_MATCH_DIRECTLY: bool = true;
@@ -128,11 +128,17 @@ where
         }
         Ok(false)
     }
+
+    fn maybe_label(&self) -> Option<Box<dyn Display>> {
+        Some(Box::new(
+            format!("{}..{}", self.start, self.end)
+        ))
+    }
 }
 
 impl<'src, Inp: Input<'src, Token = Token>, Token, MRes> MatcherImpl<'src, Inp, MRes> for RangeInclusive<Token>
 where
-    Token: PartialOrd + Clone,
+    Token: PartialOrd + Clone + Display,
     Range<Token>: Debug,
 {
     const CAN_MATCH_DIRECTLY: bool = true;
@@ -155,5 +161,11 @@ where
             return Ok(true);
         }
         Ok(false)
+    }
+
+    fn maybe_label(&self) -> Option<Box<dyn Display>> {
+        Some(Box::new(
+            format!("{}..={}", self.start(), self.end())
+        ))
     }
 }

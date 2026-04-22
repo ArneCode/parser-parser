@@ -15,6 +15,8 @@ pub struct BindDebugInfo {
 pub trait Property<Value, MRes> {
     /// Store `value` into `result`, optionally using `debug` for panic messages on conflict.
     fn put_in_result(&self, result: &mut MRes, value: Value, debug: Option<BindDebugInfo>);
+    /// Remove `value` from `result`.
+    fn remove_from_result(&self, result: &mut MRes, debug: Option<BindDebugInfo>);
     /// Wrap `value` with this property for deferred insertion into `MRes`.
     fn bind_result(&self, value: Value) -> super::bound::BoundValue<Value, Self>
     where
@@ -68,6 +70,15 @@ where
         }
         *property_slot = Some(value);
     }
+
+    fn remove_from_result(&self, result: &mut MRes, debug: Option<BindDebugInfo>) {
+        let property_slot = (self.setter)(result.single());
+        if property_slot.is_some() {
+            *property_slot = None;
+        }else{
+            panic!("Trying to remove a value that was not set");
+        }
+    }
 }
 
 /// Property that appends each capture into a `Vec`.
@@ -91,6 +102,13 @@ where
     fn put_in_result(&self, result: &mut MRes, value: V, _debug: Option<BindDebugInfo>) {
         let property_slot = (self.setter)(result.multiple());
         property_slot.push(value);
+    }
+
+    fn remove_from_result(&self, result: &mut MRes, _debug: Option<BindDebugInfo>) {
+        let property_slot = (self.setter)(result.multiple());
+        if property_slot.pop().is_none() {
+            panic!("Trying to remove a value that was not set");
+        }
     }
 }
 
@@ -124,5 +142,14 @@ where
             panic!("OptionalProperty already set");
         }
         *property_slot = Some(value);
+    }
+
+    fn remove_from_result(&self, result: &mut MRes, debug: Option<BindDebugInfo>) {
+        let property_slot = (self.setter)(result.optional());
+        if property_slot.is_some() {
+            *property_slot = None;
+        }else{
+            panic!("Trying to remove a value that was not set");
+        }
     }
 }

@@ -18,6 +18,7 @@ pub mod any_token;
 pub mod commit_matcher;
 pub mod error_contextualizer;
 pub mod insert_on_error;
+pub mod unwanted;
 pub mod multiple;
 pub mod negative_lookahead;
 pub mod one_or_more;
@@ -46,10 +47,6 @@ use std::{fmt::Display, ops::Deref, rc::Rc};
 use crate::{
     error::{FurthestFailError, error_handler::ErrorHandler},
     input::{Input, InputStream},
-    matcher::{
-        error_contextualizer::ErrorContextualizer as ErrorContextualizerInner,
-        insert_on_error::InsertOnErrorMatcher as InsertOnErrorMatcherInner,
-    },
     parser::Parser,
 };
 
@@ -63,7 +60,7 @@ pub(crate) mod internal {
     };
 
     /// Crate-private matching interface used by [`super::Matcher`].
-    pub trait MatcherImpl<'src, Inp, MRes>
+    pub trait MatcherImpl<'src, Inp, MRes>//: MatcherCombinator
     where
         Inp: Input<'src>,
     {
@@ -92,43 +89,44 @@ pub(crate) mod internal {
             Runner: MatchRunner<'a, 'src, Inp, MRes = MRes>,
             'src: 'a;
 
-        fn maybe_label_internal(&self) -> Option<Box<dyn Display>> {
+        fn maybe_label(&self) -> Option<Box<dyn Display>> {
             None
         }
     }
 }
+
+
 
 /// Facade for matchers over `Token` that read and write match state into `MRes`.
 ///
 /// `MRes` is usually the capture bucket type in [`crate::parser::capture::Capture`].
 /// Blanket-implemented for all types that implement the crate-private matcher implementation trait.
 pub trait Matcher<'src, Inp: Input<'src>, MRes>: internal::MatcherImpl<'src, Inp, MRes> {
-    /// Wrap this matcher so that on furthest-failure, `error_parser` runs to attach diagnostics.
-    fn add_error_info<Pars, F>(
-        self,
-        error_parser: Pars,
-    ) -> ErrorContextualizerInner<Self, Pars, F, MRes>
-    where
-        Self: Sized,
-        Pars: Parser<'src, Inp, Output = F>,
-        F: Fn(&mut FurthestFailError),
-    {
-        ErrorContextualizerInner::new(self, error_parser)
-    }
-    /// Optional label used when reporting errors for this matcher.
-    fn maybe_label(&self) -> Option<Box<dyn Display>> {
-        <Self as internal::MatcherImpl<'src, Inp, MRes>>::maybe_label_internal(self)
-    }
-    /// If the matcher fails to extend the furthest error, insert `message` into that error.
-    fn try_insert_if_missing<M: Display>(self, message: M) -> InsertOnErrorMatcherInner<Self>
-    where
-        Self: Sized,
-    {
-        InsertOnErrorMatcher {
-            inner: self,
-            message: message.to_string(),
+
+}
+
+pub trait MatcherCombinator {
+        /// Wrap this matcher so that on furthest-failure, `error_parser` runs to attach diagnostics.
+        fn add_error_info<Pars>(
+            self,
+            error_parser: Pars,
+        ) -> ErrorContextualizer<Self, Pars>
+        where
+            Self: Sized,
+        {
+            ErrorContextualizer::new(self, error_parser)
         }
-    }
+
+        /// If the matcher fails to extend the furthest error, insert `message` into that error.
+        fn try_insert_if_missing<M: Display>(self, message: M) -> InsertOnErrorMatcher<Self>
+        where
+            Self: Sized,
+        {
+            InsertOnErrorMatcher {
+                inner: self,
+                message: message.to_string(),
+            }
+        }
 }
 
 impl<'src, Inp: Input<'src>, MRes, M> Matcher<'src, Inp, MRes> for M
