@@ -1,33 +1,29 @@
 # marser
 
-`marser` is a parser-combinator library centered on explicit matcher composition,
-backtracking control, and rich source diagnostics.
+this is a parser-combinator library for PEG Grammars centered on being able to write grammars in a natural way inside rust code, with a focus on good error messages. I plan to upload this to crates.io once it's more polished.
 
-## Quick start
-
-```rust
-use marser::matcher::many;
-use marser::one_of::one_of;
-use marser::parser::token_parser::TokenParser;
-use marser::parse;
-use marser_macros::capture;
-
-let digit = TokenParser::new(|c: &char| c.is_ascii_digit(), |c: &char| *c);
-let number = capture!((bind!(&digit, *digits), many(bind!(&digit, *digits))) => {
-    digits.into_iter().collect::<String>()
-});
-
-let (parsed, _warnings) = parse(number, "1234").unwrap();
-assert_eq!(parsed, "1234");
-```
 
 ## Example
 
 A full JSON grammar example is available at `examples/json.rs` and can be run with:
 
 ```bash
-cargo run --example json
+cargo run --example json -- <path-to-json-file>
 ```
+
+An example of error messages: 
+Parser run with the following input:
+
+```json
+{
+    "foo": 123,
+    "bar": [1, ,2 ,.3
+}
+```
+
+Produces the following error message:
+
+![alt text](image-1.png)
 
 ## License
 

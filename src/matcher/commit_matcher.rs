@@ -60,7 +60,6 @@ where
                 return Ok(true);
             }
 
-            println!("then match failed!");
             if let Some(direct_runner) = runner.maybe_get_as_direct_match_runner() {
                 let mut undo_runner = DirectMatchRunner::new(direct_runner.get_parser_context());
                 undo_runner.run_match(&self.then_matcher, error_handler, input)?;
