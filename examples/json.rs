@@ -76,7 +76,7 @@ impl JsonValue {
                         )
                     })
                     .collect();
-                format!("[\n{},\n{current_indent}]", items.join(",\n"))
+                format!("[\n{}\n{current_indent}]", items.join(",\n"))
             }
 
             Self::Object(obj) => {
@@ -96,7 +96,7 @@ impl JsonValue {
                         )
                     })
                     .collect();
-                format!("{{\n{},\n{current_indent}}}", pairs.join(",\n"))
+                format!("{{\n{}\n{current_indent}}}", pairs.join(",\n"))
             }
         }
     }
@@ -325,10 +325,10 @@ fn main() {
         Ok((value, errors)) => {
             // eprintln!("--- Ariadne ---");
             // ParserError::eprint_many(&errors, path.as_str(), sample.as_str());
-            eprintln!("--- Miette ---");
             ParserError::eprint_many_miette(&errors, path.as_str(), sample.as_str());
             // eprintln!("--- annotate-snippets ---");
             // ParserError::eprint_many_annotate_snippets(&errors, path.as_str(), sample.as_str());
+            println!("\n--- Recovered JSON: ---");
             println!("{}", value.serialize_pretty());
         }
         Err(err) => err.eprint_ariadne(path.as_str(), sample.as_str()),

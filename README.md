@@ -12,6 +12,7 @@ cargo run --example json -- <path-to-json-file>
 ```
 
 An example of error messages: 
+
 Parser run with the following input:
 
 ```json
@@ -25,6 +26,24 @@ Produces the following error message:
 
 ![alt text](image-1.png)
 
+It also produces a recovered AST:
+```json
+{
+    "foo": 123,
+    "bar": [
+        1,
+        2,
+        invalid
+    ]
+}
+```
+(this is the the result AST converted back to a string)
+
+you can try this yourself by running the following command:
+
+```bash
+cargo run --example json -- tests/data/json1.json
+```
 ## License
 
 This project is licensed under the MIT License.
