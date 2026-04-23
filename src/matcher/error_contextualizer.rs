@@ -1,8 +1,11 @@
 //! Enrich [`crate::error::FurthestFailError`] from `happy_matcher` using a small [`crate::parser::Parser`] callback.
 
-
 use crate::{
-    context::ParserContext, error::{FurthestFailError, error_handler::ErrorHandler}, input::{Input, InputStream}, matcher::{MatchRunner, Matcher, MatcherCombinator}, parser::{Parser, ParserCombinator, internal::ParserImpl}
+    context::ParserContext,
+    error::{FurthestFailError, error_handler::ErrorHandler},
+    input::{Input, InputStream},
+    matcher::{MatchRunner, Matcher, MatcherCombinator},
+    parser::{Parser, ParserCombinator, internal::ParserImpl},
 };
 
 /// On [`Err`] from the inner matcher, runs `error_parser` to obtain a callback that mutates the error.
@@ -11,8 +14,12 @@ pub struct ErrorContextualizer<Happy, Pars> {
     error_parser: Pars,
 }
 
-impl<Matcher, Pars> MatcherCombinator for ErrorContextualizer<Matcher, Pars> where Matcher: MatcherCombinator {}
-impl<Happy, Pars> ParserCombinator for ErrorContextualizer<Happy, Pars> where Happy: ParserCombinator {}
+impl<Matcher, Pars> MatcherCombinator for ErrorContextualizer<Matcher, Pars> where
+    Matcher: MatcherCombinator
+{
+}
+impl<Happy, Pars> ParserCombinator for ErrorContextualizer<Happy, Pars> where Happy: ParserCombinator
+{}
 
 impl<Matcher, Pars> ErrorContextualizer<Matcher, Pars> {
     /// See [`crate::matcher::Matcher::add_error_info`].
@@ -53,11 +60,9 @@ where
             Err(mut e) => {
                 let resume_pos = input.get_pos();
                 input.set_pos(start_pos.clone());
-                if let Ok(Some(f)) = self.error_parser.parse(
-                    runner.get_parser_context(),
-                    error_handler,
-                    input,
-                )
+                if let Ok(Some(f)) =
+                    self.error_parser
+                        .parse(runner.get_parser_context(), error_handler, input)
                 {
                     f(&mut e);
                 }
@@ -69,9 +74,9 @@ where
 }
 
 // impl Parser
-impl<'src, Inp: Input<'src>, Happy, Pars> ParserImpl<'src, Inp> for ErrorContextualizer<Happy, Pars> 
-where 
-    Happy: Parser<'src, Inp>, 
+impl<'src, Inp: Input<'src>, Happy, Pars> ParserImpl<'src, Inp> for ErrorContextualizer<Happy, Pars>
+where
+    Happy: Parser<'src, Inp>,
     Pars: Parser<'src, Inp, Output = Box<dyn Fn(&mut FurthestFailError)>>,
     Inp: Input<'src>,
 {
@@ -91,17 +96,12 @@ where
             Err(mut e) => {
                 let resume_pos = input.get_pos();
                 input.set_pos(start_pos);
-                if let Ok(Some(f)) = self.error_parser.parse(
-                    context,
-                    error_handler,
-                    input,
-                )
-                {
+                if let Ok(Some(f)) = self.error_parser.parse(context, error_handler, input) {
                     f(&mut e);
                 }
                 input.set_pos(resume_pos);
                 Err(e)
-            },
+            }
         }
     }
 }

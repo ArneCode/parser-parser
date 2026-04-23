@@ -23,7 +23,8 @@ pub fn one_or_more<Match>(matcher: Match) -> OneOrMore<Match> {
     OneOrMore::new(matcher)
 }
 
-impl<'src, Inp: Input<'src>, MRes, Match> super::internal::MatcherImpl<'src, Inp, MRes> for OneOrMore<Match>
+impl<'src, Inp: Input<'src>, MRes, Match> super::internal::MatcherImpl<'src, Inp, MRes>
+    for OneOrMore<Match>
 where
     Match: Matcher<'src, Inp, MRes>,
     Inp: Input<'src>,

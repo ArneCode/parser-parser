@@ -8,7 +8,9 @@ use crate::{
         error_handler::{ErrorHandler, MultiErrorHandler},
     },
     input::{Input, InputStream},
-    matcher::{DirectMatchRunner, MatchRunner, Matcher, MatcherCombinator, NoMemoizeBacktrackingRunner},
+    matcher::{
+        DirectMatchRunner, MatchRunner, Matcher, MatcherCombinator, NoMemoizeBacktrackingRunner,
+    },
     parser::capture::MatchResult,
 };
 
@@ -57,6 +59,8 @@ where
             if runner.run_match(&self.then_matcher, error_handler, input)? {
                 return Ok(true);
             }
+
+            println!("then match failed!");
             if let Some(direct_runner) = runner.maybe_get_as_direct_match_runner() {
                 let mut undo_runner = DirectMatchRunner::new(direct_runner.get_parser_context());
                 undo_runner.run_match(&self.then_matcher, error_handler, input)?;
@@ -75,13 +79,16 @@ where
                 NoMemoizeBacktrackingRunner::new(context);
             let result = inner_runner.run_match(&self.then_matcher, &mut error_handler, input)?;
             // swap back cache so that the original runner can continue to use it.
-            swap(&mut inner_runner.get_parser_context().memo_table, &mut cache);
+            swap(
+                &mut inner_runner.get_parser_context().memo_table,
+                &mut cache,
+            );
             if result {
                 let results = {
                     let (context, results) = inner_runner.get_data();
                     // error recovery succeeded
                     // writing stack errors that have been fixed during recovery.
-                    error_handler.write_stack_errors(context);
+                    // error_handler.write_stack_errors(context);
                     results
                 };
                 runner.apply_results(results);

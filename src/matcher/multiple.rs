@@ -24,7 +24,8 @@ pub fn many<Match>(matcher: Match) -> Multiple<Match> {
 
 // impl<Match> Matcher for Multiple<Match> where Match: Matcher {}
 
-impl<'src, Inp: Input<'src>, MRes, Match> super::internal::MatcherImpl<'src, Inp, MRes> for Multiple<Match>
+impl<'src, Inp: Input<'src>, MRes, Match> super::internal::MatcherImpl<'src, Inp, MRes>
+    for Multiple<Match>
 where
     Match: Matcher<'src, Inp, MRes>,
     Inp: Input<'src>,

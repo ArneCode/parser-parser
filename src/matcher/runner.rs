@@ -37,25 +37,31 @@ where
     where
         Match: Matcher<'src, Inp, Self::MRes>,
         'src: 'a,
-        Self: Sized{
-            let old_pos = input.get_pos();
-            let idx = error_handler.register_start(old_pos.clone().into());
-            let result = self.run_match_inner(matcher, error_handler, input);
-            error_handler.register_watermark(input.get_pos().into());
-            let result = if let Err(err) = result {
-                error_handler.register_failure(matcher.maybe_label(), idx);
-                return Err(err);
-            } else {
-                result.unwrap()
-            };
-            if !result {
-                input.set_pos(old_pos);
-                error_handler.register_failure(matcher.maybe_label(), idx);
-            } else {
-                error_handler.register_success(idx);
-            }
-            Ok(result)
+        Self: Sized,
+    {
+        let old_pos = input.get_pos();
+        let idx = error_handler.register_start(old_pos.clone().into());
+        let old_stack_len = self.get_parser_context().error_stack.len();
+        let result = self.run_match_inner(matcher, error_handler, input);
+        error_handler.register_watermark(input.get_pos().into());
+        let result = if let Err(err) = result {
+            error_handler.register_failure(matcher.maybe_label(), idx);
+            // move back error stack to the previous state
+            self.get_parser_context().error_stack.truncate(old_stack_len);
+            return Err(err);
+        } else {
+            result.unwrap()
+        };
+        if !result {
+            input.set_pos(old_pos);
+            error_handler.register_failure(matcher.maybe_label(), idx);
+            // move back error stack to the previous state
+            self.get_parser_context().error_stack.truncate(old_stack_len);
+        } else {
+            error_handler.register_success(idx);
         }
+        Ok(result)
+    }
 
     fn register_result<Res: BoundResult<Self::MRes> + 'src>(&mut self, result: Res);
 
@@ -64,7 +70,9 @@ where
     fn get_parser_context(&mut self) -> &mut ParserContext;
 
     fn apply_results(&mut self, results: Vec<Box<dyn BoundResult<Self::MRes> + 'src>>);
-    fn maybe_get_as_direct_match_runner(&mut self) -> Option<&mut DirectMatchRunner<'a, 'src, Inp, Self::MRes>>{
+    fn maybe_get_as_direct_match_runner(
+        &mut self,
+    ) -> Option<&mut DirectMatchRunner<'a, 'src, Inp, Self::MRes>> {
         None
     }
 }
@@ -76,9 +84,7 @@ pub(crate) struct NoMemoizeBacktrackingRunner<'a, 'src, Inp, MRes> {
 }
 
 impl<'a, 'src, Inp: Input<'src>, MRes> NoMemoizeBacktrackingRunner<'a, 'src, Inp, MRes> {
-    pub(crate) fn new(
-        parser_context: &'a mut ParserContext,
-    ) -> Self {
+    pub(crate) fn new(parser_context: &'a mut ParserContext) -> Self {
         Self {
             parser_context,
             _phantom: PhantomData,
@@ -88,7 +94,12 @@ impl<'a, 'src, Inp: Input<'src>, MRes> NoMemoizeBacktrackingRunner<'a, 'src, Inp
 }
 
 impl<'a, 'src, Inp: Input<'src>, MRes> NoMemoizeBacktrackingRunner<'a, 'src, Inp, MRes> {
-    pub(crate) fn get_data(self) -> (&'a mut ParserContext, Vec<Box<dyn BoundResult<MRes> + 'src>>) {
+    pub(crate) fn get_data(
+        self,
+    ) -> (
+        &'a mut ParserContext,
+        Vec<Box<dyn BoundResult<MRes> + 'src>>,
+    ) {
         (self.parser_context, self.stack)
     }
 }
@@ -147,22 +158,24 @@ pub(crate) struct DirectMatchRunner<'a, 'src, Inp, MRes> {
 }
 
 impl<'a, 'src, Inp: Input<'src>, MRes> DirectMatchRunner<'a, 'src, Inp, MRes> {
-    pub(crate) fn new(
-        parser_context: &'a mut ParserContext,
-    ) -> Self where MRes: MatchResult {
+    pub(crate) fn new(parser_context: &'a mut ParserContext) -> Self
+    where
+        MRes: MatchResult,
+    {
         Self {
             parser_context,
             _phantom: PhantomData,
             result: MRes::new_empty(),
         }
     }
-    
+
     pub(crate) fn get_match_result_mut(&mut self) -> &mut MRes {
         &mut self.result
     }
 }
 
-impl<'a, 'src, Inp: Input<'src>, MRes> MatchRunner<'a, 'src, Inp> for DirectMatchRunner<'a, 'src, Inp, MRes>
+impl<'a, 'src, Inp: Input<'src>, MRes> MatchRunner<'a, 'src, Inp>
+    for DirectMatchRunner<'a, 'src, Inp, MRes>
 where
     MRes: MatchResult,
 {
@@ -200,7 +213,9 @@ where
         }
     }
 
-    fn maybe_get_as_direct_match_runner(&mut self) -> Option<&mut DirectMatchRunner<'a, 'src, Inp, Self::MRes>>{
+    fn maybe_get_as_direct_match_runner(
+        &mut self,
+    ) -> Option<&mut DirectMatchRunner<'a, 'src, Inp, Self::MRes>> {
         Some(self)
     }
 }

@@ -8,7 +8,8 @@ use std::{
 use crate::{
     context::ParserContext,
     error::{FurthestFailError, error_handler::ErrorHandler},
-    input::{Input, InputStream}, matcher::{MatchRunner, internal::MatcherImpl},
+    input::{Input, InputStream},
+    matcher::{MatchRunner, internal::MatcherImpl},
 };
 
 /// Named wrapper holding a [`RangeBounds`] value; accepts one in-range token (same idea as the [`Range`] / [`RangeInclusive`] impls below).
@@ -102,7 +103,8 @@ where
     }
 }
 
-impl<'src, Inp: Input<'src, Token = Token>, Token, MRes> MatcherImpl<'src, Inp, MRes> for Range<Token>
+impl<'src, Inp: Input<'src, Token = Token>, Token, MRes> MatcherImpl<'src, Inp, MRes>
+    for Range<Token>
 where
     Token: PartialOrd + Clone + Display,
     Range<Token>: Debug,
@@ -130,13 +132,12 @@ where
     }
 
     fn maybe_label(&self) -> Option<Box<dyn Display>> {
-        Some(Box::new(
-            format!("{}..{}", self.start, self.end)
-        ))
+        Some(Box::new(format!("{}..{}", self.start, self.end)))
     }
 }
 
-impl<'src, Inp: Input<'src, Token = Token>, Token, MRes> MatcherImpl<'src, Inp, MRes> for RangeInclusive<Token>
+impl<'src, Inp: Input<'src, Token = Token>, Token, MRes> MatcherImpl<'src, Inp, MRes>
+    for RangeInclusive<Token>
 where
     Token: PartialOrd + Clone + Display,
     Range<Token>: Debug,
@@ -164,8 +165,6 @@ where
     }
 
     fn maybe_label(&self) -> Option<Box<dyn Display>> {
-        Some(Box::new(
-            format!("{}..={}", self.start(), self.end())
-        ))
+        Some(Box::new(format!("{}..={}", self.start(), self.end())))
     }
 }

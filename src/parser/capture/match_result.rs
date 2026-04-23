@@ -64,7 +64,11 @@ where
         match_result_multiple: MResMultiple,
         match_result_optional: MResOptional,
     ) -> Self {
-        (match_result_single, match_result_multiple, match_result_optional)
+        (
+            match_result_single,
+            match_result_multiple,
+            match_result_optional,
+        )
     }
 
     fn single(&mut self) -> &mut MResSingle {

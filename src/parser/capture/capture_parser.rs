@@ -21,7 +21,10 @@ pub struct Capture<MRes, Match, F> {
     pub(super) _phantom: PhantomData<MRes>,
 }
 
-impl<MResSingle, MResMultiple, MResOptional, Match, F> ParserCombinator for Capture<(MResSingle, MResMultiple, MResOptional), Match, F> {}
+impl<MResSingle, MResMultiple, MResOptional, Match, F> ParserCombinator
+    for Capture<(MResSingle, MResMultiple, MResOptional), Match, F>
+{
+}
 
 impl<Out, MResSingle, MResMultiple, MResOptional, Match, F>
     Capture<(MResSingle, MResMultiple, MResOptional), Match, F>
@@ -52,8 +55,8 @@ where
     }
 }
 
-impl<'src, Inp: Input<'src>, Out, MResSingle, MResMultiple, MResOptional, Match, F> ParserImpl<'src, Inp>
-    for Capture<(MResSingle, MResMultiple, MResOptional), Match, F>
+impl<'src, Inp: Input<'src>, Out, MResSingle, MResMultiple, MResOptional, Match, F>
+    ParserImpl<'src, Inp> for Capture<(MResSingle, MResMultiple, MResOptional), Match, F>
 where
     MResSingle: MatchResultSingle,
     MResMultiple: MatchResultMultiple,
@@ -74,9 +77,7 @@ where
         // let old_match_start = context.match_start;
         // context.match_start = *pos;
         if Match::CAN_MATCH_DIRECTLY && !error_handler.is_real() {
-            let mut runner = DirectMatchRunner::new(
-                context,
-            );
+            let mut runner = DirectMatchRunner::new(context);
             if runner.run_match(&self.matcher, error_handler, input)? {
                 let (res_single, res_multiple, res_optional) = runner.get_match_result();
                 let result = (self.constructor)(res_single.to_output(), res_multiple, res_optional);

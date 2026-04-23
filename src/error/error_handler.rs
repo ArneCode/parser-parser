@@ -17,7 +17,6 @@ pub(crate) trait ErrorHandler {
     fn register_failure<L: Display + 'static>(&mut self, label: Option<L>, idx: Self::Indexer);
     fn register_success(&mut self, idx: Self::Indexer);
     fn register_watermark(&mut self, pos: usize);
-    fn register_stack_error(&mut self, error: ParserError);
     fn to_choice(&mut self) -> ErrorHandlerChoice<'_>;
     fn is_real(&self) -> bool {
         Self::IS_REAL
@@ -41,7 +40,6 @@ impl ErrorHandler for EmptyErrorHandler {
     fn register_failure<L: Display>(&mut self, _label: Option<L>, _idx: Self::Indexer) {}
     fn register_success(&mut self, _idx: Self::Indexer) {}
     fn register_watermark(&mut self, _pos: usize) {}
-    fn register_stack_error(&mut self, _error: ParserError) {}
     fn to_choice(&mut self) -> ErrorHandlerChoice<'_> {
         ErrorHandlerChoice::Empty(self)
     }
@@ -51,14 +49,12 @@ pub(crate) struct MultiErrorHandler {
     best_failure_slice: (usize, usize),
     slice_stack: Vec<(usize, usize)>,
     expected_labels: Vec<String>,
-    error_stack: Vec<ParserError>,
 }
 
 impl MultiErrorHandler {}
 
 pub(crate) struct MultiErrorHandlerIndex {
     slice_idx: usize,
-    error_stack_size_at_start: usize,
 }
 impl MultiErrorHandler {
     fn pop_slice_stack(&mut self, idx: &MultiErrorHandlerIndex) {
@@ -85,7 +81,6 @@ impl ErrorHandler for MultiErrorHandler {
             best_failure_slice: (0, 0),
             slice_stack: vec![(start_pos, start_pos)],
             expected_labels: Vec::new(),
-            error_stack: Vec::new(),
         }
     }
 
@@ -93,7 +88,6 @@ impl ErrorHandler for MultiErrorHandler {
         self.slice_stack.push((pos, pos));
         MultiErrorHandlerIndex {
             slice_idx: self.slice_stack.len() - 1,
-            error_stack_size_at_start: self.error_stack.len(),
         }
     }
 
@@ -103,9 +97,6 @@ impl ErrorHandler for MultiErrorHandler {
         }
     }
 
-    fn register_stack_error(&mut self, error: ParserError) {
-        self.error_stack.push(error);
-    }
 
     fn register_success(&mut self, idx: Self::Indexer) {
         self.pop_slice_stack(&idx);
@@ -114,8 +105,6 @@ impl ErrorHandler for MultiErrorHandler {
     fn register_failure<L: Display + 'static>(&mut self, label: Option<L>, idx: Self::Indexer) {
         let failure_slice = self.slice_stack[idx.slice_idx];
         self.pop_slice_stack(&idx);
-        let old_stack_size = idx.error_stack_size_at_start;
-        self.error_stack.truncate(old_stack_size);
         if label.is_none() {
             return;
         }
@@ -178,9 +167,6 @@ impl MultiErrorHandler {
             expected,
             annotations: ParserErrorAnnotations::default(),
         }
-    }
-    pub fn write_stack_errors(self, ctx: &mut ParserContext) {
-        ctx.error_sink.extend(self.error_stack);
     }
 }
 

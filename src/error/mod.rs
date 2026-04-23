@@ -1,10 +1,10 @@
 //! User-facing parse errors and pretty-printing via [ariadne](https://docs.rs/ariadne) and [miette](https://docs.rs/miette).
 
-use ariadne::{Color, Label, Report, ReportKind, Source};
 use annotate_snippets::{
     AnnotationKind as SnippetAnnotationKind, Level as SnippetLevel, Renderer as SnippetRenderer,
     Snippet,
 };
+use ariadne::{Color, Label, Report, ReportKind, Source};
 use codespan_reporting::{
     diagnostic::{Diagnostic, Label as CodespanLabel},
     files::SimpleFile,
@@ -183,8 +183,7 @@ impl ParserError {
             report = report.with_label(
                 Label::new((source_id, span.clone()))
                     .with_message(error.main_message(source_text))
-                    .with_color(Color::Red)
-                    // .with_order(span.start as i32),
+                    .with_color(Color::Red), // .with_order(span.start as i32),
             );
 
             if let ParserError::FurthestFail(furthest_fail) = error {
@@ -193,8 +192,7 @@ impl ParserError {
                     report = report.with_label(
                         Label::new((source_id, label_span.clone()))
                             .with_message(label.message.clone())
-                            .with_color(label.color)
-                            // .with_order(label_span.start as i32),
+                            .with_color(label.color), // .with_order(label_span.start as i32),
                     );
                 }
 
@@ -229,7 +227,10 @@ impl ParserError {
                     span.clone(),
                 ));
             } else {
-                labels.push(LabeledSpan::at(span.clone(), error.main_message(source_text)));
+                labels.push(LabeledSpan::at(
+                    span.clone(),
+                    error.main_message(source_text),
+                ));
             }
 
             if let ParserError::FurthestFail(furthest_fail) = error {
@@ -275,9 +276,7 @@ impl ParserError {
             } else {
                 SnippetAnnotationKind::Context
             };
-            snippet = snippet.annotation(
-                kind.span(span).label(error.main_message(source_text)),
-            );
+            snippet = snippet.annotation(kind.span(span).label(error.main_message(source_text)));
 
             if let ParserError::FurthestFail(furthest_fail) = error {
                 for label in &furthest_fail.annotations.extra_labels {
@@ -376,9 +375,22 @@ impl ParserError {
     }
 
     fn normalized_span(span: (usize, usize), source_len: usize) -> std::ops::Range<usize> {
-        let start = span.0.min(source_len);
-        let end = span.1.min(source_len);
+        let mut start = span.0.min(source_len);
+        let mut end = span.1.min(source_len);
 
+        // fix so that inside source text
+        if end > source_len {
+            end = source_len;
+        }
+
+        if start == source_len {
+            start = source_len - 1;
+        }
+
+        // // make zero-length spans be one character long
+        // if start == end {
+        //     return start..(start + 1);
+        // }
         start..end
     }
 }

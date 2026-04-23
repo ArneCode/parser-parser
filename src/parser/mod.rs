@@ -35,10 +35,14 @@ use std::rc::Rc;
 pub use token_parser::{TokenParser, token_parser};
 
 use crate::{
-    context::ParserContext, error::{
+    context::ParserContext,
+    error::{
         FurthestFailError,
         error_handler::{ErrorHandler, ErrorHandlerChoice},
-    }, input::{Input, InputStream}, matcher::ErrorContextualizer, parser::recover_error::ErrorRecoverer as ErrorRecovererInner
+    },
+    input::{Input, InputStream},
+    matcher::ErrorContextualizer,
+    parser::recover_error::ErrorRecoverer as ErrorRecovererInner,
 };
 
 pub(crate) mod internal {
@@ -77,13 +81,9 @@ pub(crate) mod internal {
 /// trait used internally. Use [`recover_with`](Self::recover_with) and
 /// [`memoized`](Self::memoized) for common extensions; the `parse` method is
 /// inherited from that internal trait and drives the actual parse step.
-pub trait Parser<'src, Inp: Input<'src>>: internal::ParserImpl<'src, Inp> {
+pub trait Parser<'src, Inp: Input<'src>>: internal::ParserImpl<'src, Inp> {}
 
-
-
-}
-
-pub trait ParserCombinator {   
+pub trait ParserCombinator {
     /// Memoize parse results keyed by input position (output type must be `'static`).
     fn memoized(self) -> memoized::Memoized<Self>
     where
@@ -104,10 +104,7 @@ pub trait ParserCombinator {
         ErrorRecovererInner::new(self, recover_matcher, recover_output)
     }
 
-    fn add_error_info<Pars>(
-        self,
-        error_parser: Pars,
-    ) -> ErrorContextualizer<Self, Pars>
+    fn add_error_info<Pars>(self, error_parser: Pars) -> ErrorContextualizer<Self, Pars>
     where
         Self: Sized,
     {
@@ -115,11 +112,7 @@ pub trait ParserCombinator {
     }
 }
 
-impl<'src, Inp: Input<'src>, P> Parser<'src, Inp> for P
-where
-    P: internal::ParserImpl<'src, Inp>,
-{
-}
+impl<'src, Inp: Input<'src>, P> Parser<'src, Inp> for P where P: internal::ParserImpl<'src, Inp> {}
 
 pub(crate) trait ParserObjSafe<'src, Inp: Input<'src>, Output> {
     fn parse(
@@ -196,4 +189,3 @@ where
         (**self).parse(context, error_handler, input)
     }
 }
-

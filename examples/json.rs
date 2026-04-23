@@ -6,9 +6,8 @@ use marser::{
     error::{FurthestFailError, ParserError},
     label::WithLabel,
     matcher::{
-        MatcherCombinator, commit_matcher::commit_on, multiple::many,
-        negative_lookahead, one_or_more::one_or_more, optional::optional, positive_lookahead,
-        unwanted::unwanted,
+        AnyToken, MatcherCombinator, commit_matcher::commit_on, multiple::many, negative_lookahead,
+        one_or_more::one_or_more, optional::optional, positive_lookahead, unwanted::unwanted,
     },
     one_of::one_of,
     parser::{Parser, ParserCombinator, deferred::recursive, token_parser::TokenParser},
@@ -22,7 +21,7 @@ pub enum JsonValue {
     Number(f64),
     String(String),
     Array(Vec<JsonValue>),
-    Object(HashMap<String, JsonValue>),
+    Object(Vec<(String, JsonValue)>),
 }
 
 impl JsonValue {
@@ -62,14 +61,20 @@ impl JsonValue {
             Self::Boolean(b) => b.to_string(),
             Self::Number(n) => n.to_string(),
             Self::String(s) => format!("\"{}\"", s.replace('\\', "\\\\").replace('"', "\\\"")),
-            
+
             Self::Array(arr) => {
                 if arr.is_empty() {
                     return "[]".to_string();
                 }
                 let items: Vec<String> = arr
                     .iter()
-                    .map(|v| format!("{}{}", nested_indent, v.serialize_internal(indent_level + 1)))
+                    .map(|v| {
+                        format!(
+                            "{}{}",
+                            nested_indent,
+                            v.serialize_internal(indent_level + 1)
+                        )
+                    })
                     .collect();
                 format!("[\n{},\n{current_indent}]", items.join(",\n"))
             }
@@ -78,7 +83,7 @@ impl JsonValue {
                 if obj.is_empty() {
                     return "{}".to_string();
                 }
-                // Note: HashMap iteration order is random. 
+                // Note: HashMap iteration order is random.
                 // For deterministic output, you could collect and sort keys here.
                 let pairs: Vec<String> = obj
                     .iter()
@@ -107,7 +112,7 @@ pub fn get_json_grammar<'src>() -> impl Parser<'src, &'src str, Output = JsonVal
         let boolean = one_of((bool_true, bool_false));
 
         let number = capture!(
-            commit_on(positive_lookahead(one_of(('-', '0'..='9'))),
+            commit_on(positive_lookahead(one_of(('-', '.', '+', '0'..='9'))),
             bind_slice!((
                 optional('-'),
                 one_of((
@@ -222,56 +227,75 @@ pub fn get_json_grammar<'src>() -> impl Parser<'src, &'src str, Output = JsonVal
                     bind!(element.clone(), *elements),
                     many((
                         ','.try_insert_if_missing("missing comma"), ws.clone(),
-                        bind!(element.clone(), *elements)
+                        many((unwanted(',', "missing element"), ws.clone())),
+                        bind!(element.clone(), *elements),
+                        negative_lookahead(':')
                     ))
-                )), ws.clone(), unwanted(',', "trailing comma"), ws.clone(),
+                )), ws.clone(), many((unwanted(',', "trailing comma"), ws.clone())),
                 ']'.try_insert_if_missing("missing closing ']'"), ws.clone()
             ))
         } =>  {
             JsonValue::Array(elements)
         });
 
+        let key_value_pair = Rc::new(
+            capture!({
+                (
+                bind!(raw_string.clone(), key), ':', ws.clone(),
+                bind!(element.clone(), value),
+                )
+            } => {
+                (key, value)
+            })
+            .with_label("key-value pair"),
+        );
+
         let object = capture!({
-                commit_on((ws.clone(), '{'.with_label("{")),
+                commit_on((ws.clone(), '{'),
                 (
                 ws.clone(),
                 optional((
-                    bind!(raw_string.clone(), *keys), ':', ws.clone(),
-                    bind!(element.clone(), *values)
-                )),
-                many(
-                    commit_on(
-                        ','.with_label(","), (
-                            ws.clone(),
-                            (
-                                bind!(raw_string.clone(), *keys), ':', ws.clone(),
-                                bind!(element.clone(), *values)
-                            ).with_label("key-value pair")
+                    bind!(key_value_pair.clone(), *key_value_pairs),
+                    many(
+                        commit_on(
+                            ',', (
+                                ws.clone(),
+                                bind!(key_value_pair.clone(), *key_value_pairs),
+                            )
                         )
-                    ).add_error_info(
-                        capture!((
-                            bind_span!(",",comma),
-                            ws.clone(),
-                            &'}') => Box::new(move |err: &mut FurthestFailError|{
-                            err.add_extra_label(comma,"trailing comma",ariadne::Color::Blue);
-                        }) as Box<dyn Fn(&mut FurthestFailError)>),
                     ),
-                ),
-                '}'.with_label("}"), ws.clone()
+                    many((unwanted(',', "trailing comma"), ws.clone()))
+                )),
+                '}'.try_insert_if_missing("missing closing '}'"), ws.clone()
                 )
                 )
         } => {
-            let map: HashMap<String, JsonValue> = keys.into_iter().zip(values).collect();
-            JsonValue::Object(map)
-        });
+            JsonValue::Object(key_value_pairs)
+        })
+        .with_label("object");
 
         let string = capture!( bind!(raw_string.clone(), s)  => JsonValue::String(s));
 
+        // let invalid_element = capture!(
+        //     (
+        //         unwanted(one_or_more(
+
+        //         ))
+        //     )
+        // )
         capture!((
             ws.clone(), 
-            bind!(one_of((object, array, string, number, boolean, null)), result), 
+            bind!(one_of((
+                object, 
+                array, 
+                string, 
+                number, 
+                boolean, 
+                null
+            )), result), 
             ws.clone()
         ) => result)
+        .with_label("element")
     })
 }
 
@@ -299,14 +323,12 @@ fn main() {
     let parser = get_json_grammar();
     match marser::parse(parser, sample.as_str()) {
         Ok((value, errors)) => {
-            // eprintln!("--- Ariadne ---");
-            // ParserError::eprint_many(&errors, path.as_str(), sample.as_str());
+            eprintln!("--- Ariadne ---");
+            ParserError::eprint_many(&errors, path.as_str(), sample.as_str());
             eprintln!("--- Miette ---");
             ParserError::eprint_many_miette(&errors, path.as_str(), sample.as_str());
-            // eprintln!("--- annotate-snippets ---");
-            // ParserError::eprint_many_annotate_snippets(&errors, path.as_str(), sample.as_str());
-            // eprintln!("--- codespan-reporting ---");
-            // ParserError::eprint_many_codespan(&errors, path.as_str(), sample.as_str());
+            eprintln!("--- annotate-snippets ---");
+            ParserError::eprint_many_annotate_snippets(&errors, path.as_str(), sample.as_str());
             println!("{}", value.serialize_pretty());
         }
         Err(err) => err.eprint_ariadne(path.as_str(), sample.as_str()),

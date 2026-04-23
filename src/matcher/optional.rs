@@ -22,7 +22,8 @@ pub fn optional<Match>(matcher: Match) -> Optional<Match> {
     Optional::new(matcher)
 }
 
-impl<'src, Inp: Input<'src>, MRes, Match> super::internal::MatcherImpl<'src, Inp, MRes> for Optional<Match>
+impl<'src, Inp: Input<'src>, MRes, Match> super::internal::MatcherImpl<'src, Inp, MRes>
+    for Optional<Match>
 where
     Match: Matcher<'src, Inp, MRes>,
     Inp: Input<'src>,

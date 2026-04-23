@@ -75,7 +75,7 @@ where
         let property_slot = (self.setter)(result.single());
         if property_slot.is_some() {
             *property_slot = None;
-        }else{
+        } else {
             panic!("Trying to remove a value that was not set");
         }
     }
@@ -148,7 +148,7 @@ where
         let property_slot = (self.setter)(result.optional());
         if property_slot.is_some() {
             *property_slot = None;
-        }else{
+        } else {
             panic!("Trying to remove a value that was not set");
         }
     }

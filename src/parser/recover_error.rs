@@ -61,9 +61,14 @@ where
                 {
                     drop(runner);
                     // TODO: maybe find a way to avoid registering the same error multiple times.
-                    if !context.registered_error_set.contains(&(self.id, start_pos.clone().into())) {
+                    if !context
+                        .registered_error_set
+                        .contains(&(self.id, start_pos.clone().into()))
+                    {
                         context.error_sink.push(e.as_parser_error());
-                        context.registered_error_set.insert((self.id, start_pos.into()));
+                        context
+                            .registered_error_set
+                            .insert((self.id, start_pos.into()));
                     }
 
                     return Ok(Some(self.recover_output.clone()));

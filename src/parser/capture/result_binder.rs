@@ -31,10 +31,7 @@ impl<Pars, Prop, Inp> ResultBinder<Pars, Prop, Inp> {
 }
 
 /// Same as [`bind_result_with_unknown_debug`] (caller location is used for debug metadata).
-pub fn bind_result<Pars, Prop, Inp>(
-    parser: Pars,
-    property: Prop,
-) -> ResultBinder<Pars, Prop, Inp> {
+pub fn bind_result<Pars, Prop, Inp>(parser: Pars, property: Prop) -> ResultBinder<Pars, Prop, Inp> {
     bind_result_with_unknown_debug(parser, property)
 }
 
@@ -87,9 +84,9 @@ where
         Runner: MatchRunner<'a, 'src, Inp, MRes = MRes>,
         'src: 'a,
     {
-        if let Some(result) = self
-            .parser
-            .parse(runner.get_parser_context(), error_handler, input)?
+        if let Some(result) =
+            self.parser
+                .parse(runner.get_parser_context(), error_handler, input)?
         {
             let bound = if let Some(debug) = self.debug {
                 self.property.bind_result_with_debug(result, debug)

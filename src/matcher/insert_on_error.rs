@@ -43,7 +43,7 @@ where
                         message: self.message.clone(),
                         span: (start_pos, start_pos),
                     };
-                    error_handler.register_stack_error(error.as_parser_error());
+                    runner.get_parser_context().push_stack_error(error.as_parser_error());
                     Ok(true) // We return true because we "inserted" the missing element
                 } else {
                     Ok(false)

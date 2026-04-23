@@ -1,4 +1,8 @@
-use crate::{error::{FurthestFailError, UnwantedError, error_handler::ErrorHandler}, input::{Input, InputStream}, matcher::{MatcherCombinator, internal::MatcherImpl}};
+use crate::{
+    error::{FurthestFailError, UnwantedError, error_handler::ErrorHandler},
+    input::{Input, InputStream},
+    matcher::{MatcherCombinator, internal::MatcherImpl},
+};
 
 pub struct UnwantedMatcher<Inner> {
     inner: Inner,
@@ -13,11 +17,14 @@ impl<Inner> UnwantedMatcher<Inner> {
 
 impl<Inner> MatcherCombinator for UnwantedMatcher<Inner> where Inner: MatcherCombinator {}
 
-impl<'src, Inp: Input<'src>, MRes, Inner> MatcherImpl<'src, Inp, MRes> for UnwantedMatcher<Inner> where Inner: MatcherImpl<'src, Inp, MRes> {
+impl<'src, Inp: Input<'src>, MRes, Inner> MatcherImpl<'src, Inp, MRes> for UnwantedMatcher<Inner>
+where
+    Inner: MatcherImpl<'src, Inp, MRes>,
+{
     const CAN_MATCH_DIRECTLY: bool = true;
     const HAS_PROPERTY: bool = false;
     const CAN_FAIL: bool = true;
-    
+
     fn match_with_runner<'a, Runner>(
         &'a self,
         runner: &mut Runner,
@@ -26,7 +33,8 @@ impl<'src, Inp: Input<'src>, MRes, Inner> MatcherImpl<'src, Inp, MRes> for Unwan
     ) -> Result<bool, FurthestFailError>
     where
         Runner: super::MatchRunner<'a, 'src, Inp, MRes = MRes>,
-        'src: 'a {
+        'src: 'a,
+    {
         let start_pos: usize = input.get_pos().into();
         if runner.run_match(&self.inner, error_handler, input)? {
             if error_handler.is_real() {
@@ -35,7 +43,7 @@ impl<'src, Inp: Input<'src>, MRes, Inner> MatcherImpl<'src, Inp, MRes> for Unwan
                     span: (start_pos, end_pos),
                     message: self.message.clone(),
                 };
-                error_handler.register_stack_error(error.as_parser_error());
+                runner.get_parser_context().push_stack_error(error.as_parser_error());
                 return Ok(true); // We return true because we "inserted" the unwanted element
             }
             return Ok(false);
@@ -44,7 +52,10 @@ impl<'src, Inp: Input<'src>, MRes, Inner> MatcherImpl<'src, Inp, MRes> for Unwan
     }
 }
 
-pub fn unwanted<Inner>(inner: Inner, message: impl Into<String>) -> UnwantedMatcher<Inner> where Inner: MatcherCombinator {
+pub fn unwanted<Inner>(inner: Inner, message: impl Into<String>) -> UnwantedMatcher<Inner>
+where
+    Inner: MatcherCombinator,
+{
     UnwantedMatcher {
         inner,
         message: message.into(),

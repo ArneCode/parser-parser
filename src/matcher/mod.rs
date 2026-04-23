@@ -17,8 +17,8 @@
 pub mod any_token;
 pub mod commit_matcher;
 pub mod error_contextualizer;
+pub mod ignore_result;
 pub mod insert_on_error;
-pub mod unwanted;
 pub mod multiple;
 pub mod negative_lookahead;
 pub mod one_or_more;
@@ -28,6 +28,7 @@ pub mod positive_lookahead;
 pub(crate) mod runner;
 pub mod sequence;
 pub mod string;
+pub mod unwanted;
 
 pub use any_token::AnyToken;
 pub use commit_matcher::{CommitMatcher, commit_on};
@@ -59,7 +60,7 @@ pub(crate) mod internal {
     };
 
     /// Crate-private matching interface used by [`super::Matcher`].
-    pub trait MatcherImpl<'src, Inp, MRes>//: MatcherCombinator
+    pub trait MatcherImpl<'src, Inp, MRes>
     where
         Inp: Input<'src>,
     {
@@ -94,43 +95,35 @@ pub(crate) mod internal {
     }
 }
 
-
-
 /// Facade for matchers over `Token` that read and write match state into `MRes`.
 ///
 /// `MRes` is usually the capture bucket type in [`crate::parser::capture::Capture`].
 /// Blanket-implemented for all types that implement the crate-private matcher implementation trait.
-pub trait Matcher<'src, Inp: Input<'src>, MRes>: internal::MatcherImpl<'src, Inp, MRes> {
-
-}
+pub trait Matcher<'src, Inp: Input<'src>, MRes>: internal::MatcherImpl<'src, Inp, MRes> {}
 
 pub trait MatcherCombinator {
-        /// Wrap this matcher so that on furthest-failure, `error_parser` runs to attach diagnostics.
-        fn add_error_info<Pars>(
-            self,
-            error_parser: Pars,
-        ) -> ErrorContextualizer<Self, Pars>
-        where
-            Self: Sized,
-        {
-            ErrorContextualizer::new(self, error_parser)
-        }
+    /// Wrap this matcher so that on furthest-failure, `error_parser` runs to attach diagnostics.
+    fn add_error_info<Pars>(self, error_parser: Pars) -> ErrorContextualizer<Self, Pars>
+    where
+        Self: Sized,
+    {
+        ErrorContextualizer::new(self, error_parser)
+    }
 
-        /// If the matcher fails to extend the furthest error, insert `message` into that error.
-        fn try_insert_if_missing<M: Display>(self, message: M) -> InsertOnErrorMatcher<Self>
-        where
-            Self: Sized,
-        {
-            InsertOnErrorMatcher {
-                inner: self,
-                message: message.to_string(),
-            }
+    /// If the matcher fails to extend the furthest error, insert `message` into that error.
+    fn try_insert_if_missing<M: Display>(self, message: M) -> InsertOnErrorMatcher<Self>
+    where
+        Self: Sized,
+    {
+        InsertOnErrorMatcher {
+            inner: self,
+            message: message.to_string(),
         }
+    }
 }
 
-impl<'src, Inp: Input<'src>, MRes, M> Matcher<'src, Inp, MRes> for M
-where
-    M: internal::MatcherImpl<'src, Inp, MRes>,
+impl<'src, Inp: Input<'src>, MRes, M> Matcher<'src, Inp, MRes> for M where
+    M: internal::MatcherImpl<'src, Inp, MRes>
 {
 }
 

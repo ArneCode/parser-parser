@@ -108,7 +108,7 @@ impl<'src, Inp: Input<'src, Token = char>, MRes> super::internal::MatcherImpl<'s
     }
 }
 
-impl MatcherCombinator for char{}
+impl MatcherCombinator for char {}
 
 // impl MaybeLabel<String> for StringMatcher {
 //     fn maybe_label(&self) -> Option<String> {

@@ -44,9 +44,9 @@ where
         Runner: MatchRunner<'a, 'src, Inp, MRes = MRes>,
         'src: 'a,
     {
-        if let Some(output) = self
-            .parser
-            .parse(runner.get_parser_context(), error_handler, input)?
+        if let Some(output) =
+            self.parser
+                .parse(runner.get_parser_context(), error_handler, input)?
             && output == self.expected_output
         {
             return Ok(true);
