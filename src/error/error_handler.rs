@@ -97,7 +97,6 @@ impl ErrorHandler for MultiErrorHandler {
         }
     }
 
-
     fn register_success(&mut self, idx: Self::Indexer) {
         self.pop_slice_stack(&idx);
     }
@@ -190,8 +189,7 @@ impl Display for FurthestFailError {
 
 use std::fmt::{Debug, Formatter};
 
-use crate::context::ParserContext;
-use crate::error::{ExtraLabel, FurthestFailError, ParserError, ParserErrorAnnotations};
+use crate::error::{ExtraLabel, FurthestFailError, ParserErrorAnnotations};
 
 impl Debug for ExtraLabel {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {

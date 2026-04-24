@@ -13,8 +13,10 @@
 
 pub mod capture;
 pub mod deferred;
+pub(crate) mod fn_parser;
 pub mod memoized;
 pub mod multiple;
+pub mod output_mapper;
 pub mod range_parser;
 pub mod recover_error;
 pub mod single_token;
@@ -41,7 +43,7 @@ use crate::{
         error_handler::{ErrorHandler, ErrorHandlerChoice},
     },
     input::{Input, InputStream},
-    matcher::ErrorContextualizer,
+    matcher::{ErrorContextualizer, ignore_result::IgnoreResult},
     parser::recover_error::ErrorRecoverer as ErrorRecovererInner,
 };
 
@@ -113,6 +115,20 @@ pub trait ParserCombinator {
     {
         ErrorContextualizer::new(self, error_parser)
     }
+
+    fn ignore_result(self) -> IgnoreResult<Self>
+    where
+        Self: Sized,
+    {
+        IgnoreResult::new(self)
+    }
+
+    fn map_output<MapFn>(self, map_fn: MapFn) -> output_mapper::OutputMapper<Self, MapFn>
+    where
+        Self: Sized,
+    {
+        output_mapper::OutputMapper::new(self, map_fn)
+    }
 }
 
 impl<'src, Inp: Input<'src>, P> Parser<'src, Inp> for P where P: internal::ParserImpl<'src, Inp> {}
@@ -143,10 +159,7 @@ where
     }
 }
 
-impl<Inner> ParserCombinator for &Inner where
-    Inner: ParserCombinator
-{
-}
+impl<Inner> ParserCombinator for &Inner where Inner: ParserCombinator {}
 
 // impl Parser for all types that deref to a parser
 impl<'src, Inner, Inp: Input<'src>> internal::ParserImpl<'src, Inp> for &Inner
@@ -165,10 +178,7 @@ where
         (**self).parse(context, error_handler, input)
     }
 }
-impl<Inner> ParserCombinator for Rc<Inner> where
-    Inner: ParserCombinator
-{
-}
+impl<Inner> ParserCombinator for Rc<Inner> where Inner: ParserCombinator {}
 
 impl<'src, Inner, Inp: Input<'src>> internal::ParserImpl<'src, Inp> for Rc<Inner>
 where
@@ -186,10 +196,7 @@ where
         (**self).parse(context, error_handler, input)
     }
 }
-impl<Inner> ParserCombinator for Box<Inner> where
-    Inner: ParserCombinator
-{
-}
+impl<Inner> ParserCombinator for Box<Inner> where Inner: ParserCombinator {}
 
 impl<'src, Inner, Inp: Input<'src>> internal::ParserImpl<'src, Inp> for Box<Inner>
 where

@@ -1,4 +1,4 @@
-use std::{collections::HashMap, env, fs, process, rc::Rc};
+use std::{env, fs, process, rc::Rc};
 
 use marser_macros::capture;
 
@@ -6,7 +6,7 @@ use marser::{
     error::{FurthestFailError, ParserError},
     label::WithLabel,
     matcher::{
-        AnyToken, MatcherCombinator, commit_matcher::commit_on, multiple::many, negative_lookahead,
+        MatcherCombinator, commit_matcher::commit_on, multiple::many, negative_lookahead,
         one_or_more::one_or_more, optional::optional, positive_lookahead, unwanted::unwanted,
     },
     one_of::one_of,
@@ -258,8 +258,8 @@ pub fn get_json_grammar<'src>() -> impl Parser<'src, &'src str, Output = JsonVal
                     bind!(key_value_pair.clone(), *key_value_pairs),
                     many((
                         ','.try_insert_if_missing("missing comma"),
-                                ws.clone(),
-                                bind!(key_value_pair.clone(), *key_value_pairs),
+                        ws.clone(),
+                        bind!(key_value_pair.clone(), *key_value_pairs),
                     )),
                     many((unwanted(',', "trailing comma"), ws.clone()))
                 )),
@@ -298,10 +298,7 @@ pub fn get_json_grammar<'src>() -> impl Parser<'src, &'src str, Output = JsonVal
 fn main() {
     let mut args = env::args();
     let program = args.next().unwrap_or_else(|| "json".to_string());
-    let Some(path) = args.next() else {
-        eprintln!("Usage: {program} <path-to-json-file>");
-        process::exit(2);
-    };
+    let path = args.next().unwrap_or("tests/data/json1.json".to_string());
 
     if args.next().is_some() {
         eprintln!("Usage: {program} <path-to-json-file>");
@@ -319,11 +316,11 @@ fn main() {
     let parser = get_json_grammar();
     match marser::parse(parser, sample.as_str()) {
         Ok((value, errors)) => {
-            // eprintln!("--- Ariadne ---");
-            // ParserError::eprint_many(&errors, path.as_str(), sample.as_str());
+            eprintln!("--- Ariadne ---");
+            ParserError::eprint_many(&errors, path.as_str(), sample.as_str());
             ParserError::eprint_many_miette(&errors, path.as_str(), sample.as_str());
-            // eprintln!("--- annotate-snippets ---");
-            // ParserError::eprint_many_annotate_snippets(&errors, path.as_str(), sample.as_str());
+            eprintln!("--- annotate-snippets ---");
+            ParserError::eprint_many_annotate_snippets(&errors, path.as_str(), sample.as_str());
             println!("\n--- Recovered JSON: ---");
             println!("{}", value.serialize_pretty());
         }

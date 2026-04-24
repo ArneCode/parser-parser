@@ -21,12 +21,13 @@ pub struct Capture<MRes, Match, F> {
     pub(super) _phantom: PhantomData<MRes>,
 }
 
-impl<MRes, Match, F> Clone for Capture<MRes, Match, F> where
+impl<MRes, Match, F> Clone for Capture<MRes, Match, F>
+where
     Match: Clone,
     F: Clone,
 {
     fn clone(&self) -> Self {
-        Self{
+        Self {
             matcher: self.matcher.clone(),
             constructor: self.constructor.clone(),
             _phantom: PhantomData,
@@ -34,7 +35,8 @@ impl<MRes, Match, F> Clone for Capture<MRes, Match, F> where
     }
 }
 
-impl<MRes, Match, F> std::fmt::Debug for Capture<MRes, Match, F> where
+impl<MRes, Match, F> std::fmt::Debug for Capture<MRes, Match, F>
+where
     Match: std::fmt::Debug,
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -99,6 +101,8 @@ where
         error_handler: &mut impl ErrorHandler,
         input: &mut InputStream<'src, Inp>,
     ) -> Result<Option<Self::Output>, FurthestFailError> {
+        let s = format!("{self:#?}");
+        println!("Trying to parse with capture: {s}");
         // let old_match_start = context.match_start;
         // context.match_start = *pos;
         if Match::CAN_MATCH_DIRECTLY && !error_handler.is_real() {

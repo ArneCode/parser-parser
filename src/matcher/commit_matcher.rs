@@ -85,7 +85,7 @@ where
             );
             if result {
                 let results = {
-                    let (context, results) = inner_runner.get_data();
+                    let (_context, results) = inner_runner.get_data();
                     // error recovery succeeded
                     // writing stack errors that have been fixed during recovery.
                     // error_handler.write_stack_errors(context);
@@ -96,6 +96,7 @@ where
             } else {
                 let (_, results) = inner_runner.get_data();
                 runner.apply_results(results);
+                println!("throwing error from {self:?}");
                 let err = error_handler.to_parser_error();
                 return Err(err);
             }
