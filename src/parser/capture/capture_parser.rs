@@ -101,8 +101,6 @@ where
         error_handler: &mut impl ErrorHandler,
         input: &mut InputStream<'src, Inp>,
     ) -> Result<Option<Self::Output>, FurthestFailError> {
-        let s = format!("{self:#?}");
-        println!("Trying to parse with capture: {s}");
         // let old_match_start = context.match_start;
         // context.match_start = *pos;
         if Match::CAN_MATCH_DIRECTLY && !error_handler.is_real() {

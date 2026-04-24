@@ -316,11 +316,11 @@ fn main() {
     let parser = get_json_grammar();
     match marser::parse(parser, sample.as_str()) {
         Ok((value, errors)) => {
-            eprintln!("--- Ariadne ---");
-            ParserError::eprint_many(&errors, path.as_str(), sample.as_str());
+            // eprintln!("--- Ariadne ---");
+            // ParserError::eprint_many(&errors, path.as_str(), sample.as_str());
             ParserError::eprint_many_miette(&errors, path.as_str(), sample.as_str());
-            eprintln!("--- annotate-snippets ---");
-            ParserError::eprint_many_annotate_snippets(&errors, path.as_str(), sample.as_str());
+            // eprintln!("--- annotate-snippets ---");
+            // ParserError::eprint_many_annotate_snippets(&errors, path.as_str(), sample.as_str());
             println!("\n--- Recovered JSON: ---");
             println!("{}", value.serialize_pretty());
         }
