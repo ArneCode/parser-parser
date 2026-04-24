@@ -17,6 +17,7 @@
 pub mod any_token;
 pub mod commit_matcher;
 pub mod error_contextualizer;
+pub mod if_error;
 pub mod ignore_result;
 pub mod insert_on_error;
 pub mod multiple;

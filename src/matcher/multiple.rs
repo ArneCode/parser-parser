@@ -48,6 +48,7 @@ where
         'src: 'a,
     {
         loop {
+            // TODO: maybe throw an error if an infinite loop is detected.
             let before = input.get_pos();
             if !runner.run_match(&self.matcher, error_handler, input)? {
                 break;

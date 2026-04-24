@@ -49,10 +49,6 @@ where
                         message: self.message.clone(),
                         span: (start_pos, start_pos),
                     };
-                    println!(
-                        "Inserted missing {:?} at position {}",
-                        self.inner, start_pos
-                    );
                     runner
                         .get_parser_context()
                         .push_stack_error(error.as_parser_error());

@@ -38,18 +38,17 @@ where
     {
         let start_pos: usize = input.get_pos().into();
         if runner.run_match(&self.inner, error_handler, input)? {
-            if error_handler.is_real() {
-                let end_pos: usize = input.get_pos().into();
-                let error = UnwantedError {
-                    span: (start_pos, end_pos),
-                    message: self.message.clone(),
-                };
-                runner.get_parser_context().push_stack_error(error.as_parser_error());
-                return Ok(true); // We return true because we "inserted" the unwanted element
-            }
-            return Ok(false);
+            let end_pos: usize = input.get_pos().into();
+            let error = UnwantedError {
+                span: (start_pos, end_pos),
+                message: self.message.clone(),
+            };
+            runner
+                .get_parser_context()
+                .push_stack_error(error.as_parser_error());
+            return Ok(true);
         }
-        Ok(true)
+        return Ok(false);
     }
 }
 

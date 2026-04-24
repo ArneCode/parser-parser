@@ -6,8 +6,9 @@ use marser::{
     error::{FurthestFailError, ParserError},
     label::WithLabel,
     matcher::{
-        MatcherCombinator, commit_matcher::commit_on, multiple::many, negative_lookahead,
-        one_or_more::one_or_more, optional::optional, positive_lookahead, unwanted::unwanted,
+        AnyToken, MatcherCombinator, commit_matcher::commit_on, if_error::{if_error, if_error_else_fail}, multiple::many,
+        negative_lookahead, one_or_more::one_or_more, optional::optional, positive_lookahead,
+        unwanted::unwanted,
     },
     one_of::one_of,
     parser::{Parser, ParserCombinator, deferred::recursive, token_parser::TokenParser},
@@ -206,7 +207,7 @@ pub fn get_json_grammar<'src>() -> impl Parser<'src, &'src str, Output = JsonVal
                         bind!(escaped_char, *chars),
                         bind!(unicode_escape, *chars),
                     ))),
-                    '"',
+                    '"'.try_insert_if_missing("missing closing quote"),
                     ws.clone()
                 ))
             } =>  {
@@ -227,11 +228,11 @@ pub fn get_json_grammar<'src>() -> impl Parser<'src, &'src str, Output = JsonVal
                     bind!(element.clone(), *elements),
                     many((
                         ','.try_insert_if_missing("missing comma"), ws.clone(),
-                        many((unwanted(',', "missing element"), ws.clone())),
+                        if_error(many((unwanted(',', "missing element"), ws.clone()))),
                         bind!(element.clone(), *elements),
-                        negative_lookahead(':')
+                        if_error(negative_lookahead(':'))
                     ))
-                )), ws.clone(), many((unwanted(',', "trailing comma"), ws.clone())),
+                )), ws.clone(), if_error(many((unwanted(',', "trailing comma"), ws.clone()))),
                 ']'.try_insert_if_missing("missing closing ']'"), ws.clone()
             ))
         } =>  {
@@ -261,7 +262,7 @@ pub fn get_json_grammar<'src>() -> impl Parser<'src, &'src str, Output = JsonVal
                         ws.clone(),
                         bind!(key_value_pair.clone(), *key_value_pairs),
                     )),
-                    many((unwanted(',', "trailing comma"), ws.clone()))
+                    if_error(many((unwanted(',', "trailing comma"), ws.clone())))
                 )),
                 '}'.try_insert_if_missing("missing closing '}'"), ws.clone()
                 )
@@ -271,15 +272,31 @@ pub fn get_json_grammar<'src>() -> impl Parser<'src, &'src str, Output = JsonVal
         })
         .with_label("object");
 
-        let string = capture!( bind!(raw_string.clone(), s)  => JsonValue::String(s));
+        let string = raw_string
+            .map_output(JsonValue::String)
+            .with_label("string");
 
-        // let invalid_element = capture!(
-        //     (
-        //         unwanted(one_or_more(
-
-        //         ))
-        //     )
-        // )
+        let invalid_element = capture!(
+            if_error_else_fail(unwanted(one_or_more(
+                (
+                    negative_lookahead(one_of((
+                        '{',
+                        '[',
+                        '"',
+                        '-',
+                        '0'..='9',
+                        ',',
+                        ']',
+                        '}',
+                        ':',
+                        one_of((' ', '\t', '\n', '\r'))
+                    ))),
+                    AnyToken
+                )
+            ), "invalid element"),
+            ) => JsonValue::Invalid
+        )
+        .with_label("invalid element");
         capture!((
             ws.clone(), 
             bind!(one_of((
@@ -288,7 +305,8 @@ pub fn get_json_grammar<'src>() -> impl Parser<'src, &'src str, Output = JsonVal
                 string, 
                 number, 
                 boolean, 
-                null
+                null,
+                invalid_element
             )), result), 
             ws.clone()
         ) => result)

@@ -96,7 +96,6 @@ where
             } else {
                 let (_, results) = inner_runner.get_data();
                 runner.apply_results(results);
-                println!("throwing error from {self:?}");
                 let err = error_handler.to_parser_error();
                 return Err(err);
             }
