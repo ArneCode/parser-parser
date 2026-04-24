@@ -51,16 +51,16 @@ use crate::{
 };
 
 pub(crate) mod internal {
-    use std::fmt::Display;
+    use std::fmt::{Debug, Display};
 
     use crate::{
         error::{FurthestFailError, error_handler::ErrorHandler},
         input::{Input, InputStream},
-        matcher::runner::MatchRunner,
+        matcher::{MatcherCombinator, runner::MatchRunner},
     };
 
     /// Crate-private matching interface used by [`super::Matcher`].
-    pub trait MatcherImpl<'src, Inp, MRes>
+    pub trait MatcherImpl<'src, Inp, MRes>: Debug + MatcherCombinator + Clone
     where
         Inp: Input<'src>,
     {
@@ -127,6 +127,8 @@ impl<'src, Inp: Input<'src>, MRes, M> Matcher<'src, Inp, MRes> for M where
 {
 }
 
+impl<Inner> MatcherCombinator for &Inner where Inner: MatcherCombinator {}
+
 impl<'src, Inp: Input<'src>, MRes, Inner> internal::MatcherImpl<'src, Inp, MRes> for &Inner
 where
     Inner: Matcher<'src, Inp, MRes>,
@@ -148,6 +150,8 @@ where
         (**self).match_with_runner(runner, error_handler, input)
     }
 }
+
+impl<Inner> MatcherCombinator for Rc<Inner> where Inner: MatcherCombinator {}
 
 impl<'src, Inp: Input<'src>, MRes, Inner> internal::MatcherImpl<'src, Inp, MRes> for Rc<Inner>
 where
@@ -171,6 +175,8 @@ where
     }
 }
 
+impl<Inner> MatcherCombinator for Box<Inner> where Inner: MatcherCombinator {}
+
 impl<'src, Inp: Input<'src>, MRes, Inner> internal::MatcherImpl<'src, Inp, MRes> for Box<Inner>
 where
     Inner: Matcher<'src, Inp, MRes>,
@@ -192,6 +198,8 @@ where
         (**self).match_with_runner(runner, error_handler, input)
     }
 }
+
+impl MatcherCombinator for () {}
 
 impl<'src, Inp: Input<'src>, MRes> internal::MatcherImpl<'src, Inp, MRes> for () {
     const CAN_MATCH_DIRECTLY: bool = true;

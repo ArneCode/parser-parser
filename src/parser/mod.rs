@@ -46,14 +46,17 @@ use crate::{
 };
 
 pub(crate) mod internal {
+    use std::fmt::Debug;
+
     use crate::{
         context::ParserContext,
         error::{FurthestFailError, error_handler::ErrorHandler},
         input::{Input, InputStream},
+        parser::ParserCombinator,
     };
 
     /// Crate-private parsing interface used by [`super::Parser`].
-    pub trait ParserImpl<'src, Inp>
+    pub trait ParserImpl<'src, Inp>: Debug + ParserCombinator + Clone
     where
         Inp: Input<'src>,
     {
@@ -140,6 +143,11 @@ where
     }
 }
 
+impl<Inner> ParserCombinator for &Inner where
+    Inner: ParserCombinator
+{
+}
+
 // impl Parser for all types that deref to a parser
 impl<'src, Inner, Inp: Input<'src>> internal::ParserImpl<'src, Inp> for &Inner
 where
@@ -157,6 +165,11 @@ where
         (**self).parse(context, error_handler, input)
     }
 }
+impl<Inner> ParserCombinator for Rc<Inner> where
+    Inner: ParserCombinator
+{
+}
+
 impl<'src, Inner, Inp: Input<'src>> internal::ParserImpl<'src, Inp> for Rc<Inner>
 where
     Inner: Parser<'src, Inp>,
@@ -173,6 +186,11 @@ where
         (**self).parse(context, error_handler, input)
     }
 }
+impl<Inner> ParserCombinator for Box<Inner> where
+    Inner: ParserCombinator
+{
+}
+
 impl<'src, Inner, Inp: Input<'src>> internal::ParserImpl<'src, Inp> for Box<Inner>
 where
     Inner: Parser<'src, Inp>,

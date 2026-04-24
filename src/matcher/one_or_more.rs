@@ -7,6 +7,7 @@ use crate::{
 };
 
 /// Requires at least one successful `matcher`, then behaves like greedy repetition.
+#[derive(Clone, Debug)]
 pub struct OneOrMore<Match> {
     matcher: Match,
 }
@@ -21,6 +22,11 @@ impl<Match> OneOrMore<Match> {
 /// e+  — match one or more repetitions of `matcher`, capturing each occurrence.
 pub fn one_or_more<Match>(matcher: Match) -> OneOrMore<Match> {
     OneOrMore::new(matcher)
+}
+
+impl<Match> super::MatcherCombinator for OneOrMore<Match> where
+    Match: super::MatcherCombinator
+{
 }
 
 impl<'src, Inp: Input<'src>, MRes, Match> super::internal::MatcherImpl<'src, Inp, MRes>

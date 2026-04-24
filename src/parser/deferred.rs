@@ -12,16 +12,27 @@ use crate::{
     context::ParserContext,
     error::{FurthestFailError, error_handler::ErrorHandler},
     input::{Input, InputStream},
-    parser::{Parser, ParserObjSafe},
+    parser::{Parser, ParserCombinator, ParserObjSafe},
 };
 
 /// Strong handle to a parser installed later; used as the entry point for a recursive grammar.
 #[derive(Clone)]
 pub struct Deferred<'a, 'src, Inp, Output>
-where
-    Inp: Input<'src>,
 {
     parser: Rc<OnceCell<Box<dyn ParserObjSafe<'src, Inp, Output> + 'a>>>,
+}
+
+impl<'a, 'src, Inp, Output> std::fmt::Debug for Deferred<'a, 'src, Inp, Output> 
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Deferred")
+            .finish()
+    }
+}
+
+impl<'a, 'src, Inp, Output> ParserCombinator for Deferred<'a, 'src, Inp, Output> where
+    Inp: Input<'src>,
+{
 }
 
 /// Weak back-reference for defining recursive productions without a cycle at construction time.
@@ -31,6 +42,20 @@ where
     Inp: Input<'src>,
 {
     parser: Weak<OnceCell<Box<dyn ParserObjSafe<'src, Inp, Output> + 'a>>>,
+}
+
+impl<'a, 'src, Inp, Output> std::fmt::Debug for DeferredWeak<'a, 'src, Inp, Output> where
+    Inp: Input<'src>
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("DeferredWeak")
+            .finish()
+    }
+}
+
+impl<'a, 'src, Inp, Output> ParserCombinator for DeferredWeak<'a, 'src, Inp, Output> where
+    Inp: Input<'src>,
+{
 }
 
 impl<'a, 'src, Inp, Output> Deferred<'a, 'src, Inp, Output>
@@ -62,7 +87,8 @@ where
 impl<'a, 'src, Inp, Output> super::internal::ParserImpl<'src, Inp>
     for Deferred<'a, 'src, Inp, Output>
 where
-    Inp: Input<'src>,
+    Inp: Input<'src> + Clone,
+    Output: Clone,
 {
     type Output = Output;
     const CAN_FAIL: bool = true;
@@ -84,7 +110,8 @@ where
 impl<'a, 'src, Inp, Output> super::internal::ParserImpl<'src, Inp>
     for DeferredWeak<'a, 'src, Inp, Output>
 where
-    Inp: Input<'src>,
+    Inp: Input<'src> + Clone,
+    Output: Clone,
 {
     type Output = Output;
     const CAN_FAIL: bool = true;

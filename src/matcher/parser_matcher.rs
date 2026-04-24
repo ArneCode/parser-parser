@@ -4,10 +4,11 @@ use crate::{
     error::{FurthestFailError, error_handler::ErrorHandler},
     input::{Input, InputStream},
     matcher::MatchRunner,
-    parser::Parser,
+    parser::{Parser, ParserCombinator},
 };
 
 /// Runs `parser` and compares the result to `expected_output` with [`PartialEq`].
+#[derive(Clone, Debug)]
 pub struct ParserMatcher<Pars, ParserOutput> {
     parser: Pars,
     expected_output: ParserOutput,
@@ -23,12 +24,17 @@ impl<Pars, ParserOutput> ParserMatcher<Pars, ParserOutput> {
     }
 }
 
+impl<Pars, ParserOutput> super::MatcherCombinator for ParserMatcher<Pars, ParserOutput> where
+    Pars: ParserCombinator
+{
+}
+
 impl<'src, Inp: Input<'src>, MRes, Pars, ParserOutput> super::internal::MatcherImpl<'src, Inp, MRes>
     for ParserMatcher<Pars, ParserOutput>
 where
     Pars: Parser<'src, Inp, Output = ParserOutput>,
     Inp: Input<'src>,
-    ParserOutput: PartialEq,
+    ParserOutput: PartialEq + Clone + std::fmt::Debug,
 {
     const CAN_MATCH_DIRECTLY: bool = true;
     const HAS_PROPERTY: bool = false;

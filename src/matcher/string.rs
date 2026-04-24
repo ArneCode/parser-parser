@@ -7,6 +7,7 @@ use crate::{
 };
 
 /// Matches a fixed run of characters (by Unicode scalar values).
+#[derive(Clone, Debug)]
 pub struct StringMatcher {
     expected: Vec<char>,
 }
@@ -18,6 +19,9 @@ impl StringMatcher {
             expected: expected.chars().collect(),
         }
     }
+}
+
+impl super::MatcherCombinator for StringMatcher {
 }
 
 impl<'src, Inp: Input<'src, Token = char>, MRes> super::internal::MatcherImpl<'src, Inp, MRes>
@@ -48,6 +52,9 @@ impl<'src, Inp: Input<'src, Token = char>, MRes> super::internal::MatcherImpl<'s
     fn maybe_label(&self) -> Option<Box<dyn std::fmt::Display>> {
         Some(Box::new(self.expected.iter().collect::<String>()))
     }
+}
+
+impl super::MatcherCombinator for &str {
 }
 
 impl<'src, Inp: Input<'src, Token = char>, MRes> super::internal::MatcherImpl<'src, Inp, MRes>

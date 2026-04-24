@@ -9,12 +9,17 @@ use crate::{
     context::ParserContext,
     error::{FurthestFailError, error_handler::ErrorHandler},
     input::{Input, InputStream},
-    matcher::{MatchRunner, internal::MatcherImpl},
+    matcher::{MatchRunner, MatcherCombinator, internal::MatcherImpl}, parser::ParserCombinator,
 };
 
 /// Named wrapper holding a [`RangeBounds`] value; accepts one in-range token (same idea as the [`Range`] / [`RangeInclusive`] impls below).
+#[derive(Clone, Debug)]
 pub struct RangeParser<Range> {
     range: Range,
+}
+
+impl<Range> ParserCombinator for RangeParser<Range> 
+{
 }
 
 impl<Range> RangeParser<Range> {
@@ -27,7 +32,7 @@ impl<Range> RangeParser<Range> {
 impl<'src, Inp: Input<'src, Token = Token>, Token, Range> super::internal::ParserImpl<'src, Inp>
     for RangeParser<Range>
 where
-    Range: RangeBounds<Token>,
+    Range: RangeBounds<Token> + Clone,
     Token: PartialOrd + Clone,
     Range: Debug,
 {
@@ -49,6 +54,10 @@ where
         input.set_pos(old_pos);
         Ok(None)
     }
+}
+
+impl<Token> ParserCombinator for Range<Token> 
+{
 }
 
 impl<'src, Inp: Input<'src, Token = Token>, Token> super::internal::ParserImpl<'src, Inp>
@@ -77,11 +86,15 @@ where
     }
 }
 
+impl<Token> ParserCombinator for RangeInclusive<Token> 
+{
+}
+
 impl<'src, Inp: Input<'src, Token = Token>, Token> super::internal::ParserImpl<'src, Inp>
     for RangeInclusive<Token>
 where
     Token: PartialOrd + Clone,
-    Range<Token>: Debug,
+    RangeInclusive<Token>: Debug,
 {
     type Output = Token;
     const CAN_FAIL: bool = true;
@@ -101,6 +114,10 @@ where
         input.set_pos(old_pos);
         Ok(None)
     }
+}
+
+impl<Token> MatcherCombinator for Range<Token> 
+{
 }
 
 impl<'src, Inp: Input<'src, Token = Token>, Token, MRes> MatcherImpl<'src, Inp, MRes>
@@ -136,11 +153,15 @@ where
     }
 }
 
+impl<Token> MatcherCombinator for RangeInclusive<Token> 
+{
+}
+
 impl<'src, Inp: Input<'src, Token = Token>, Token, MRes> MatcherImpl<'src, Inp, MRes>
     for RangeInclusive<Token>
 where
     Token: PartialOrd + Clone + Display,
-    Range<Token>: Debug,
+    RangeInclusive<Token>: Debug,
 {
     const CAN_MATCH_DIRECTLY: bool = true;
     const HAS_PROPERTY: bool = false;

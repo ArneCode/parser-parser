@@ -298,7 +298,6 @@ pub fn get_json_grammar<'src>() -> impl Parser<'src, &'src str, Output = JsonVal
         .with_label("element")
     })
 }
-
 fn main() {
     let mut args = env::args();
     let program = args.next().unwrap_or_else(|| "json".to_string());

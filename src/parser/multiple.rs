@@ -4,13 +4,24 @@ use crate::{
     context::ParserContext,
     error::{FurthestFailError, error_handler::ErrorHandler},
     input::{Input, InputStream},
-    parser::Parser,
+    parser::{Parser, ParserCombinator},
 };
 
 /// Applies `parser` in a loop until it returns [`None`], then maps the collected vector with `combine_fn`.
+#[derive(Clone)]
 pub struct MultipleParser<Pars, CombF> {
     parser: Pars,
     combine_fn: CombF,
+}
+
+impl<Pars, CombF> std::fmt::Debug for MultipleParser<Pars, CombF> where
+    Pars: std::fmt::Debug,
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("MultipleParser")
+            .field("parser", &self.parser)
+            .finish()
+    }
 }
 
 impl<Pars, CombF> MultipleParser<Pars, CombF> {
@@ -20,28 +31,17 @@ impl<Pars, CombF> MultipleParser<Pars, CombF> {
     }
 }
 
-// impl<Pars, CombF> HasId for MultipleParser<Pars, CombF> {
-//     fn id(&self) -> usize {
-//         self.id
-//     }
-// }
-
-// impl<T, NodeIn, Pars, CombF> IsCheckable<T> for MultipleParser<Pars, CombF>
-// where
-//     Pars: Parser<T, Output = NodeIn> + Grammar<T>,
-// {
-//     fn calc_check(&self, context: &mut ParserContext<T>, pos: &mut usize) -> bool {
-//         while self.parser.check(context, pos) {}
-//         true
-//     }
-// }
+impl<Pars, CombF> ParserCombinator for MultipleParser<Pars, CombF> where
+    Pars: ParserCombinator
+{
+}
 
 impl<'src, Inp: Input<'src>, NodeIn, NodeOut, Pars, CombF> super::internal::ParserImpl<'src, Inp>
     for MultipleParser<Pars, CombF>
 where
-    Pars: Parser<'src, Inp, Output = NodeIn>,
+    Pars: Parser<'src, Inp, Output = NodeIn> + Clone,
     Inp: Input<'src>,
-    CombF: Fn(Vec<NodeIn>) -> NodeOut,
+    CombF: Fn(Vec<NodeIn>) -> NodeOut + Clone,
 {
     type Output = NodeOut;
     const CAN_FAIL: bool = Pars::CAN_FAIL;

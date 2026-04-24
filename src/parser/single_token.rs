@@ -5,10 +5,11 @@ use std::fmt::Debug;
 use crate::{
     context::ParserContext,
     error::{FurthestFailError, error_handler::ErrorHandler},
-    input::{Input, InputStream},
+    input::{Input, InputStream}, parser::ParserCombinator,
 };
 
 /// Matches `token` and advances by one on success.
+#[derive(Clone, Debug)]
 pub struct SingleTokenParser<Token> {
     token: Token,
 }
@@ -20,49 +21,10 @@ impl<Token> SingleTokenParser<Token> {
     }
 }
 
-// impl<Token> HasId for SingleTokenParser<Token> {
-//     fn id(&self) -> usize {
-//         self.id
-//     }
-// }
+impl<Token> ParserCombinator for SingleTokenParser<Token> 
+{
+}
 
-// impl<Token: PartialEq> IsCheckable<Token> for SingleTokenParser<Token> {
-//     fn calc_check(
-//         &self,
-//         context: &mut ParserContext<Token, impl ErrorHandler>,
-//         pos: &mut usize,
-//     ) -> bool {
-//         if *pos < context.tokens.len() {
-//             let token = &context.tokens[*pos];
-//             if token == &self.token {
-//                 *pos += 1; // Advance position on success
-//                 return true;
-//             }
-//         }
-//         false
-//     }
-// }
-
-// impl<Token: PartialEq + Clone + Debug> Parser<Token> for SingleTokenParser<Token> {
-//     type Output = Token;
-
-//     fn parse(
-//         &self,
-//         context: &mut ParserContext<Token, impl ErrorHandler>,
-//         pos: &mut usize,
-//     ) -> Result<Self::Output, String> {
-//         if self.calc_check(context, pos) {
-//             Ok(self.token.clone())
-//         } else {
-//             Err(format!(
-//                 "Expected token {:?} at position {}, but found {:?}",
-//                 self.token,
-//                 *pos,
-//                 context.tokens.get(*pos)
-//             ))
-//         }
-//     }
-// }
 impl<'src, Inp: Input<'src, Token = Token>, Token: PartialEq + Clone + Debug>
     super::internal::ParserImpl<'src, Inp> for SingleTokenParser<Token>
 {
@@ -86,6 +48,9 @@ impl<'src, Inp: Input<'src, Token = Token>, Token: PartialEq + Clone + Debug>
 }
 
 // impl<Token, Label> MaybeLabel<Label> for SingleTokenParser<Token> {}
+impl ParserCombinator for char 
+{
+}
 
 impl<'src, Inp: Input<'src, Token = char>> super::internal::ParserImpl<'src, Inp> for char {
     type Output = char;

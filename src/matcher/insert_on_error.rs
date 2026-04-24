@@ -7,11 +7,17 @@ use crate::{
 };
 
 /// Wrapper produced by [`crate::matcher::Matcher::try_insert_if_missing`].
+#[derive(Clone, Debug)]
 pub struct InsertOnErrorMatcher<Inner> {
     /// Inner matcher.
     pub inner: Inner,
     /// Message stored on the synthetic missing error.
     pub message: String,
+}
+
+impl<Inner> super::MatcherCombinator for InsertOnErrorMatcher<Inner> where
+    Inner: super::MatcherCombinator
+{
 }
 
 impl<'src, Inp: Input<'src>, MRes, Inner> super::internal::MatcherImpl<'src, Inp, MRes>

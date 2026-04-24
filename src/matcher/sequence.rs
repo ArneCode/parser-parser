@@ -22,6 +22,12 @@ use crate::{
 macro_rules! impl_matcher_for_seq_tuples {
     () => {};
     ($head:ident $(,$tail:ident)*) => {
+        impl< $head, $($tail),*> super::MatcherCombinator for ($head, $($tail,)*) where
+            $head: super::MatcherCombinator,
+            $($tail: super::MatcherCombinator,)*
+        {
+        }
+
         impl<'src, Inp: Input<'src>, MRes, $head, $($tail),*> super::internal::MatcherImpl<'src, Inp, MRes> for ($head, $($tail,)*)
         where
             $head: Matcher<'src, Inp, MRes>,

@@ -7,6 +7,7 @@ use crate::{
 };
 
 /// Positive lookahead wrapper around a [`Matcher`].
+#[derive(Clone, Debug)]
 pub struct PositiveLookahead<Check> {
     checker: Check,
 }
@@ -21,6 +22,11 @@ impl<Check> PositiveLookahead<Check> {
 /// &e  — positive lookahead. Succeeds without consuming if `e` would match.
 pub fn positive_lookahead<Check>(checker: Check) -> PositiveLookahead<Check> {
     PositiveLookahead::new(checker)
+}
+
+impl<Check> super::MatcherCombinator for PositiveLookahead<Check> where
+    Check: super::MatcherCombinator
+{
 }
 
 impl<'src, Inp: Input<'src>, MRes, Check> super::internal::MatcherImpl<'src, Inp, MRes>

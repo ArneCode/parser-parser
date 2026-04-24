@@ -4,18 +4,32 @@ use std::panic::Location;
 use crate::{
     error::{FurthestFailError, error_handler::ErrorHandler},
     input::{Input, InputStream},
-    matcher::{internal::MatcherImpl, runner::MatchRunner},
-    parser::Parser,
+    matcher::{MatcherCombinator, internal::MatcherImpl, runner::MatchRunner},
+    parser::{Parser, ParserCombinator},
 };
 
 use super::property::{BindDebugInfo, Property};
 
 /// [`crate::matcher::Matcher`] that runs parser `Pars` and stores its output with `Prop`.
+#[derive(Clone)]
 pub struct ResultBinder<Pars, Prop, Inp> {
     pub(super) parser: Pars,
     pub(super) property: Prop,
     pub(super) debug: Option<BindDebugInfo>,
     pub(super) _phantom: PhantomData<Inp>,
+}
+
+impl<Pars, Prop, Inp> std::fmt::Debug for ResultBinder<Pars, Prop, Inp>
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ResultBinder")
+            .finish()
+    }
+}
+
+impl<Pars, Prop, Inp> MatcherCombinator for ResultBinder<Pars, Prop, Inp> where
+    Pars: ParserCombinator
+{
 }
 
 impl<Pars, Prop, Inp> ResultBinder<Pars, Prop, Inp> {
@@ -67,7 +81,7 @@ impl<'src, Inp: Input<'src> + 'src, Pars, Prop, MRes> MatcherImpl<'src, Inp, MRe
     for ResultBinder<Pars, Prop, Inp>
 where
     Pars: Parser<'src, Inp> + 'src,
-    Inp: Input<'src>,
+    Inp: Input<'src> + Clone,
     Prop: Property<Pars::Output, MRes> + Clone + 'src,
 {
     const CAN_MATCH_DIRECTLY: bool = true;

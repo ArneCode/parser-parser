@@ -3,6 +3,7 @@
 use std::rc::Rc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
+use crate::parser::ParserCombinator;
 use crate::{
     context::ParserContext,
     error::{FurthestFailError, error_handler::ErrorHandler},
@@ -13,6 +14,7 @@ use crate::{
 static NEXT_MEMO_ID: AtomicUsize = AtomicUsize::new(0);
 
 /// Wraps parser `P`; successful outputs are shared as [`Rc`] across repeated parses at the same position.
+#[derive(Clone, Debug)]
 pub struct Memoized<P> {
     inner: P,
     id: usize,
@@ -26,6 +28,11 @@ impl<P> Memoized<P> {
             id: NEXT_MEMO_ID.fetch_add(1, Ordering::Relaxed),
         }
     }
+}
+
+impl<P> ParserCombinator for Memoized<P> where
+    P: ParserCombinator
+{
 }
 
 impl<'src, Inp: Input<'src>, P, POut> super::internal::ParserImpl<'src, Inp> for Memoized<P>

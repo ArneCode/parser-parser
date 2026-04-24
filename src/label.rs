@@ -6,14 +6,25 @@ use crate::{
     context::ParserContext,
     error::{FurthestFailError, error_handler::ErrorHandler},
     input::{Input, InputStream},
-    matcher::{MatchRunner, Matcher, internal::MatcherImpl},
-    parser::{Parser, internal::ParserImpl},
+    matcher::{MatchRunner, Matcher, MatcherCombinator, internal::MatcherImpl},
+    parser::{Parser, ParserCombinator, internal::ParserImpl},
 };
 
 /// Wraps `inner` and supplies [`Matcher::maybe_label`] / parse failure registration from `label`.
+#[derive(Clone, Debug)]
 pub struct Labeled<L, I> {
     label: L,
     inner: I,
+}
+
+impl<L, I> ParserCombinator for Labeled<L, I> where
+    I: ParserCombinator,
+{
+}
+
+impl<L, I> MatcherCombinator for Labeled<L, I> where
+    I: MatcherCombinator,
+{
 }
 
 impl<L, I> Labeled<L, I> {
@@ -27,7 +38,7 @@ impl<'src, Inp: Input<'src>, MRes, L, I> MatcherImpl<'src, Inp, MRes> for Labele
 where
     I: Matcher<'src, Inp, MRes>,
     Inp: Input<'src>,
-    L: Display + Clone + 'static,
+    L: Display + Clone + 'static + std::fmt::Debug,
 {
     const CAN_MATCH_DIRECTLY: bool = I::CAN_MATCH_DIRECTLY;
     const HAS_PROPERTY: bool = I::HAS_PROPERTY;
@@ -54,7 +65,7 @@ impl<'src, Inp: Input<'src>, L, I> ParserImpl<'src, Inp> for Labeled<L, I>
 where
     I: Parser<'src, Inp>,
     Inp: Input<'src>,
-    L: Display + Clone + 'static,
+    L: Display + Clone + 'static + std::fmt::Debug,
 {
     type Output = I::Output;
     const CAN_FAIL: bool = I::CAN_FAIL;

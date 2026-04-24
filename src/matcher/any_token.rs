@@ -7,7 +7,10 @@ use crate::{
 };
 
 /// Matches exactly one token and advances; fails at end of input.
+#[derive(Clone, Debug)]
 pub struct AnyToken;
+
+impl super::MatcherCombinator for AnyToken {}
 
 impl<'src, Inp: Input<'src>, MRes> super::internal::MatcherImpl<'src, Inp, MRes> for AnyToken
 where

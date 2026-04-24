@@ -21,8 +21,33 @@ pub struct Capture<MRes, Match, F> {
     pub(super) _phantom: PhantomData<MRes>,
 }
 
+impl<MRes, Match, F> Clone for Capture<MRes, Match, F> where
+    Match: Clone,
+    F: Clone,
+{
+    fn clone(&self) -> Self {
+        Self{
+            matcher: self.matcher.clone(),
+            constructor: self.constructor.clone(),
+            _phantom: PhantomData,
+        }
+    }
+}
+
+impl<MRes, Match, F> std::fmt::Debug for Capture<MRes, Match, F> where
+    Match: std::fmt::Debug,
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Capture")
+            .field("matcher", &self.matcher)
+            .finish()
+    }
+}
+
 impl<MResSingle, MResMultiple, MResOptional, Match, F> ParserCombinator
     for Capture<(MResSingle, MResMultiple, MResOptional), Match, F>
+where
+    Match: crate::matcher::MatcherCombinator,
 {
 }
 
@@ -63,7 +88,7 @@ where
     MResOptional: MatchResultOptional,
     Match: Matcher<'src, Inp, (MResSingle, MResMultiple, MResOptional)>,
     Inp: Input<'src>,
-    F: Fn(MResSingle::Output, MResMultiple, MResOptional) -> Out,
+    F: Fn(MResSingle::Output, MResMultiple, MResOptional) -> Out + Clone,
 {
     type Output = Out;
     const CAN_FAIL: bool = Match::CAN_FAIL;

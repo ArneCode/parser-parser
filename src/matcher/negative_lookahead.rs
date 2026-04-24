@@ -7,6 +7,7 @@ use crate::{
 };
 
 /// Predicate-style negative lookahead built from any [`Matcher`].
+#[derive(Clone, Debug)]
 pub struct NegativeLookahead<Check> {
     checker: Check,
 }
@@ -21,6 +22,11 @@ impl<Check> NegativeLookahead<Check> {
 /// Convenience constructor for [`NegativeLookahead`].
 pub fn negative_lookahead<Check>(checker: Check) -> NegativeLookahead<Check> {
     NegativeLookahead::new(checker)
+}
+
+impl<Check> super::MatcherCombinator for NegativeLookahead<Check> where
+    Check: super::MatcherCombinator
+{
 }
 
 impl<'src, Inp: Input<'src>, MRes, Match> super::internal::MatcherImpl<'src, Inp, MRes>

@@ -9,6 +9,7 @@ use crate::{
 };
 
 /// On [`Err`] from the inner matcher, runs `error_parser` to obtain a callback that mutates the error.
+#[derive(Clone, Debug)]
 pub struct ErrorContextualizer<Happy, Pars> {
     happy: Happy,
     error_parser: Pars,

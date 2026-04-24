@@ -8,11 +8,12 @@ use crate::{
     context::ParserContext,
     error::{FurthestFailError, error_handler::ErrorHandler},
     input::{Input, InputStream},
-    matcher::{MatchRunner, Matcher},
-    parser::Parser,
+    matcher::{MatchRunner, Matcher, MatcherCombinator},
+    parser::{Parser, ParserCombinator},
 };
 
 /// Wraps a tuple of parsers or matchers; used with [`one_of`].
+#[derive(Clone, Debug)]
 pub struct OneOf<Tuple> {
     options: Tuple,
 }
@@ -32,6 +33,14 @@ pub fn one_of<Options>(options: Options) -> OneOf<Options> {
 macro_rules! impl_one_of_tuples {
     () => {};
     ($head:ident $(,$tail:ident)*) => {
+        impl<$head, $($tail),*> MatcherCombinator for OneOf<($head, $($tail,)*)> where
+            $head: MatcherCombinator,
+            $($tail: MatcherCombinator,)*
+        {}
+        impl<$head, $($tail),*> ParserCombinator for OneOf<($head, $($tail,)*)> where
+            $head: ParserCombinator,
+            $($tail: ParserCombinator,)*
+        {}
         impl<'src, Inp: Input<'src>, MRes, $head, $($tail),*> crate::matcher::internal::MatcherImpl<'src, Inp, MRes> for OneOf<($head, $($tail,)*)>
         where
             $head: Matcher<'src, Inp, MRes>,

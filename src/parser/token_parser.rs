@@ -3,13 +3,28 @@
 use crate::{
     context::ParserContext,
     error::{FurthestFailError, error_handler::ErrorHandler},
-    input::{Input, InputStream},
+    input::{Input, InputStream}, parser::ParserCombinator,
 };
 
 /// [`crate::parser::Parser`] built from a predicate and a projection function.
+#[derive(Clone)]
 pub struct TokenParser<CheckF, ParseF> {
     check_fn: CheckF,
     parse_fn: ParseF,
+}
+
+impl<CheckF, ParseF> ParserCombinator for TokenParser<CheckF, ParseF> where
+    CheckF: Clone,
+    ParseF: Clone,
+{
+}
+
+impl<CheckF, ParseF> std::fmt::Debug for TokenParser<CheckF, ParseF> 
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("TokenParser")
+            .finish()
+    }
 }
 
 impl<CheckF, ParseF> TokenParser<CheckF, ParseF> {
@@ -38,8 +53,8 @@ where
 impl<'src, Inp: Input<'src>, Out, CheckF, ParseF> super::internal::ParserImpl<'src, Inp>
     for TokenParser<CheckF, ParseF>
 where
-    CheckF: Fn(&<Inp as Input<'src>>::Token) -> bool,
-    ParseF: Fn(&<Inp as Input<'src>>::Token) -> Out,
+    CheckF: Fn(&<Inp as Input<'src>>::Token) -> bool + Clone,
+    ParseF: Fn(&<Inp as Input<'src>>::Token) -> Out + Clone,
 {
     type Output = Out;
     const CAN_FAIL: bool = true;

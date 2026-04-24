@@ -4,6 +4,7 @@ use crate::{
     matcher::{MatcherCombinator, internal::MatcherImpl},
 };
 
+#[derive(Clone, Debug)]
 pub struct UnwantedMatcher<Inner> {
     inner: Inner,
     message: String,

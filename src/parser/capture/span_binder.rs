@@ -1,15 +1,26 @@
 use crate::{
     error::{FurthestFailError, error_handler::ErrorHandler},
     input::{Input, InputStream},
-    matcher::{Matcher, internal::MatcherImpl, runner::MatchRunner},
+    matcher::{Matcher, MatcherCombinator, internal::MatcherImpl, runner::MatchRunner},
 };
 
 use super::{bound::BoundValue, property::Property};
 
 /// Runs `matcher`, then records the span `(start, end)` byte/char indices via `property`.
+#[derive(Clone)]
 pub struct SpanBinder<Match, Prop> {
     pub(super) matcher: Match,
     pub(super) property: Prop,
+}
+
+impl<Match, Prop> std::fmt::Debug for SpanBinder<Match, Prop> where
+    Match: std::fmt::Debug,
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("SpanBinder")
+            .field("matcher", &self.matcher)
+            .finish()
+    }
 }
 
 impl<Match, Prop> SpanBinder<Match, Prop> {
@@ -17,6 +28,11 @@ impl<Match, Prop> SpanBinder<Match, Prop> {
     pub fn new(matcher: Match, property: Prop) -> Self {
         Self { matcher, property }
     }
+}
+
+impl<Match, Prop> MatcherCombinator for SpanBinder<Match, Prop> where
+    Match: MatcherCombinator
+{
 }
 
 /// Convenience constructor for [`SpanBinder`].

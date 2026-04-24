@@ -15,6 +15,7 @@ use crate::{
 };
 
 /// Runs `commit_on` then `then_matcher`; if the second fails, furthest-fail is surfaced as [`Err`].
+#[derive(Clone, Debug)]
 pub struct CommitMatcher<CommitOn, ThenMatch> {
     commit_on: CommitOn,
     then_matcher: ThenMatch,

@@ -6,18 +6,31 @@ use crate::{
     context::ParserContext,
     error::error_handler::ErrorHandler,
     input::{Input, InputStream},
-    matcher::{MatchRunner, Matcher, NoMemoizeBacktrackingRunner},
-    parser::Parser,
+    matcher::{MatchRunner, Matcher, MatcherCombinator, NoMemoizeBacktrackingRunner},
+    parser::{Parser, ParserCombinator},
 };
 
 static NEXT_RECOVER_ID: AtomicUsize = AtomicUsize::new(0);
 
 /// On hard failure of `happy`, resets position and runs `recover_matcher`; on success yields `recover_output` and records the error.
+#[derive(Clone)]
 pub struct ErrorRecoverer<Pars, Match, Output> {
     happy: Pars,
     recover_matcher: Match,
     recover_output: Output,
     id: usize,
+}
+
+impl<Pars, Match, Output> std::fmt::Debug for ErrorRecoverer<Pars, Match, Output> where
+    Pars: std::fmt::Debug,
+    Output: std::fmt::Debug,
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ErrorRecoverer")
+            .field("happy", &self.happy)
+            .field("recover_output", &self.recover_output)
+            .finish()
+    }
 }
 
 impl<Pars, Match, Output> ErrorRecoverer<Pars, Match, Output> {
@@ -32,6 +45,12 @@ impl<Pars, Match, Output> ErrorRecoverer<Pars, Match, Output> {
     }
 }
 
+impl<Pars, Match, Output> ParserCombinator for ErrorRecoverer<Pars, Match, Output> where
+    Pars: ParserCombinator,
+    Match: MatcherCombinator,
+{
+}
+
 //TODO: ensure that Match cannot error with trait CanNotError
 impl<'src, Inp: Input<'src>, Pars, Match, Output> super::internal::ParserImpl<'src, Inp>
     for ErrorRecoverer<Pars, Match, Output>
@@ -39,7 +58,7 @@ where
     Pars: Parser<'src, Inp, Output = Output>,
     Match: Matcher<'src, Inp, ((), (), ())>,
     Inp: Input<'src>,
-    Output: Clone,
+    Output: Clone + std::fmt::Debug,
 {
     type Output = Output;
     const CAN_FAIL: bool = Pars::CAN_FAIL;

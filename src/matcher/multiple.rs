@@ -7,6 +7,7 @@ use crate::{
 };
 
 /// Greedy `matcher*` at the matcher level (always reports match success after the loop).
+#[derive(Clone, Debug)]
 pub struct Multiple<Match> {
     matcher: Match,
 }
@@ -22,7 +23,10 @@ pub fn many<Match>(matcher: Match) -> Multiple<Match> {
     Multiple::new(matcher)
 }
 
-// impl<Match> Matcher for Multiple<Match> where Match: Matcher {}
+impl<Match> super::MatcherCombinator for Multiple<Match> where
+    Match: super::MatcherCombinator
+{
+}
 
 impl<'src, Inp: Input<'src>, MRes, Match> super::internal::MatcherImpl<'src, Inp, MRes>
     for Multiple<Match>

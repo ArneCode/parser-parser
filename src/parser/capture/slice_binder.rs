@@ -1,13 +1,24 @@
 use crate::{
     error::{FurthestFailError, error_handler::ErrorHandler},
     input::{InputStream, SliceableInput},
-    matcher::{MatchRunner, Matcher, internal::MatcherImpl},
+    matcher::{MatchRunner, Matcher, MatcherCombinator, internal::MatcherImpl},
     parser::{BoundValue, Property},
 };
 
+#[derive(Clone)]
 pub struct SliceBinder<Match, Prop> {
     pub(super) matcher: Match,
     pub(super) property: Prop,
+}
+
+impl<Match, Prop> std::fmt::Debug for SliceBinder<Match, Prop> where
+    Match: std::fmt::Debug,
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("SliceBinder")
+            .field("matcher", &self.matcher)
+            .finish()
+    }
 }
 
 impl<Match, Prop> SliceBinder<Match, Prop> {
@@ -20,6 +31,11 @@ impl<Match, Prop> SliceBinder<Match, Prop> {
 /// Convenience constructor for [`SpanBinder`].
 pub fn bind_slice<Match, Prop>(matcher: Match, property: Prop) -> SliceBinder<Match, Prop> {
     SliceBinder::new(matcher, property)
+}
+
+impl<Match, Prop> MatcherCombinator for SliceBinder<Match, Prop> where
+    Match: MatcherCombinator
+{
 }
 
 impl<'src, Inp: SliceableInput<'src>, MRes, Match, Prop> MatcherImpl<'src, Inp, MRes>
