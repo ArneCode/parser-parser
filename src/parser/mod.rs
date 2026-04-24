@@ -98,15 +98,14 @@ pub trait ParserCombinator {
     }
 
     /// On parse failure, run `recover_matcher` and yield `recover_output` if it matches.
-    fn recover_with<Match, Output>(
+    fn recover_with<RecoveryParser>(
         self,
-        recover_matcher: Match,
-        recover_output: Output,
-    ) -> ErrorRecovererInner<Self, Match, Output>
+        recover_parser: RecoveryParser,
+    ) -> ErrorRecovererInner<Self, RecoveryParser>
     where
         Self: Sized,
     {
-        ErrorRecovererInner::new(self, recover_matcher, recover_output)
+        ErrorRecovererInner::new(self, recover_parser)
     }
 
     fn add_error_info<Pars>(self, error_parser: Pars) -> ErrorContextualizer<Self, Pars>

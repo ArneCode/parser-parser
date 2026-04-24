@@ -14,54 +14,53 @@ static NEXT_RECOVER_ID: AtomicUsize = AtomicUsize::new(0);
 
 /// On hard failure of `happy`, resets position and runs `recover_matcher`; on success yields `recover_output` and records the error.
 #[derive(Clone)]
-pub struct ErrorRecoverer<Pars, Match, Output> {
-    happy: Pars,
-    recover_matcher: Match,
-    recover_output: Output,
+pub struct ErrorRecoverer<HappyParser, RecoveryParser> {
+    happy: HappyParser,
+    recover_parser: RecoveryParser,
     id: usize,
 }
 
-impl<Pars, Match, Output> std::fmt::Debug for ErrorRecoverer<Pars, Match, Output> where
+impl<Pars, RecoveryParser> std::fmt::Debug for ErrorRecoverer<Pars, RecoveryParser>
+where
     Pars: std::fmt::Debug,
-    Output: std::fmt::Debug,
+    RecoveryParser: std::fmt::Debug,
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("ErrorRecoverer")
             .field("happy", &self.happy)
-            .field("recover_output", &self.recover_output)
+            .field("recover_parser", &self.recover_parser)
             .finish()
     }
 }
 
-impl<Pars, Match, Output> ErrorRecoverer<Pars, Match, Output> {
+impl<HappyParser, RecoveryParser> ErrorRecoverer<HappyParser, RecoveryParser> {
     /// See [`crate::parser::Parser::recover_with`].
-    pub fn new(happy: Pars, recover_matcher: Match, recover_output: Output) -> Self {
+    pub fn new(happy: HappyParser, recover_parser: RecoveryParser) -> Self {
         Self {
             happy,
-            recover_matcher,
-            recover_output,
+            recover_parser,
             id: NEXT_RECOVER_ID.fetch_add(1, Ordering::Relaxed),
         }
     }
 }
 
-impl<Pars, Match, Output> ParserCombinator for ErrorRecoverer<Pars, Match, Output> where
-    Pars: ParserCombinator,
-    Match: MatcherCombinator,
+impl<HappyParser, RecoveryParser> ParserCombinator for ErrorRecoverer<HappyParser, RecoveryParser>
+where
+    HappyParser: ParserCombinator,
+    RecoveryParser: ParserCombinator,
 {
 }
 
 //TODO: ensure that Match cannot error with trait CanNotError
-impl<'src, Inp: Input<'src>, Pars, Match, Output> super::internal::ParserImpl<'src, Inp>
-    for ErrorRecoverer<Pars, Match, Output>
+impl<'src, Inp: Input<'src>, HappyParser, RecoveryParser> super::internal::ParserImpl<'src, Inp>
+    for ErrorRecoverer<HappyParser, RecoveryParser>
 where
-    Pars: Parser<'src, Inp, Output = Output>,
-    Match: Matcher<'src, Inp, ((), (), ())>,
+    HappyParser: Parser<'src, Inp>,
+    RecoveryParser: Parser<'src, Inp, Output = HappyParser::Output>,
     Inp: Input<'src>,
-    Output: Clone + std::fmt::Debug,
 {
-    type Output = Output;
-    const CAN_FAIL: bool = Pars::CAN_FAIL;
+    type Output = HappyParser::Output;
+    const CAN_FAIL: bool = HappyParser::CAN_FAIL;
 
     fn parse(
         &self,
@@ -73,12 +72,15 @@ where
         match self.happy.parse(context, error_handler, input) {
             Err(e) => {
                 input.set_pos(start_pos.clone());
-                let mut runner = NoMemoizeBacktrackingRunner::new(context);
-                if runner
-                    .run_match(&self.recover_matcher, error_handler, input)
-                    .unwrap_or(false)
+                // let mut runner = NoMemoizeBacktrackingRunner::new(context);
+                // if runner
+                //     .run_match(&self.recover_matcher, error_handler, input)
+                //     .unwrap_or(false)
+                if let Some(output) = self
+                    .recover_parser
+                    .parse(context, error_handler, input)
+                    .unwrap_or(None)
                 {
-                    drop(runner);
                     // TODO: maybe find a way to avoid registering the same error multiple times.
                     if !context
                         .registered_error_set
@@ -90,7 +92,7 @@ where
                             .insert((self.id, start_pos.into()));
                     }
 
-                    return Ok(Some(self.recover_output.clone()));
+                    return Ok(Some(output));
                 }
                 Err(e)
             }

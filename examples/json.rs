@@ -15,20 +15,20 @@ use marser::{
 };
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum JsonValue {
-    Invalid,
+pub enum JsonValue<'src> {
+    Invalid(&'src str),
     Null,
     Boolean(bool),
     Number(f64),
     String(String),
-    Array(Vec<JsonValue>),
-    Object(Vec<(String, JsonValue)>),
+    Array(Vec<JsonValue<'src>>),
+    Object(Vec<(String, JsonValue<'src>)>),
 }
 
-impl JsonValue {
+impl<'src> JsonValue<'src> {
     pub fn serialize(&self) -> String {
         match self {
-            Self::Invalid => "invalid".to_string(),
+            Self::Invalid(slice) => format!("invalid('{slice}')"),
             Self::Null => "null".to_string(),
             Self::Boolean(b) => b.to_string(),
             Self::Number(n) => n.to_string(),
@@ -57,7 +57,7 @@ impl JsonValue {
         let nested_indent = " ".repeat((indent_level + 1) * indent_size);
 
         match self {
-            Self::Invalid => "invalid".to_string(),
+            Self::Invalid(slice) => format!("invalid('{slice}')"),
             Self::Null => "null".to_string(),
             Self::Boolean(b) => b.to_string(),
             Self::Number(n) => n.to_string(),
@@ -103,7 +103,7 @@ impl JsonValue {
     }
 }
 
-pub fn get_json_grammar<'src>() -> impl Parser<'src, &'src str, Output = JsonValue> {
+pub fn get_json_grammar<'src>() -> impl Parser<'src, &'src str, Output = JsonValue<'src>> {
     recursive(|element| {
         let ws = Rc::new(many(one_of((' ', '\t', '\n', '\r'))));
 
@@ -158,8 +158,11 @@ pub fn get_json_grammar<'src>() -> impl Parser<'src, &'src str, Output = JsonVal
             ),
         )))
         .recover_with(
-            many(one_of(('+', '-', '0'..='9', '.', 'e', 'E'))),
-            JsonValue::Invalid,
+            // many(one_of(('+', '-', '0'..='9', '.', 'e', 'E'))),
+            // JsonValue::Invalid,
+            capture!(
+                bind_slice!(many(one_of(('+', '-', '0'..='9', '.', 'e', 'E'))), slice) => JsonValue::Invalid(slice)
+            )
         );
 
         let character = Rc::new(TokenParser::new(
@@ -277,7 +280,7 @@ pub fn get_json_grammar<'src>() -> impl Parser<'src, &'src str, Output = JsonVal
             .with_label("string");
 
         let invalid_element = capture!(
-            if_error_else_fail(unwanted(one_or_more(
+            if_error_else_fail(bind_slice!(unwanted(one_or_more(
                 (
                     negative_lookahead(one_of((
                         '{',
@@ -293,8 +296,8 @@ pub fn get_json_grammar<'src>() -> impl Parser<'src, &'src str, Output = JsonVal
                     ))),
                     AnyToken
                 )
-            ), "invalid element"),
-            ) => JsonValue::Invalid
+            ), "invalid element"), slice),
+            ) => JsonValue::Invalid(slice)
         )
         .with_label("invalid element");
         capture!((
