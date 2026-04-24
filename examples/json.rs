@@ -256,14 +256,11 @@ pub fn get_json_grammar<'src>() -> impl Parser<'src, &'src str, Output = JsonVal
                 ws.clone(),
                 optional((
                     bind!(key_value_pair.clone(), *key_value_pairs),
-                    many(
-                        commit_on(
-                            ',', (
+                    many((
+                        ','.try_insert_if_missing("missing comma"),
                                 ws.clone(),
                                 bind!(key_value_pair.clone(), *key_value_pairs),
-                            )
-                        )
-                    ),
+                    )),
                     many((unwanted(',', "trailing comma"), ws.clone()))
                 )),
                 '}'.try_insert_if_missing("missing closing '}'"), ws.clone()
