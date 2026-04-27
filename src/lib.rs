@@ -11,6 +11,7 @@ extern crate self as marser;
 
 pub(crate) mod context;
 pub mod error;
+pub mod guide;
 pub mod input;
 pub mod label;
 pub mod matcher;

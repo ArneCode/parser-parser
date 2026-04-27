@@ -44,6 +44,14 @@ you can try this yourself by running the following command:
 ```bash
 cargo run --example json -- tests/data/json1.json
 ```
+
+## Learn
+
+If you are new to this library, start with the beginner guide:
+
+- `guide/README.md` (index)
+- `guide/01-quickstart.md` (includes parser vs matcher mental model)
+
 ## License
 
 This project is licensed under the MIT License.
