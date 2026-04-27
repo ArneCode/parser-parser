@@ -221,7 +221,7 @@ pub fn get_json_grammar<'src>() -> impl Parser<'src, &'src str, Output = JsonVal
                 err.add_extra_label(quote,"unmatched quote",ariadne::Color::Blue);
             }) as Box<dyn Fn(&mut FurthestFailError)>
             )),
-        );
+        ).maybe_erase_types();
 
         let array = capture!({
             commit_on((ws.clone(), '['),
@@ -240,7 +240,7 @@ pub fn get_json_grammar<'src>() -> impl Parser<'src, &'src str, Output = JsonVal
             ))
         } =>  {
             JsonValue::Array(elements)
-        });
+        }).maybe_erase_types();
 
         let key_value_pair = Rc::new(
             capture!({
@@ -252,7 +252,7 @@ pub fn get_json_grammar<'src>() -> impl Parser<'src, &'src str, Output = JsonVal
                 (key, value)
             })
             .with_label("key-value pair"),
-        );
+        ).maybe_erase_types();
 
         let object = capture!({
                 commit_on((ws.clone(), '{'),
@@ -273,7 +273,7 @@ pub fn get_json_grammar<'src>() -> impl Parser<'src, &'src str, Output = JsonVal
         } => {
             JsonValue::Object(key_value_pairs)
         })
-        .with_label("object");
+        .with_label("object").maybe_erase_types();
 
         let string = raw_string
             .map_output(JsonValue::String)
@@ -299,7 +299,7 @@ pub fn get_json_grammar<'src>() -> impl Parser<'src, &'src str, Output = JsonVal
             ), "invalid element"), slice),
             ) => JsonValue::Invalid(slice)
         )
-        .with_label("invalid element");
+        .with_label("invalid element").maybe_erase_types();
         capture!((
             ws.clone(), 
             bind!(one_of((

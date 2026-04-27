@@ -13,6 +13,11 @@ categories = ["parsing"]
 rust-version = "1.85"
 exclude = ["target/**", "tests/JSONTestSuite/**"]
 
+[features]
+default = []
+# Enable trait-object parser type erasure via `ParserCombinator::maybe_erase_types`.
+parser-erased = []
+
 [dependencies]
 annotate-snippets = "0.12.15"
 ariadne = "0.6.0"
