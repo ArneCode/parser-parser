@@ -29,6 +29,7 @@ pub mod positive_lookahead;
 pub(crate) mod runner;
 pub mod sequence;
 pub mod string;
+pub mod to_parser;
 pub mod unwanted;
 
 pub use any_token::AnyToken;
@@ -43,6 +44,7 @@ pub use parser_matcher::ParserMatcher;
 pub use positive_lookahead::{PositiveLookahead, positive_lookahead};
 pub(crate) use runner::{DirectMatchRunner, MatchRunner, NoMemoizeBacktrackingRunner};
 pub use string::StringMatcher;
+pub use to_parser::ToParser;
 
 use std::{fmt::Display, ops::Deref, rc::Rc};
 
@@ -120,6 +122,17 @@ pub trait MatcherCombinator {
             inner: self,
             message: message.to_string(),
         }
+    }
+
+    /// Convert this matcher into a parser that returns `output` when the matcher succeeds.
+    ///
+    /// This is a compact alternative to `capture!(matcher => output)` for grammar pieces
+    /// where the matched text is not needed. The output is cloned on each successful parse.
+    fn to<Output>(self, output: Output) -> ToParser<Self, Output>
+    where
+        Self: Sized,
+    {
+        ToParser::new(self, output)
     }
 }
 

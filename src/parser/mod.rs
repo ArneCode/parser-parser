@@ -13,6 +13,7 @@
 
 pub mod capture;
 pub mod deferred;
+pub mod erase_types;
 pub(crate) mod fn_parser;
 pub mod memoized;
 pub mod multiple;
@@ -128,17 +129,61 @@ pub trait ParserCombinator {
     {
         output_mapper::OutputMapper::new(self, map_fn)
     }
+
+    /// Erase this parser's concrete type into a boxed trait object.
+    ///
+    /// This is useful when parser combinator types become very large and you
+    /// want a stable, uniform type at the cost of dynamic dispatch.
+    fn erase_types<'a, 'src, Inp, Out>(self) -> erase_types::Erased<'a, 'src, Inp, Out>
+    where
+        Self: Sized + Parser<'src, Inp, Output = Out> + 'a,
+        Inp: Input<'src> + 'a,
+        Out: 'a,
+    {
+        erase_types::erase(self)
+    }
+
+    /// Conditionally erase parser types based on the `parser-erased` feature.
+    ///
+    /// - With `parser-erased` enabled, this behaves like [`Self::erase_types`]
+    ///   and returns an erased parser.
+    /// - Without the feature, this is a no-op and returns `Self`.
+    ///
+    /// This keeps call sites stable while allowing opt-in type erasure from
+    /// Cargo features instead of debug/release profile differences.
+    #[cfg(feature = "parser-erased")]
+    fn maybe_erase_types<'a, 'src, Inp, Out>(self) -> erase_types::Erased<'a, 'src, Inp, Out>
+    where
+        Self: Sized + Parser<'src, Inp, Output = Out> + 'a,
+        Inp: Input<'src> + 'a,
+        Out: 'a,
+    {
+        erase_types::erase(self)
+    }
+
+    /// See the `parser-erased` variant of this method for behavior details.
+    #[cfg(not(feature = "parser-erased"))]
+    fn maybe_erase_types(self) -> Self
+    where
+        Self: Sized,
+    {
+        self
+    }
 }
 
 impl<'src, Inp: Input<'src>, P> Parser<'src, Inp> for P where P: internal::ParserImpl<'src, Inp> {}
 
-pub(crate) trait ParserObjSafe<'src, Inp: Input<'src>, Output> {
+pub(crate) trait ParserObjSafe<'src, Inp: Input<'src>, Output>: std::fmt::Debug {
     fn parse(
         &self,
         context: &mut ParserContext,
         error_handler: ErrorHandlerChoice<'_>,
         input: &mut InputStream<'src, Inp>,
     ) -> Result<Option<Output>, FurthestFailError>;
+
+    fn clone_boxed<'a>(self: &Self) -> Box<dyn ParserObjSafe<'src, Inp, Output> + 'a>
+    where
+        Self: 'a;
 }
 
 impl<'src, Inp: Input<'src>, Output, P> ParserObjSafe<'src, Inp, Output> for P
@@ -155,6 +200,13 @@ where
             ErrorHandlerChoice::Empty(handler) => self.parse(context, handler, input),
             ErrorHandlerChoice::Multi(handler) => self.parse(context, handler, input),
         }
+    }
+
+    fn clone_boxed<'a>(self: &Self) -> Box<dyn ParserObjSafe<'src, Inp, Output> + 'a>
+    where
+        Self: 'a,
+    {
+        Box::new(self.clone())
     }
 }
 

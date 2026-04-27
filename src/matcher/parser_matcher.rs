@@ -24,6 +24,11 @@ impl<Pars, ParserOutput> ParserMatcher<Pars, ParserOutput> {
     }
 }
 
+pub fn match_parsed<Pars, ParserOutput>(parser: Pars, expected_output: ParserOutput) -> ParserMatcher<Pars, ParserOutput>
+{
+    ParserMatcher::new(parser, expected_output)
+}
+
 impl<Pars, ParserOutput> super::MatcherCombinator for ParserMatcher<Pars, ParserOutput> where
     Pars: ParserCombinator
 {
