@@ -16,9 +16,16 @@ use crate::{
 };
 
 /// Strong handle to a parser installed later; used as the entry point for a recursive grammar.
-#[derive(Clone)]
 pub struct Deferred<'a, 'src, Inp, Output> {
     parser: Rc<OnceCell<Box<dyn ParserObjSafe<'src, Inp, Output> + 'a>>>,
+}
+
+impl<'a, 'src, Inp, Output> Clone for Deferred<'a, 'src, Inp, Output> {
+    fn clone(&self) -> Self {
+        Self {
+            parser: Rc::clone(&self.parser),
+        }
+    }
 }
 
 impl<'a, 'src, Inp, Output> std::fmt::Debug for Deferred<'a, 'src, Inp, Output> {
@@ -33,12 +40,16 @@ impl<'a, 'src, Inp, Output> ParserCombinator for Deferred<'a, 'src, Inp, Output>
 }
 
 /// Weak back-reference for defining recursive productions without a cycle at construction time.
-#[derive(Clone)]
-pub struct DeferredWeak<'a, 'src, Inp, Output>
-where
-    Inp: Input<'src>,
-{
+pub struct DeferredWeak<'a, 'src, Inp, Output> {
     parser: Weak<OnceCell<Box<dyn ParserObjSafe<'src, Inp, Output> + 'a>>>,
+}
+
+impl<'a, 'src, Inp, Output> Clone for DeferredWeak<'a, 'src, Inp, Output> {
+    fn clone(&self) -> Self {
+        Self {
+            parser: self.parser.clone(),
+        }
+    }
 }
 
 impl<'a, 'src, Inp, Output> std::fmt::Debug for DeferredWeak<'a, 'src, Inp, Output>
@@ -85,7 +96,6 @@ impl<'a, 'src, Inp, Output> super::internal::ParserImpl<'src, Inp>
     for Deferred<'a, 'src, Inp, Output>
 where
     Inp: Input<'src> + Clone,
-    Output: Clone,
 {
     type Output = Output;
     const CAN_FAIL: bool = true;
@@ -108,7 +118,6 @@ impl<'a, 'src, Inp, Output> super::internal::ParserImpl<'src, Inp>
     for DeferredWeak<'a, 'src, Inp, Output>
 where
     Inp: Input<'src> + Clone,
-    Output: Clone,
 {
     type Output = Output;
     const CAN_FAIL: bool = true;

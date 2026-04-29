@@ -111,7 +111,6 @@ pub fn get_json_grammar<'src>() -> impl Parser<'src, &'src str, Output = JsonVal
         let bool_false = capture!(("false", ws.clone())  => JsonValue::Boolean(false) );
         let bool_true = capture!(("true", ws.clone())  => JsonValue::Boolean(true) );
         let boolean = one_of((bool_true, bool_false));
-
         let number = capture!(
             commit_on(positive_lookahead(one_of(('-', '.', '+', '0'..='9'))),
             bind_slice!((

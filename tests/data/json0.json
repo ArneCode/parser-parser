@@ -1,0 +1,10 @@
+{
+  "name": "Example Project",
+  "version": 1,
+  "active": true,
+  "tags": ["parser", "json", "example"],
+  "settings": {
+    "indent": 2,
+    "strict": false
+  }
+}

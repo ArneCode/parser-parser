@@ -22,6 +22,7 @@ pub mod ignore_result;
 pub mod insert_on_error;
 pub mod multiple;
 pub mod negative_lookahead;
+pub mod none_of;
 pub mod one_or_more;
 pub mod optional;
 pub mod parser_matcher;
