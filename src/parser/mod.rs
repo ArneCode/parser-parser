@@ -25,8 +25,7 @@ pub mod token_parser;
 
 pub use capture::{
     BindDebugInfo, BoundResult, BoundValue, Capture, MultipleProperty, OptionalProperty, Property,
-    ResultBinder, SingleProperty, SpanBinder, bind_result, bind_result_with_debug,
-    bind_result_with_unknown_debug, bind_span,
+    ResultBinder, SingleProperty, SpanBinder, bind_result, bind_span,
 };
 pub use deferred::{Deferred, DeferredWeak, recursive};
 pub use memoized::Memoized;
@@ -49,7 +48,7 @@ use crate::{
 };
 
 pub(crate) mod internal {
-    use std::fmt::Debug;
+    use std::fmt::{Debug, Display};
 
     use crate::{
         context::ParserContext,
@@ -78,6 +77,10 @@ pub(crate) mod internal {
             error_handler: &mut impl ErrorHandler,
             input: &mut InputStream<'src, Inp>,
         ) -> Result<Option<Self::Output>, FurthestFailError>;
+
+        fn maybe_label(&self) -> Option<Box<dyn Display>> {
+            None
+        }
     }
 }
 
@@ -109,6 +112,8 @@ pub trait ParserCombinator {
         ErrorRecovererInner::new(self, recover_parser)
     }
 
+    #[cfg(feature = "parser-trace")]
+    #[track_caller]
     fn add_error_info<Pars>(self, error_parser: Pars) -> ErrorContextualizer<Self, Pars>
     where
         Self: Sized,
@@ -116,6 +121,24 @@ pub trait ParserCombinator {
         ErrorContextualizer::new(self, error_parser)
     }
 
+    #[cfg(not(feature = "parser-trace"))]
+    fn add_error_info<Pars>(self, error_parser: Pars) -> ErrorContextualizer<Self, Pars>
+    where
+        Self: Sized,
+    {
+        ErrorContextualizer::new(self, error_parser)
+    }
+
+    #[cfg(feature = "parser-trace")]
+    #[track_caller]
+    fn ignore_result(self) -> IgnoreResult<Self>
+    where
+        Self: Sized,
+    {
+        IgnoreResult::new(self)
+    }
+
+    #[cfg(not(feature = "parser-trace"))]
     fn ignore_result(self) -> IgnoreResult<Self>
     where
         Self: Sized,
@@ -181,6 +204,8 @@ pub(crate) trait ParserObjSafe<'src, Inp: Input<'src>, Output>: std::fmt::Debug 
         input: &mut InputStream<'src, Inp>,
     ) -> Result<Option<Output>, FurthestFailError>;
 
+    fn maybe_label(&self) -> Option<Box<dyn std::fmt::Display>>;
+
     fn clone_boxed<'a>(self: &Self) -> Box<dyn ParserObjSafe<'src, Inp, Output> + 'a>
     where
         Self: 'a;
@@ -200,6 +225,10 @@ where
             ErrorHandlerChoice::Empty(handler) => self.parse(context, handler, input),
             ErrorHandlerChoice::Multi(handler) => self.parse(context, handler, input),
         }
+    }
+
+    fn maybe_label(&self) -> Option<Box<dyn std::fmt::Display>> {
+        <Self as internal::ParserImpl<'src, Inp>>::maybe_label(self)
     }
 
     fn clone_boxed<'a>(self: &Self) -> Box<dyn ParserObjSafe<'src, Inp, Output> + 'a>
@@ -228,6 +257,10 @@ where
     ) -> Result<Option<Self::Output>, FurthestFailError> {
         (**self).parse(context, error_handler, input)
     }
+
+    fn maybe_label(&self) -> Option<Box<dyn std::fmt::Display>> {
+        (**self).maybe_label()
+    }
 }
 impl<Inner> ParserCombinator for Rc<Inner> where Inner: ParserCombinator {}
 
@@ -246,6 +279,10 @@ where
     ) -> Result<Option<Self::Output>, FurthestFailError> {
         (**self).parse(context, error_handler, input)
     }
+
+    fn maybe_label(&self) -> Option<Box<dyn std::fmt::Display>> {
+        (**self).maybe_label()
+    }
 }
 impl<Inner> ParserCombinator for Box<Inner> where Inner: ParserCombinator {}
 
@@ -263,5 +300,9 @@ where
         input: &mut InputStream<'src, Inp>,
     ) -> Result<Option<Self::Output>, FurthestFailError> {
         (**self).parse(context, error_handler, input)
+    }
+
+    fn maybe_label(&self) -> Option<Box<dyn std::fmt::Display>> {
+        (**self).maybe_label()
     }
 }

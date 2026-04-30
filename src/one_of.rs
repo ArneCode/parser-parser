@@ -11,21 +11,50 @@ use crate::{
     matcher::{MatchRunner, Matcher, MatcherCombinator},
     parser::{Parser, ParserCombinator},
 };
+#[cfg(feature = "parser-trace")]
+use crate::trace::{RuleSourceMetadata, TraceEventKind};
 
 /// Wraps a tuple of parsers or matchers; used with [`one_of`].
 #[derive(Clone, Debug)]
 pub struct OneOf<Tuple> {
     options: Tuple,
+    #[cfg(feature = "parser-trace")]
+    source: RuleSourceMetadata,
 }
 
 impl<Tuple> OneOf<Tuple> {
     /// Builds an alternative group from a tuple `(first, second, …)`.
+    #[cfg(feature = "parser-trace")]
+    #[track_caller]
+    pub fn new(options: Tuple) -> Self {
+        let caller = std::panic::Location::caller();
+        Self {
+            options,
+            source: RuleSourceMetadata::new(caller.file(), caller.line(), caller.column()),
+        }
+    }
+
+    /// Builds an alternative group from a tuple `(first, second, …)`.
+    #[cfg(not(feature = "parser-trace"))]
     pub fn new(options: Tuple) -> Self {
         Self { options }
+    }
+
+    #[cfg(feature = "parser-trace")]
+    fn source_metadata(&self) -> RuleSourceMetadata {
+        self.source
     }
 }
 
 /// Convenience alias for [`OneOf::new`].
+#[cfg(feature = "parser-trace")]
+#[track_caller]
+pub fn one_of<Options>(options: Options) -> OneOf<Options> {
+    OneOf::new(options)
+}
+
+/// Convenience alias for [`OneOf::new`].
+#[cfg(not(feature = "parser-trace"))]
 pub fn one_of<Options>(options: Options) -> OneOf<Options> {
     OneOf::new(options)
 }
@@ -58,17 +87,88 @@ macro_rules! impl_one_of_tuples {
             {
                 #[allow(non_snake_case)]
                 let ($head, $($tail,)*) = &self.options;
-
-                if runner.run_match($head, error_handler, input)? {
-                    return Ok(true);
+                #[cfg(feature = "parser-trace")]
+                {
+                    runner.get_parser_context().trace_event(
+                        TraceEventKind::ChoiceStart,
+                        input.get_pos().into(),
+                        input.get_pos().into(),
+                        None,
+                        Some(self.source_metadata()),
+                    );
                 }
 
+                #[cfg(feature = "parser-trace")]
+                let mut arm_idx = 0usize;
+                #[cfg(feature = "parser-trace")]
+                runner.get_parser_context().trace_event(
+                    TraceEventKind::ChoiceArmStart,
+                    input.get_pos().into(),
+                    input.get_pos().into(),
+                    Some(format!("arm {arm_idx}")),
+                    Some(self.source_metadata()),
+                );
+                if runner.run_match($head, error_handler, input)? {
+                    #[cfg(feature = "parser-trace")]
+                    runner.get_parser_context().trace_event(
+                        TraceEventKind::ChoiceArmSuccess,
+                        input.get_pos().into(),
+                        input.get_pos().into(),
+                        Some(format!("arm {arm_idx}")),
+                        Some(self.source_metadata()),
+                    );
+                    return Ok(true);
+                }
+                #[cfg(feature = "parser-trace")]
+                runner.get_parser_context().trace_event(
+                    TraceEventKind::ChoiceArmFail,
+                    input.get_pos().into(),
+                    input.get_pos().into(),
+                    Some(format!("arm {arm_idx}")),
+                    Some(self.source_metadata()),
+                );
+
                 $(
+                    #[cfg(feature = "parser-trace")]
+                    {
+                        arm_idx += 1;
+                        runner.get_parser_context().trace_event(
+                            TraceEventKind::ChoiceArmStart,
+                            input.get_pos().into(),
+                            input.get_pos().into(),
+                            Some(format!("arm {arm_idx}")),
+                            Some(self.source_metadata()),
+                        );
+                    }
                     if runner.run_match($tail, error_handler, input)? {
+                        #[cfg(feature = "parser-trace")]
+                        runner.get_parser_context().trace_event(
+                            TraceEventKind::ChoiceArmSuccess,
+                            input.get_pos().into(),
+                            input.get_pos().into(),
+                            Some(format!("arm {arm_idx}")),
+                            Some(self.source_metadata()),
+                        );
                         return Ok(true);
                     }
+                    #[cfg(feature = "parser-trace")]
+                    runner.get_parser_context().trace_event(
+                        TraceEventKind::ChoiceArmFail,
+                        input.get_pos().into(),
+                        input.get_pos().into(),
+                        Some(format!("arm {arm_idx}")),
+                        Some(self.source_metadata()),
+                    );
                 )*
 
+                #[cfg(feature = "parser-trace")]
+                runner.get_parser_context().trace_event(
+                    TraceEventKind::ChoiceAllFailed,
+                    input.get_pos().into(),
+                    input.get_pos().into(),
+                    None,
+                    Some(self.source_metadata()),
+                );
                 Ok(false)
             }
         }
@@ -84,13 +184,47 @@ macro_rules! impl_one_of_tuples {
 
                 #[allow(non_snake_case)]
                 let ($head, $($tail,)*) = &self.options;
+                #[cfg(feature = "parser-trace")]
+                context.trace_event(
+                    TraceEventKind::ChoiceStart,
+                    input.get_pos().into(),
+                    input.get_pos().into(),
+                    None,
+                    Some(self.source_metadata()),
+                );
 
                 // if $head.check_no_advance(context, pos) {
                 //     return $head.parse(context, pos);
                 // }
+                #[cfg(feature = "parser-trace")]
+                let mut arm_idx = 0usize;
+                #[cfg(feature = "parser-trace")]
+                context.trace_event(
+                    TraceEventKind::ChoiceArmStart,
+                    input.get_pos().into(),
+                    input.get_pos().into(),
+                    Some(format!("arm {arm_idx}")),
+                    Some(self.source_metadata()),
+                );
                 if let Some(output) = $head.parse(context, error_handler, input)? {
+                    #[cfg(feature = "parser-trace")]
+                    context.trace_event(
+                        TraceEventKind::ChoiceArmSuccess,
+                        input.get_pos().into(),
+                        input.get_pos().into(),
+                        Some(format!("arm {arm_idx}")),
+                        Some(self.source_metadata()),
+                    );
                     return Ok(Some(output));
                 }
+                #[cfg(feature = "parser-trace")]
+                context.trace_event(
+                    TraceEventKind::ChoiceArmFail,
+                    input.get_pos().into(),
+                    input.get_pos().into(),
+                    Some(format!("arm {arm_idx}")),
+                    Some(self.source_metadata()),
+                );
 
                 // $(
                 //     if $tail.check_no_advance(context, pos) {
@@ -98,11 +232,46 @@ macro_rules! impl_one_of_tuples {
                 //     }
                 // )*
                 $(
+                    #[cfg(feature = "parser-trace")]
+                    {
+                        arm_idx += 1;
+                        context.trace_event(
+                            TraceEventKind::ChoiceArmStart,
+                            input.get_pos().into(),
+                            input.get_pos().into(),
+                            Some(format!("arm {arm_idx}")),
+                            Some(self.source_metadata()),
+                        );
+                    }
                     if let Some(output) = $tail.parse(context, error_handler, input)? {
+                        #[cfg(feature = "parser-trace")]
+                        context.trace_event(
+                            TraceEventKind::ChoiceArmSuccess,
+                            input.get_pos().into(),
+                            input.get_pos().into(),
+                            Some(format!("arm {arm_idx}")),
+                            Some(self.source_metadata()),
+                        );
                         return Ok(Some(output));
                     }
+                    #[cfg(feature = "parser-trace")]
+                    context.trace_event(
+                        TraceEventKind::ChoiceArmFail,
+                        input.get_pos().into(),
+                        input.get_pos().into(),
+                        Some(format!("arm {arm_idx}")),
+                        Some(self.source_metadata()),
+                    );
                 )*
 
+                #[cfg(feature = "parser-trace")]
+                context.trace_event(
+                    TraceEventKind::ChoiceAllFailed,
+                    input.get_pos().into(),
+                    input.get_pos().into(),
+                    None,
+                    Some(self.source_metadata()),
+                );
                 Ok(None)
             }
         }

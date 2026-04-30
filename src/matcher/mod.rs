@@ -107,6 +107,17 @@ pub trait Matcher<'src, Inp: Input<'src>, MRes>: internal::MatcherImpl<'src, Inp
 
 pub trait MatcherCombinator {
     /// Wrap this matcher so that on furthest-failure, `error_parser` runs to attach diagnostics.
+    #[cfg(feature = "parser-trace")]
+    #[track_caller]
+    fn add_error_info<Pars>(self, error_parser: Pars) -> ErrorContextualizer<Self, Pars>
+    where
+        Self: Sized,
+    {
+        ErrorContextualizer::new(self, error_parser)
+    }
+
+    /// Wrap this matcher so that on furthest-failure, `error_parser` runs to attach diagnostics.
+    #[cfg(not(feature = "parser-trace"))]
     fn add_error_info<Pars>(self, error_parser: Pars) -> ErrorContextualizer<Self, Pars>
     where
         Self: Sized,
@@ -115,14 +126,22 @@ pub trait MatcherCombinator {
     }
 
     /// If the matcher fails to extend the furthest error, insert `message` into that error.
+    #[cfg(feature = "parser-trace")]
+    #[track_caller]
     fn try_insert_if_missing<M: Display>(self, message: M) -> InsertOnErrorMatcher<Self>
     where
         Self: Sized,
     {
-        InsertOnErrorMatcher {
-            inner: self,
-            message: message.to_string(),
-        }
+        InsertOnErrorMatcher::new(self, message.to_string())
+    }
+
+    /// If the matcher fails to extend the furthest error, insert `message` into that error.
+    #[cfg(not(feature = "parser-trace"))]
+    fn try_insert_if_missing<M: Display>(self, message: M) -> InsertOnErrorMatcher<Self>
+    where
+        Self: Sized,
+    {
+        InsertOnErrorMatcher::new(self, message.to_string())
     }
 
     /// Convert this matcher into a parser that returns `output` when the matcher succeeds.
@@ -164,6 +183,10 @@ where
     {
         (**self).match_with_runner(runner, error_handler, input)
     }
+
+    fn maybe_label(&self) -> Option<Box<dyn std::fmt::Display>> {
+        (**self).maybe_label()
+    }
 }
 
 impl<Inner> MatcherCombinator for Rc<Inner> where Inner: MatcherCombinator {}
@@ -188,6 +211,10 @@ where
     {
         self.deref().match_with_runner(runner, error_handler, input)
     }
+
+    fn maybe_label(&self) -> Option<Box<dyn std::fmt::Display>> {
+        self.deref().maybe_label()
+    }
 }
 
 impl<Inner> MatcherCombinator for Box<Inner> where Inner: MatcherCombinator {}
@@ -211,6 +238,10 @@ where
         'src: 'a,
     {
         (**self).match_with_runner(runner, error_handler, input)
+    }
+
+    fn maybe_label(&self) -> Option<Box<dyn std::fmt::Display>> {
+        (**self).maybe_label()
     }
 }
 

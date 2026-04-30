@@ -1,5 +1,7 @@
 //! Greedy repetition: parse zero or more `Pars` outputs, then fold with `combine_fn`.
 
+use std::fmt::Display;
+
 use crate::{
     context::ParserContext,
     error::{FurthestFailError, error_handler::ErrorHandler},
@@ -60,5 +62,9 @@ where
             results.push(result);
         }
         Ok(Some((self.combine_fn)(results)))
+    }
+
+    fn maybe_label(&self) -> Option<Box<dyn Display>> {
+        self.parser.maybe_label()
     }
 }

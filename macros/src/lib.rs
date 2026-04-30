@@ -6,7 +6,7 @@
 use proc_macro::TokenStream;
 use proc_macro_crate::{FoundCrate, crate_name};
 use proc_macro2::Span;
-use quote::quote;
+use quote::{quote, quote_spanned};
 use syn::parse::{Parse, ParseStream};
 use syn::visit_mut::{self, VisitMut};
 use syn::{Expr, Ident, Path, Result, Token, Type, parse_macro_input, parse_quote};
@@ -225,40 +225,25 @@ impl VisitMut for BindVisitor {
 
                     self.register_value(id.clone(), info.value_ty.clone(), &info.kind);
 
+                    let bind_span = id.span();
                     *i = if let Some(span_id) = &info.span_ident {
                         let marser = self.marser_path.clone();
                         let span_kind = info.span_kind.as_ref().unwrap();
                         self.register_span(span_id.clone(), info.span_ty.clone(), span_kind);
                         // wrap: bind_span( bind_result(parser, id), span_id )
-                        parse_quote! {
+                        syn::parse2(quote_spanned! {bind_span=>
                             #marser::parser::capture::bind_span(
-                                #marser::parser::capture::bind_result_with_debug(
-                                    #parser,
-                                    #id.clone(),
-                                    #marser::parser::capture::BindDebugInfo {
-                                        property_name: stringify!(#id),
-                                        file: file!(),
-                                        line: line!(),
-                                        column: column!(),
-                                    }
-                                ),
+                                #marser::parser::capture::bind_result(#parser, #id.clone()),
                                 #span_id.clone()
                             )
-                        }
+                        })
+                        .expect("bind! rewrite should produce a valid expression")
                     } else {
                         let marser = self.marser_path.clone();
-                        parse_quote! {
-                            #marser::parser::capture::bind_result_with_debug(
-                                #parser,
-                                #id.clone(),
-                                #marser::parser::capture::BindDebugInfo {
-                                    property_name: stringify!(#id),
-                                    file: file!(),
-                                    line: line!(),
-                                    column: column!(),
-                                }
-                            )
-                        }
+                        syn::parse2(quote_spanned! {bind_span=>
+                            #marser::parser::capture::bind_result(#parser, #id.clone())
+                        })
+                        .expect("bind! rewrite should produce a valid expression")
                     };
                     return;
                 }

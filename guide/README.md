@@ -11,6 +11,7 @@ Start here:
 5. [Errors and Recovery](crate::guide::errors_and_recovery)
 6. [Capture and Binds](crate::guide::capture_and_binds)
 7. [Parser and Matcher Reference](crate::guide::parser_matcher_reference)
+8. [Tracing and Debugging](crate::guide::tracing_and_debugging)
 
 If you want to run the existing JSON grammar immediately:
 

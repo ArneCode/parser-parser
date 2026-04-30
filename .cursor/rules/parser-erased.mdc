@@ -1,0 +1,15 @@
+---
+description: Always build with parser-erased in marser
+alwaysApply: true
+---
+
+# Cargo performance default (marser)
+
+When running Cargo commands in this repository (e.g. `cargo check`, `cargo run`, `cargo test`), always include `--features parser-erased` unless the user explicitly asks not to.
+
+Examples:
+```bash
+cargo check --features parser-erased -q
+cargo run --features parser-erased -q --example mini_language -- <script.ml>
+cargo test --features parser-erased -q
+```

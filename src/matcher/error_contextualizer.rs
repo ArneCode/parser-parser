@@ -1,5 +1,7 @@
 //! Enrich [`crate::error::FurthestFailError`] from `happy_matcher` using a small [`crate::parser::Parser`] callback.
 
+use std::fmt::Display;
+
 use crate::{
     context::ParserContext,
     error::{FurthestFailError, error_handler::ErrorHandler},
@@ -72,6 +74,10 @@ where
             }
         }
     }
+
+    fn maybe_label(&self) -> Option<Box<dyn Display>> {
+        self.happy.maybe_label()
+    }
 }
 
 // impl Parser
@@ -104,5 +110,9 @@ where
                 Err(e)
             }
         }
+    }
+
+    fn maybe_label(&self) -> Option<Box<dyn Display>> {
+        self.happy.maybe_label()
     }
 }

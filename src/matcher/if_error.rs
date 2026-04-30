@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use crate::matcher::internal::MatcherImpl;
 
 #[derive(Debug, Clone)]
@@ -54,6 +56,10 @@ where
         }
         self.inner.match_with_runner(runner, error_handler, input)
     }
+
+    fn maybe_label(&self) -> Option<Box<dyn Display>> {
+        self.inner.maybe_label()
+    }
 }
 
 impl<'src, Inner, Inp: crate::input::Input<'src>, MRes>
@@ -80,6 +86,10 @@ where
         }
         self.inner.match_with_runner(runner, error_handler, input)
     }
+
+    fn maybe_label(&self) -> Option<Box<dyn Display>> {
+        self.inner.maybe_label()
+    }
 }
 
 impl<'src, Inner, Inp: crate::input::Input<'src>> crate::parser::internal::ParserImpl<'src, Inp>
@@ -101,16 +111,38 @@ where
         }
         self.inner.parse(context, error_handler, input)
     }
+
+    fn maybe_label(&self) -> Option<Box<dyn Display>> {
+        self.inner.maybe_label()
+    }
 }
 
+#[cfg(feature = "parser-trace")]
+#[track_caller]
 pub fn if_error<Inner>(inner: Inner) -> IfError<Inner>
 where
     Inner: super::MatcherCombinator,
 {
-    IfError { inner }
+    IfError::new(inner)
 }
 
+#[cfg(not(feature = "parser-trace"))]
+pub fn if_error<Inner>(inner: Inner) -> IfError<Inner>
+where
+    Inner: super::MatcherCombinator,
+{
+    IfError::new(inner)
+}
+
+#[cfg(feature = "parser-trace")]
+#[track_caller]
 pub fn if_error_else_fail<Inner>(inner: Inner) -> IfErrorElseFail<Inner>
 {
-    IfErrorElseFail { inner }
+    IfErrorElseFail::new(inner)
+}
+
+#[cfg(not(feature = "parser-trace"))]
+pub fn if_error_else_fail<Inner>(inner: Inner) -> IfErrorElseFail<Inner>
+{
+    IfErrorElseFail::new(inner)
 }

@@ -1,14 +1,18 @@
 //! Error recovery: if the inner parser fails with [`crate::error::FurthestFailError`], try an alternate matcher.
 
-use std::sync::atomic::{AtomicUsize, Ordering};
+use std::fmt::Display;
+use std::sync::atomic::AtomicUsize;
+#[cfg(feature = "parser-trace")]
+use std::sync::atomic::Ordering;
 
 use crate::{
     context::ParserContext,
     error::error_handler::ErrorHandler,
     input::{Input, InputStream},
-    matcher::{MatchRunner, Matcher, MatcherCombinator, NoMemoizeBacktrackingRunner},
     parser::{Parser, ParserCombinator},
 };
+#[cfg(feature = "parser-trace")]
+use crate::trace::{RuleSourceMetadata, TraceEventKind};
 
 static NEXT_RECOVER_ID: AtomicUsize = AtomicUsize::new(0);
 
@@ -18,6 +22,8 @@ pub struct ErrorRecoverer<HappyParser, RecoveryParser> {
     happy: HappyParser,
     recover_parser: RecoveryParser,
     id: usize,
+    #[cfg(feature = "parser-trace")]
+    source: RuleSourceMetadata,
 }
 
 impl<Pars, RecoveryParser> std::fmt::Debug for ErrorRecoverer<Pars, RecoveryParser>
@@ -35,12 +41,31 @@ where
 
 impl<HappyParser, RecoveryParser> ErrorRecoverer<HappyParser, RecoveryParser> {
     /// See [`crate::parser::Parser::recover_with`].
+    #[cfg(feature = "parser-trace")]
+    #[track_caller]
     pub fn new(happy: HappyParser, recover_parser: RecoveryParser) -> Self {
+        let caller = std::panic::Location::caller();
         Self {
             happy,
             recover_parser,
             id: NEXT_RECOVER_ID.fetch_add(1, Ordering::Relaxed),
+            source: RuleSourceMetadata::new(caller.file(), caller.line(), caller.column()),
         }
+    }
+
+    /// See [`crate::parser::Parser::recover_with`].
+    #[cfg(not(feature = "parser-trace"))]
+    pub fn new(happy: HappyParser, recover_parser: RecoveryParser) -> Self {
+        Self {
+            happy,
+            recover_parser,
+            id: NEXT_RECOVER_ID.fetch_add(1, std::sync::atomic::Ordering::Relaxed),
+        }
+    }
+
+    #[cfg(feature = "parser-trace")]
+    fn source_metadata(&self) -> RuleSourceMetadata {
+        self.source
     }
 }
 
@@ -71,6 +96,14 @@ where
         let start_pos = input.get_pos();
         match self.happy.parse(context, error_handler, input) {
             Err(e) => {
+                #[cfg(feature = "parser-trace")]
+                context.trace_event(
+                    TraceEventKind::RecoverAttempt,
+                    start_pos.clone().into(),
+                    input.get_pos().into(),
+                    None,
+                    Some(self.source_metadata()),
+                );
                 input.set_pos(start_pos.clone());
                 // let mut runner = NoMemoizeBacktrackingRunner::new(context);
                 // if runner
@@ -81,6 +114,14 @@ where
                     .parse(context, error_handler, input)
                     .unwrap_or(None)
                 {
+                    #[cfg(feature = "parser-trace")]
+                    context.trace_event(
+                        TraceEventKind::RecoverSuccess,
+                        start_pos.clone().into(),
+                        input.get_pos().into(),
+                        None,
+                        Some(self.source_metadata()),
+                    );
                     // TODO: maybe find a way to avoid registering the same error multiple times.
                     if !context
                         .registered_error_set
@@ -94,9 +135,21 @@ where
 
                     return Ok(Some(output));
                 }
+                #[cfg(feature = "parser-trace")]
+                context.trace_event(
+                    TraceEventKind::RecoverFail,
+                    start_pos.clone().into(),
+                    input.get_pos().into(),
+                    None,
+                    Some(self.source_metadata()),
+                );
                 Err(e)
             }
             Ok(output) => Ok(output),
         }
+    }
+
+    fn maybe_label(&self) -> Option<Box<dyn Display>> {
+        self.happy.maybe_label()
     }
 }

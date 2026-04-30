@@ -9,6 +9,7 @@
 //! - [`errors_and_recovery`]
 //! - [`capture_and_binds`]
 //! - [`parser_matcher_reference`]
+//! - [`tracing_and_debugging`]
 
 pub mod overview {
     #![doc = include_str!("../guide/00-overview.md")]
@@ -36,4 +37,8 @@ pub mod capture_and_binds {
 
 pub mod parser_matcher_reference {
     #![doc = include_str!("../guide/06-parser-matcher-reference.md")]
+}
+
+pub mod tracing_and_debugging {
+    #![doc = include_str!("../guide/07-tracing-and-debugging.md")]
 }

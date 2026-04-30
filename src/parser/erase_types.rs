@@ -57,6 +57,10 @@ where
     ) -> Result<Option<Self::Output>, FurthestFailError> {
         self.inner.parse(context, error_handler.to_choice(), input)
     }
+
+    fn maybe_label(&self) -> Option<Box<dyn std::fmt::Display>> {
+        self.inner.maybe_label()
+    }
 }
 pub fn erase<'a, 'src, Inp, Out, P>(p: P) -> Erased<'a, 'src, Inp, Out>
 where

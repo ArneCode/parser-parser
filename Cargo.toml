@@ -17,6 +17,8 @@ exclude = ["target/**", "tests/JSONTestSuite/**"]
 default = []
 # Enable trait-object parser type erasure via `ParserCombinator::maybe_erase_types`.
 parser-erased = []
+# Enable parser event tracing APIs and instrumentation.
+parser-trace = ["dep:serde", "dep:serde_json"]
 
 [dependencies]
 annotate-snippets = "0.12.15"
@@ -24,3 +26,12 @@ ariadne = "0.6.0"
 codespan-reporting = "0.13.1"
 marser_macros = { version = "0.1.0", path = "./macros" }
 miette = { version = "7", features = ["fancy"] }
+serde = { version = "1", features = ["derive"], optional = true }
+serde_json = { version = "1", optional = true }
+crossterm = "0.28"
+ratatui = "0.28"
+
+[[bin]]
+name = "trace_viewer"
+path = "src/bin/trace_viewer.rs"
+required-features = ["parser-trace"]

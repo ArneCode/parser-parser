@@ -13,23 +13,45 @@ use crate::{
     },
     parser::capture::MatchResult,
 };
+#[cfg(feature = "parser-trace")]
+use crate::trace::{RuleSourceMetadata, TraceEventKind};
 
 /// Runs `commit_on` then `then_matcher`; if the second fails, furthest-fail is surfaced as [`Err`].
 #[derive(Clone, Debug)]
 pub struct CommitMatcher<CommitOn, ThenMatch> {
     commit_on: CommitOn,
     then_matcher: ThenMatch,
+    #[cfg(feature = "parser-trace")]
+    source: RuleSourceMetadata,
 }
 
 impl<CommitOn, ThenMatch> MatcherCombinator for CommitMatcher<CommitOn, ThenMatch> {}
 
 impl<Commit, Match> CommitMatcher<Commit, Match> {
     /// See [`commit_on`].
+    #[cfg(feature = "parser-trace")]
+    #[track_caller]
+    pub fn new(commit_on: Commit, matcher: Match) -> Self {
+        let caller = std::panic::Location::caller();
+        Self {
+            commit_on,
+            then_matcher: matcher,
+            source: RuleSourceMetadata::new(caller.file(), caller.line(), caller.column()),
+        }
+    }
+
+    /// See [`commit_on`].
+    #[cfg(not(feature = "parser-trace"))]
     pub fn new(commit_on: Commit, matcher: Match) -> Self {
         Self {
             commit_on,
             then_matcher: matcher,
         }
+    }
+
+    #[cfg(feature = "parser-trace")]
+    fn source_metadata(&self) -> RuleSourceMetadata {
+        self.source
     }
 }
 
@@ -57,6 +79,14 @@ where
         'src: 'a,
     {
         if runner.run_match(&self.commit_on, error_handler, input)? {
+            #[cfg(feature = "parser-trace")]
+            runner.get_parser_context().trace_event(
+                TraceEventKind::CommitPrefixMatched,
+                input.get_pos().into(),
+                input.get_pos().into(),
+                None,
+                Some(self.source_metadata()),
+            );
             if runner.run_match(&self.then_matcher, error_handler, input)? {
                 return Ok(true);
             }
@@ -70,6 +100,14 @@ where
             }
 
             let mut error_handler = MultiErrorHandler::new(input.get_pos().into());
+            #[cfg(feature = "parser-trace")]
+            runner.get_parser_context().trace_event(
+                TraceEventKind::CommitSecondPassStart,
+                input.get_pos().into(),
+                input.get_pos().into(),
+                None,
+                Some(self.source_metadata()),
+            );
             // starting new runner to find the error. we can't use the same runner again because then the properties of the match result will be written twice.
             let context = runner.get_parser_context();
             // use empty cache so that every Symbol is explored fully, otherwise we might miss some errors due to memoization.
@@ -85,7 +123,18 @@ where
             );
             if result {
                 let results = {
+                    #[cfg(feature = "parser-trace")]
+                    let (context, results) = inner_runner.get_data();
+                    #[cfg(not(feature = "parser-trace"))]
                     let (_context, results) = inner_runner.get_data();
+                    #[cfg(feature = "parser-trace")]
+                    context.trace_event(
+                        TraceEventKind::CommitSecondPassSuccess,
+                        input.get_pos().into(),
+                        input.get_pos().into(),
+                        None,
+                        Some(self.source_metadata()),
+                    );
                     // error recovery succeeded
                     // writing stack errors that have been fixed during recovery.
                     // error_handler.write_stack_errors(context);
@@ -94,7 +143,18 @@ where
                 runner.apply_results(results);
                 return Ok(true);
             } else {
-                let (_, results) = inner_runner.get_data();
+                #[cfg(feature = "parser-trace")]
+                let (context, results) = inner_runner.get_data();
+                #[cfg(not(feature = "parser-trace"))]
+                let (_context, results) = inner_runner.get_data();
+                #[cfg(feature = "parser-trace")]
+                context.trace_event(
+                    TraceEventKind::CommitSecondPassFail,
+                    input.get_pos().into(),
+                    input.get_pos().into(),
+                    None,
+                    Some(self.source_metadata()),
+                );
                 runner.apply_results(results);
                 let err = error_handler.to_parser_error();
                 return Err(err);
@@ -105,6 +165,17 @@ where
 }
 
 /// Convenience constructor for [`CommitMatcher`].
+#[cfg(feature = "parser-trace")]
+#[track_caller]
+pub fn commit_on<CommitOn, ThenMatch>(
+    commit_on: CommitOn,
+    then_matcher: ThenMatch,
+) -> CommitMatcher<CommitOn, ThenMatch> {
+    CommitMatcher::new(commit_on, then_matcher)
+}
+
+/// Convenience constructor for [`CommitMatcher`].
+#[cfg(not(feature = "parser-trace"))]
 pub fn commit_on<CommitOn, ThenMatch>(
     commit_on: CommitOn,
     then_matcher: ThenMatch,

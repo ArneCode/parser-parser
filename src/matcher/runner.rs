@@ -55,7 +55,7 @@ where
             result.unwrap()
         };
         if !result {
-            input.set_pos(old_pos);
+            input.set_pos(old_pos.clone());
             error_handler.register_failure(matcher.maybe_label(), idx);
             // move back error stack to the previous state
             self.get_parser_context()

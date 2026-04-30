@@ -4,7 +4,7 @@ use marser_macros::capture;
 
 use marser::{
     error::{FurthestFailError, ParserError},
-    label::WithLabel,
+    label::{WithLabel, WithTrace},
     matcher::{
         AnyToken, MatcherCombinator, commit_matcher::commit_on, if_error::{if_error, if_error_else_fail}, multiple::many,
         negative_lookahead, one_or_more::one_or_more, optional::optional, positive_lookahead,
@@ -13,6 +13,8 @@ use marser::{
     one_of::one_of,
     parser::{Parser, ParserCombinator, deferred::recursive, token_parser::TokenParser},
 };
+#[cfg(feature = "parser-trace")]
+use marser::trace::load::TraceFormat;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum JsonValue<'src> {
@@ -105,12 +107,17 @@ impl<'src> JsonValue<'src> {
 
 pub fn get_json_grammar<'src>() -> impl Parser<'src, &'src str, Output = JsonValue<'src>> {
     recursive(|element| {
-        let ws = Rc::new(many(one_of((' ', '\t', '\n', '\r'))));
+        let ws = Rc::new(
+            many(one_of((' ', '\t', '\n', '\r')))
+                .with_label("whitespace"),
+        );
 
-        let null = capture!(("null", ws.clone())  => JsonValue::Null );
-        let bool_false = capture!(("false", ws.clone())  => JsonValue::Boolean(false) );
-        let bool_true = capture!(("true", ws.clone())  => JsonValue::Boolean(true) );
-        let boolean = one_of((bool_true, bool_false));
+        let null = capture!(("null", ws.clone()) => JsonValue::Null).with_label("null");
+        let bool_false =
+            capture!(("false", ws.clone()) => JsonValue::Boolean(false)).with_label("false");
+        let bool_true =
+            capture!(("true", ws.clone()) => JsonValue::Boolean(true)).with_label("true");
+        let boolean = one_of((bool_true, bool_false)).with_label("boolean");
         let number = capture!(
             commit_on(positive_lookahead(one_of(('-', '.', '+', '0'..='9'))),
             bind_slice!((
@@ -161,14 +168,20 @@ pub fn get_json_grammar<'src>() -> impl Parser<'src, &'src str, Output = JsonVal
             // JsonValue::Invalid,
             capture!(
                 bind_slice!(many(one_of(('+', '-', '0'..='9', '.', 'e', 'E'))), slice) => JsonValue::Invalid(slice)
-            )
-        );
+            ),
+        )
+        .with_label("number");
 
-        let character = Rc::new(TokenParser::new(
-            |c| *c != '"' && *c != '\\' && (*c as u32) >= 0x20,
-            |x| *x,
-        ));
-        let hex_digit = Rc::new(one_of(('0'..='9', 'a'..='f', 'A'..='F')));
+        let character = Rc::new(
+            TokenParser::new(
+                |c| *c != '"' && *c != '\\' && (*c as u32) >= 0x20,
+                |x| *x,
+            )
+            .with_label("string character"),
+        );
+        let hex_digit = Rc::new(
+            one_of(('0'..='9', 'a'..='f', 'A'..='F')).with_label("hex digit"),
+        );
         let escaped_char = capture!({
             (
                 '\\',
@@ -186,7 +199,8 @@ pub fn get_json_grammar<'src>() -> impl Parser<'src, &'src str, Output = JsonVal
                 't' => '\t',
                 _ => esc,
             }
-        });
+        })
+        .with_label("escape sequence");
         let unicode_escape = capture!({
             (
                 '\\', 'u',
@@ -199,7 +213,8 @@ pub fn get_json_grammar<'src>() -> impl Parser<'src, &'src str, Output = JsonVal
             let hex: String = digits.into_iter().collect();
             let codepoint = u32::from_str_radix(&hex, 16).unwrap_or(0xFFFD);
             std::char::from_u32(codepoint).unwrap_or('\u{FFFD}')
-        });
+        })
+        .with_label("unicode escape");
         let raw_string = Rc::new(
             capture!({
                 commit_on(
@@ -220,32 +235,45 @@ pub fn get_json_grammar<'src>() -> impl Parser<'src, &'src str, Output = JsonVal
                 err.add_extra_label(quote,"unmatched quote",ariadne::Color::Blue);
             }) as Box<dyn Fn(&mut FurthestFailError)>
             )),
-        ).maybe_erase_types();
+        )
+        .with_label("quoted string")
+        .maybe_erase_types();
 
         let array = capture!({
             commit_on((ws.clone(), '['),
             (
-                ws.clone(),
+                ws.clone().trace(),
                 optional((
-                    bind!(element.clone(), *elements),
+                    bind!(element.clone(), *elements).trace(),
                     many((
-                        ','.try_insert_if_missing("missing comma"), ws.clone(),
-                        if_error(many((unwanted(',', "missing element"), ws.clone()))),
-                        bind!(element.clone(), *elements),
-                        if_error(negative_lookahead(':'))
+                        ','.trace().try_insert_if_missing("missing comma"),
+                        ws.clone().trace(),
+                        if_error(many((unwanted(',', "missing element"), ws.clone())))
+                            .trace(),
+                        bind!(element.clone(), *elements).trace(),
+                        if_error(negative_lookahead(':')).trace()
                     ))
-                )), ws.clone(), if_error(many((unwanted(',', "trailing comma"), ws.clone()))),
-                ']'.try_insert_if_missing("missing closing ']'"), ws.clone()
+                    .trace()
+                )).trace(),
+                ws.clone().trace(),
+                if_error(many((unwanted(',', "trailing comma"), ws.clone())))
+                    .trace(),
+                ']'.try_insert_if_missing("missing closing ']'"),
+                ws.clone().trace()
             ))
         } =>  {
             JsonValue::Array(elements)
-        }).maybe_erase_types();
+        })
+        .with_label("array")
+        .maybe_erase_types();
 
         let key_value_pair = Rc::new(
             capture!({
                 (
-                bind!(raw_string.clone(), key), ':', ws.clone(),
-                bind!(element.clone(), value),
+                bind!(raw_string.clone(), key).trace(),
+                ':',
+                ws.clone().trace(),
+                bind!(element.clone(), value).trace(),
                 )
             } => {
                 (key, value)
@@ -256,23 +284,29 @@ pub fn get_json_grammar<'src>() -> impl Parser<'src, &'src str, Output = JsonVal
         let object = capture!({
                 commit_on((ws.clone(), '{'),
                 (
-                ws.clone(),
+                ws.clone().trace(),
                 optional((
                     bind!(key_value_pair.clone(), *key_value_pairs),
                     many((
-                        ','.try_insert_if_missing("missing comma"),
-                        ws.clone(),
+                        ','.trace().try_insert_if_missing("missing comma"),
+                        ws.clone().trace(),
                         bind!(key_value_pair.clone(), *key_value_pairs),
                     )),
-                    if_error(many((unwanted(',', "trailing comma"), ws.clone())))
+                    if_error(
+                        many((unwanted(',', "trailing comma"), ws.clone()))
+                            .trace(),
+                    )
+                    .trace()
                 )),
-                '}'.try_insert_if_missing("missing closing '}'"), ws.clone()
+                '}'.try_insert_if_missing("missing closing '}'"),
+                ws.clone().trace()
                 )
                 )
         } => {
             JsonValue::Object(key_value_pairs)
         })
-        .with_label("object").maybe_erase_types();
+        .with_label("object")
+        .maybe_erase_types();
 
         let string = raw_string
             .map_output(JsonValue::String)
@@ -298,19 +332,20 @@ pub fn get_json_grammar<'src>() -> impl Parser<'src, &'src str, Output = JsonVal
             ), "invalid element"), slice),
             ) => JsonValue::Invalid(slice)
         )
-        .with_label("invalid element").maybe_erase_types();
+        .with_label("invalid element")
+        .maybe_erase_types();
         capture!((
-            ws.clone(), 
+            ws.clone().trace(),
             bind!(one_of((
-                object, 
-                array, 
-                string, 
-                number, 
-                boolean, 
-                null,
-                invalid_element
-            )), result), 
-            ws.clone()
+                object.trace(),
+                array.trace(),
+                string.trace(),
+                number.trace(),
+                boolean.trace(),
+                null.trace(),
+                invalid_element.trace()
+            )), result),
+            ws.clone().trace()
         ) => result)
         .with_label("element")
     })
@@ -318,11 +353,67 @@ pub fn get_json_grammar<'src>() -> impl Parser<'src, &'src str, Output = JsonVal
 fn main() {
     let mut args = env::args();
     let program = args.next().unwrap_or_else(|| "json".to_string());
-    let path = args.next().unwrap_or("tests/data/json1.json".to_string());
+    let mut path = "tests/data/json1.json".to_string();
+    #[cfg(feature = "parser-trace")]
+    let mut trace_mode: Option<&'static str> = None;
+    #[cfg(feature = "parser-trace")]
+    let mut trace_file: Option<String> = None;
+    #[cfg(feature = "parser-trace")]
+    let mut trace_format = TraceFormat::Jsonl;
 
-    if args.next().is_some() {
-        eprintln!("Usage: {program} <path-to-json-file>");
-        process::exit(2);
+    #[cfg(feature = "parser-trace")]
+    let mut pending_trace_file = false;
+    #[cfg(feature = "parser-trace")]
+    let mut pending_trace_format = false;
+    for arg in args {
+        #[cfg(feature = "parser-trace")]
+        if pending_trace_file {
+            trace_file = Some(arg);
+            pending_trace_file = false;
+            continue;
+        }
+        #[cfg(feature = "parser-trace")]
+        if pending_trace_format {
+            trace_format = match arg.as_str() {
+                "json" => TraceFormat::Json,
+                "jsonl" => TraceFormat::Jsonl,
+                _ => {
+                    eprintln!("Invalid --trace-format value '{arg}'. Use json or jsonl.");
+                    process::exit(2);
+                }
+            };
+            pending_trace_format = false;
+            continue;
+        }
+        #[cfg(feature = "parser-trace")]
+        if arg == "--trace-jsonl" {
+            trace_mode = Some("jsonl");
+            continue;
+        }
+        #[cfg(feature = "parser-trace")]
+        if arg == "--trace-text" {
+            trace_mode = Some("text");
+            continue;
+        }
+        #[cfg(feature = "parser-trace")]
+        if arg == "--trace-file" {
+            pending_trace_file = true;
+            continue;
+        }
+        #[cfg(feature = "parser-trace")]
+        if arg == "--trace-format" {
+            pending_trace_format = true;
+            continue;
+        }
+
+        if path != "tests/data/json1.json" {
+            #[cfg(feature = "parser-trace")]
+            eprintln!("Usage: {program} <path-to-json-file> [--trace-text|--trace-jsonl] [--trace-file <path>] [--trace-format json|jsonl]");
+            #[cfg(not(feature = "parser-trace"))]
+            eprintln!("Usage: {program} <path-to-json-file>");
+            process::exit(2);
+        }
+        path = arg;
     }
 
     let sample = match fs::read_to_string(&path) {
@@ -334,13 +425,46 @@ fn main() {
     };
 
     let parser = get_json_grammar();
-    match marser::parse(parser, sample.as_str()) {
-        Ok((value, errors)) => {
+    #[cfg(feature = "parser-trace")]
+    if let Some(trace_file_path) = trace_file {
+        match marser::parse_with_trace_to_file(parser, sample.as_str(), &trace_file_path, trace_format) {
+            Ok((value, errors)) => {
+                ParserError::eprint_many_miette(&errors, path.as_str(), sample.as_str());
+                eprintln!("trace written to {trace_file_path}");
+                println!("\n--- Recovered JSON: ---");
+                println!("{}", value.serialize_pretty());
+            }
+            Err(marser::ParseWithTraceToFileError::Parse(err)) => err.eprint_ariadne(path.as_str(), sample.as_str()),
+            Err(marser::ParseWithTraceToFileError::Io(err)) => {
+                eprintln!("Failed to write trace file '{trace_file_path}': {err}");
+                process::exit(1);
+            }
+        }
+    } else {
+        match marser::parse_with_trace(parser, sample.as_str()) {
+            Ok((value, errors, trace)) => {
             // eprintln!("--- Ariadne ---");
             // ParserError::eprint_many(&errors, path.as_str(), sample.as_str());
             ParserError::eprint_many_miette(&errors, path.as_str(), sample.as_str());
+            if trace_mode == Some("jsonl") {
+                let mut sink = std::io::stderr();
+                let _ = trace.write_jsonl(&mut sink);
+            } else if trace_mode == Some("text") {
+                eprintln!("{}", trace.to_timeline());
+            }
             // eprintln!("--- annotate-snippets ---");
             // ParserError::eprint_many_annotate_snippets(&errors, path.as_str(), sample.as_str());
+            println!("\n--- Recovered JSON: ---");
+            println!("{}", value.serialize_pretty());
+        }
+        Err(err) => err.eprint_ariadne(path.as_str(), sample.as_str()),
+    }
+    }
+
+    #[cfg(not(feature = "parser-trace"))]
+    match marser::parse(parser, sample.as_str()) {
+        Ok((value, errors)) => {
+            ParserError::eprint_many_miette(&errors, path.as_str(), sample.as_str());
             println!("\n--- Recovered JSON: ---");
             println!("{}", value.serialize_pretty());
         }
