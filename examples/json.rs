@@ -114,7 +114,7 @@ impl<'src> JsonValue<'src> {
 
 pub fn get_json_grammar<'src>() -> impl Parser<'src, &'src str, Output = JsonValue<'src>> {
     recursive(|element| {
-        let ws = Rc::new(many(one_of((' ', '\t', '\n', '\r'))).with_label("whitespace"));
+        let ws = Rc::new(many(one_of((' ', '\t', '\n', '\r')).with_label("whitespace")));
 
         let null = capture!(("null", ws.clone()) => JsonValue::Null).with_label("null");
         let bool_false =
@@ -324,7 +324,8 @@ pub fn get_json_grammar<'src>() -> impl Parser<'src, &'src str, Output = JsonVal
                         ']',
                         '}',
                         ':',
-                        one_of((' ', '\t', '\n', '\r')) // not just using ws, because that can return sucess by consuming 0 tokens
+                        // not just using ws, because that can return sucess by consuming 0 tokens
+                        one_of((' ', '\t', '\n', '\r'))
                     ))),
                     AnyToken
                 )
@@ -334,7 +335,7 @@ pub fn get_json_grammar<'src>() -> impl Parser<'src, &'src str, Output = JsonVal
         .with_label("invalid element")
         .maybe_erase_types();
 
-        let element =capture!((
+        let element = capture!((
             ws.clone().trace(),
             bind!(one_of((
                 object.trace(),

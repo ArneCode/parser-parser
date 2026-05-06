@@ -226,6 +226,10 @@ fn parse_with_trace_to_file_writes_trace_on_error() {
         trace_text.contains("\"nodes\""),
         "expected trace JSON payload to contain nodes"
     );
+    assert!(
+        trace_text.contains("\"source_text\":\"ac\""),
+        "expected trace JSON payload to embed original source text"
+    );
 
     let _ = fs::remove_file(trace_path);
 }

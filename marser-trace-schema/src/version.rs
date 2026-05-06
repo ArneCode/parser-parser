@@ -1,13 +1,13 @@
 //! On-disk `trace_version` policy for JSON traces.
 
-/// Version written in the `{ "trace_version", "nodes" }` JSON envelope.
-pub const SCHEMA_VERSION: u32 = 2;
+/// Version written in the `{ "trace_version", "nodes", "source_text?" }` JSON envelope.
+pub const SCHEMA_VERSION: u32 = 3;
 
 /// Lowest `trace_version` value this crate accepts when loading JSON.
 pub const SUPPORTED_TRACE_VERSION_MIN: u32 = 2;
 
 /// Highest `trace_version` value this crate accepts when loading JSON.
-pub const SUPPORTED_TRACE_VERSION_MAX: u32 = 2;
+pub const SUPPORTED_TRACE_VERSION_MAX: u32 = 3;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct UnsupportedTraceVersion {

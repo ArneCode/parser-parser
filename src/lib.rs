@@ -173,7 +173,8 @@ pub fn parse_with_trace_to_file<'src, Pars, Out: 'src>(
 where
     Pars: Parser<'src, &'src str, Output = Out> + 'src,
 {
-    let (result, trace) = parse_inner_with_trace(parser, src, TraceSession::new());
+    let (result, mut trace) = parse_inner_with_trace(parser, src, TraceSession::new());
+    trace.set_source_text(src);
     write_trace_to_file(&trace, trace_path, format)?;
     match result {
         Ok((output, errors)) => Ok((output, errors)),

@@ -18,7 +18,9 @@ pub fn run(
     format: Option<TraceFormat>,
 ) -> io::Result<()> {
     let trace = load_trace_file(trace_path, format)?;
-    let source_text = if let Some(path) = source_path {
+    let source_text = if let Some(source_text) = trace.source_text() {
+        Some(source_text.to_string())
+    } else if let Some(path) = source_path {
         Some(std::fs::read_to_string(path)?)
     } else {
         None

@@ -18,6 +18,7 @@ pub enum TraceFormat {
 struct TraceJsonEnvelope {
     trace_version: Option<u32>,
     nodes: Vec<NodeTrace>,
+    source_text: Option<String>,
 }
 
 pub fn load_trace_file(path: impl AsRef<Path>, format: Option<TraceFormat>) -> io::Result<TraceSession> {
@@ -57,7 +58,11 @@ pub fn load_json(reader: impl Read) -> io::Result<TraceSession> {
     }
     let payload: TraceJsonEnvelope = serde_json::from_value(value).map_err(io::Error::other)?;
     check_trace_version(payload.trace_version).map_err(|e| io::Error::other(e.to_string()))?;
-    Ok(TraceSession::from_events(payload.nodes))
+    let mut session = TraceSession::from_events(payload.nodes);
+    if let Some(source_text) = payload.source_text {
+        session.set_source_text(source_text);
+    }
+    Ok(session)
 }
 
 pub fn load_jsonl(reader: impl Read) -> io::Result<TraceSession> {
