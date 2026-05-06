@@ -94,7 +94,7 @@ where
                 runner.apply_results(results);
                 return Ok(true);
             } else {
-                let (_, results) = inner_runner.get_data();
+                let (_context, results) = inner_runner.get_data();
                 runner.apply_results(results);
                 let err = error_handler.to_parser_error();
                 return Err(err);

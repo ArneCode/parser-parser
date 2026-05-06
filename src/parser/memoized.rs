@@ -10,6 +10,7 @@ use crate::{
     input::{Input, InputStream},
     parser::Parser,
 };
+use std::fmt::Display;
 
 static NEXT_MEMO_ID: AtomicUsize = AtomicUsize::new(0);
 
@@ -87,5 +88,9 @@ where
             }
             Err(e) => Err(e),
         }
+    }
+
+    fn maybe_label(&self) -> Option<Box<dyn Display>> {
+        self.inner.maybe_label()
     }
 }

@@ -2,12 +2,16 @@ use std::any::Any;
 use std::collections::{HashMap, HashSet};
 
 use crate::error::ParserError;
+#[cfg(feature = "parser-trace")]
+use crate::trace::TraceState;
 
 pub struct ParserContext {
     pub memo_table: HashMap<(usize, usize), Box<dyn Any>>,
     pub error_sink: Vec<ParserError>,
     pub registered_error_set: HashSet<(usize, usize)>,
     pub error_stack: Vec<ParserError>,
+    #[cfg(feature = "parser-trace")]
+    pub(crate) trace: Option<TraceState>,
 }
 
 impl ParserContext {
@@ -17,6 +21,8 @@ impl ParserContext {
             error_sink: Vec::new(),
             registered_error_set: HashSet::new(),
             error_stack: Vec::new(),
+            #[cfg(feature = "parser-trace")]
+            trace: None,
         }
     }
 

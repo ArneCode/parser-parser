@@ -20,6 +20,12 @@ impl<Inner> super::MatcherCombinator for InsertOnErrorMatcher<Inner> where
 {
 }
 
+impl<Inner> InsertOnErrorMatcher<Inner> {
+    pub fn new(inner: Inner, message: String) -> Self {
+        Self { inner, message }
+    }
+}
+
 impl<'src, Inp: Input<'src>, MRes, Inner> super::internal::MatcherImpl<'src, Inp, MRes>
     for InsertOnErrorMatcher<Inner>
 where

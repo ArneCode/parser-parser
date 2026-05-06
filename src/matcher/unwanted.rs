@@ -56,8 +56,5 @@ pub fn unwanted<Inner>(inner: Inner, message: impl Into<String>) -> UnwantedMatc
 where
     Inner: MatcherCombinator,
 {
-    UnwantedMatcher {
-        inner,
-        message: message.into(),
-    }
+    UnwantedMatcher::new(inner, message.into())
 }

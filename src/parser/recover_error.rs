@@ -1,12 +1,12 @@
 //! Error recovery: if the inner parser fails with [`crate::error::FurthestFailError`], try an alternate matcher.
 
-use std::sync::atomic::{AtomicUsize, Ordering};
+use std::fmt::Display;
+use std::sync::atomic::AtomicUsize;
 
 use crate::{
     context::ParserContext,
     error::error_handler::ErrorHandler,
     input::{Input, InputStream},
-    matcher::{MatchRunner, Matcher, MatcherCombinator, NoMemoizeBacktrackingRunner},
     parser::{Parser, ParserCombinator},
 };
 
@@ -39,7 +39,7 @@ impl<HappyParser, RecoveryParser> ErrorRecoverer<HappyParser, RecoveryParser> {
         Self {
             happy,
             recover_parser,
-            id: NEXT_RECOVER_ID.fetch_add(1, Ordering::Relaxed),
+            id: NEXT_RECOVER_ID.fetch_add(1, std::sync::atomic::Ordering::Relaxed),
         }
     }
 }
@@ -98,5 +98,9 @@ where
             }
             Ok(output) => Ok(output),
         }
+    }
+
+    fn maybe_label(&self) -> Option<Box<dyn Display>> {
+        self.happy.maybe_label()
     }
 }

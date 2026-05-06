@@ -1,3 +1,4 @@
+use std::fmt::Display;
 use std::marker::PhantomData;
 
 use crate::{
@@ -128,5 +129,9 @@ where
                 Ok(None)
             }
         }
+    }
+
+    fn maybe_label(&self) -> Option<Box<dyn Display>> {
+        self.matcher.maybe_label()
     }
 }

@@ -1,0 +1,22 @@
+[package]
+name = "marser-trace-viewer"
+version = "0.1.0"
+edition = "2024"
+description = "Terminal UI for inspecting marser JSON/JSONL parser traces."
+license = "MIT"
+repository = "https://github.com/ArneCode/parser-parser"
+readme = "README.md"
+rust-version = "1.85"
+
+[lib]
+name = "marser_trace_viewer"
+path = "src/lib.rs"
+
+[[bin]]
+name = "marser-trace-viewer"
+path = "src/main.rs"
+
+[dependencies]
+crossterm = "0.28"
+marser-trace-schema = { version = "0.1.0", path = "../marser-trace-schema" }
+ratatui = "0.28"

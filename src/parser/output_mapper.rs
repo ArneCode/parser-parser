@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use crate::{
     context::ParserContext,
     error::{FurthestFailError, error_handler::ErrorHandler},
@@ -51,5 +53,9 @@ where
         } else {
             Ok(None)
         }
+    }
+
+    fn maybe_label(&self) -> Option<Box<dyn Display>> {
+        self.parser.maybe_label()
     }
 }

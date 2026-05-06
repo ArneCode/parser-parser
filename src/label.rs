@@ -88,6 +88,10 @@ where
             }
         }
     }
+
+    fn maybe_label(&self) -> Option<Box<dyn Display>> {
+        Some(Box::new(self.label.clone()))
+    }
 }
 
 /// Extension trait to wrap `self` in [`Labeled`].

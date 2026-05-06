@@ -58,7 +58,6 @@ macro_rules! impl_one_of_tuples {
             {
                 #[allow(non_snake_case)]
                 let ($head, $($tail,)*) = &self.options;
-
                 if runner.run_match($head, error_handler, input)? {
                     return Ok(true);
                 }
@@ -68,7 +67,6 @@ macro_rules! impl_one_of_tuples {
                         return Ok(true);
                     }
                 )*
-
                 Ok(false)
             }
         }
@@ -102,7 +100,6 @@ macro_rules! impl_one_of_tuples {
                         return Ok(Some(output));
                     }
                 )*
-
                 Ok(None)
             }
         }

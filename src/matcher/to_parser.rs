@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use crate::{
     context::ParserContext,
     error::{FurthestFailError, error_handler::ErrorHandler},
@@ -19,7 +21,10 @@ pub struct ToParser<Match, Output> {
 
 impl<Match, Output> ToParser<Match, Output> {
     pub fn new(matcher: Match, output: Output) -> Self {
-        Self { matcher, output }
+        Self {
+            matcher,
+            output,
+        }
     }
 }
 
@@ -66,5 +71,9 @@ where
                 Ok(None)
             }
         }
+    }
+
+    fn maybe_label(&self) -> Option<Box<dyn Display>> {
+        self.matcher.maybe_label()
     }
 }
