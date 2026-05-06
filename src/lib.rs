@@ -76,7 +76,7 @@ fn parse_inner_with_trace<'src, Pars, Out: 'src>(
     parser: Pars,
     src: &'src str,
     trace_session: TraceSession,
-) -> Result<(Out, Vec<ParserError>, TraceSession), FurthestFailError>
+) -> (Result<(Out, Vec<ParserError>), FurthestFailError>, TraceSession)
 where
     Pars: Parser<'src, &'src str, Output = Out> + 'src,
 {
@@ -92,16 +92,15 @@ where
             negative_lookahead(AnyToken),
         )) => result
     );
-    let result = parser
-        .parse(&mut context, &mut error_handler, &mut input)?
-        .unwrap();
+    let parse_result = parser.parse(&mut context, &mut error_handler, &mut input);
     let trace = context.take_trace_session().unwrap_or_default();
-    let errors = context.get_errors();
-    Ok((
-        result,
-        errors,
-        trace,
-    ))
+    match parse_result {
+        Ok(result) => {
+            let errors = context.get_errors();
+            (Ok((result.unwrap(), errors)), trace)
+        }
+        Err(err) => (Err(err), trace),
+    }
 }
 
 #[cfg(feature = "parser-trace")]
@@ -112,7 +111,8 @@ pub fn parse_with_trace<'src, Pars, Out: 'src>(
 where
     Pars: Parser<'src, &'src str, Output = Out> + 'src,
 {
-    parse_inner_with_trace(parser, src, TraceSession::new())
+    let (result, trace) = parse_inner_with_trace(parser, src, TraceSession::new());
+    result.map(|(output, errors)| (output, errors, trace))
 }
 
 #[cfg(feature = "parser-trace")]
@@ -124,7 +124,8 @@ pub fn parse_with_trace_session<'src, Pars, Out: 'src>(
 where
     Pars: Parser<'src, &'src str, Output = Out> + 'src,
 {
-    parse_inner_with_trace(parser, src, trace_session)
+    let (result, trace) = parse_inner_with_trace(parser, src, trace_session);
+    result.map(|(output, errors)| (output, errors, trace))
 }
 
 #[cfg(feature = "parser-trace")]
@@ -149,6 +150,20 @@ impl From<io::Error> for ParseWithTraceToFileError {
 }
 
 #[cfg(feature = "parser-trace")]
+fn write_trace_to_file(
+    trace: &TraceSession,
+    trace_path: impl AsRef<Path>,
+    format: TraceFormat,
+) -> Result<(), io::Error> {
+    let file = File::create(trace_path)?;
+    match format {
+        TraceFormat::Json => trace.write_json(file)?,
+        TraceFormat::Jsonl => trace.write_jsonl(file)?,
+    }
+    Ok(())
+}
+
+#[cfg(feature = "parser-trace")]
 pub fn parse_with_trace_to_file<'src, Pars, Out: 'src>(
     parser: Pars,
     src: &'src str,
@@ -158,11 +173,10 @@ pub fn parse_with_trace_to_file<'src, Pars, Out: 'src>(
 where
     Pars: Parser<'src, &'src str, Output = Out> + 'src,
 {
-    let (output, errors, trace) = parse_with_trace(parser, src)?;
-    let file = File::create(trace_path)?;
-    match format {
-        TraceFormat::Json => trace.write_json(file)?,
-        TraceFormat::Jsonl => trace.write_jsonl(file)?,
+    let (result, trace) = parse_inner_with_trace(parser, src, TraceSession::new());
+    write_trace_to_file(&trace, trace_path, format)?;
+    match result {
+        Ok((output, errors)) => Ok((output, errors)),
+        Err(parse_err) => Err(ParseWithTraceToFileError::Parse(parse_err)),
     }
-    Ok((output, errors))
 }

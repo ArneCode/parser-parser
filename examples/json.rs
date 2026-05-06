@@ -252,7 +252,6 @@ pub fn get_json_grammar<'src>() -> impl Parser<'src, &'src str, Output = JsonVal
                         bind!(element.clone(), *elements).trace(),
                         if_error(negative_lookahead(':')).trace()
                     ))
-                    .trace()
                 )),
                 ws.clone().trace(),
                 if_error(many((unwanted(',', "trailing comma"), ws.clone())))
@@ -325,7 +324,7 @@ pub fn get_json_grammar<'src>() -> impl Parser<'src, &'src str, Output = JsonVal
                         ']',
                         '}',
                         ':',
-                        ws.clone()
+                        one_of((' ', '\t', '\n', '\r')) // not just using ws, because that can return sucess by consuming 0 tokens
                     ))),
                     AnyToken
                 )
@@ -334,7 +333,8 @@ pub fn get_json_grammar<'src>() -> impl Parser<'src, &'src str, Output = JsonVal
         )
         .with_label("invalid element")
         .maybe_erase_types();
-        capture!((
+
+        let element =capture!((
             ws.clone().trace(),
             bind!(one_of((
                 object.trace(),
@@ -347,7 +347,9 @@ pub fn get_json_grammar<'src>() -> impl Parser<'src, &'src str, Output = JsonVal
             )), result),
             ws.clone().trace()
         ) => result)
-        .with_label("element")
+        .with_label("element");
+
+        element
     })
 }
 

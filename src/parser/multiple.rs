@@ -63,8 +63,4 @@ where
         }
         Ok(Some((self.combine_fn)(results)))
     }
-
-    fn maybe_label(&self) -> Option<Box<dyn Display>> {
-        self.parser.maybe_label()
-    }
 }
