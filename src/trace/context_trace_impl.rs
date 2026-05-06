@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use super::ParserContext;
+use crate::context::ParserContext;
 use crate::trace::{
     ExplicitMarkerEndOutcome, NodeTrace, NodeTraceKind, NodeTraceStatus, RuleIdentity,
     RuleSourceMetadata, TraceEventKind, TraceLocation, TraceMarkerFailureSnapshot,
@@ -16,8 +16,8 @@ struct RuleMetadataKey {
 }
 
 #[derive(Clone, Debug, Default)]
-pub(super) struct TraceState {
-    pub(super) session: TraceSession,
+pub(crate) struct TraceState {
+    pub(crate) session: TraceSession,
     next_id: u64,
     next_marker_id: u64,
     next_rule_id: u64,

@@ -4,7 +4,7 @@ use marser::{
     matcher::{MatcherCombinator, many},
     one_of::one_of,
     parser::Parser,
-    trace::{NodeTraceStatus, TraceEventKind, TraceMarkerPhase, TraceSessionExt, WithTrace},
+    trace::{NodeTraceStatus, TraceEventKind, TraceMarkerPhase, WithTrace},
 };
 
 fn tiny_parser<'src>() -> impl Parser<'src, &'src str, Output = &'src str> {
@@ -37,14 +37,6 @@ fn trace_event_ids_are_monotonic() {
         assert_eq!(event.node_id, expected_id);
         expected_id += 1;
     }
-}
-
-#[test]
-fn trace_text_renderers_produce_output() {
-    let parser = "ab".to("ab").trace_with_label("ok");
-    let (_out, _errors, trace) = marser::parse_with_trace(parser, "ab").unwrap();
-    assert!(!trace.to_text_tree().is_empty());
-    assert!(!trace.to_timeline().is_empty());
 }
 
 #[test]

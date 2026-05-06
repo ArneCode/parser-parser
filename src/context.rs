@@ -3,9 +3,7 @@ use std::collections::{HashMap, HashSet};
 
 use crate::error::ParserError;
 #[cfg(feature = "parser-trace")]
-mod trace_impl;
-#[cfg(feature = "parser-trace")]
-use trace_impl::TraceState;
+use crate::trace::TraceState;
 
 pub struct ParserContext {
     pub memo_table: HashMap<(usize, usize), Box<dyn Any>>,
@@ -13,7 +11,7 @@ pub struct ParserContext {
     pub registered_error_set: HashSet<(usize, usize)>,
     pub error_stack: Vec<ParserError>,
     #[cfg(feature = "parser-trace")]
-    trace: Option<TraceState>,
+    pub(crate) trace: Option<TraceState>,
 }
 
 impl ParserContext {

@@ -69,10 +69,6 @@ Tracing does not change parser behavior; it only records runtime events.
 - `write_json(...)` for a versioned object `{ "trace_version", "nodes" }`.
 - `write_jsonl(...)` for line-delimited events.
 
-For human-readable dumps in Rust, import
-[`TraceSessionExt`](crate::trace::TraceSessionExt) and call
-`to_text_tree()` / `to_timeline()`.
-
 ## Trace formats
 
 - `json`: one versioned trace document. Good default for replay and sharing.
