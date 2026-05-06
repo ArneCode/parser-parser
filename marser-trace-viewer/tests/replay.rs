@@ -1,11 +1,8 @@
-#![cfg(feature = "parser-trace")]
-
-use std::{fs, time::{SystemTime, UNIX_EPOCH}};
-
-use marser::trace::{
+use marser_trace_schema::{
     NodeTrace, NodeTraceKind, NodeTraceStatus, TraceEventKind, TraceMarkerPhase, TraceSession,
-    debug_protocol::{Breakpoint, DebugCommand, DebugNotification, DebugSession},
-    load::{TraceFormat, load_trace_file},
+};
+use marser_trace_viewer::replay::{
+    ReplayBreakpoint, ReplayCommand, ReplayNotification, ReplaySession,
 };
 
 fn sample_events() -> Vec<NodeTrace> {
@@ -24,7 +21,7 @@ fn sample_events() -> Vec<NodeTrace> {
             trace_marker_id: None,
             marker_phase: TraceMarkerPhase::None,
             is_explicit_trace_marker: false,
-            runtime_kind: Some(TraceEventKind::ChoiceStart),
+            runtime_kind: Some(TraceEventKind::ParserEnter),
             rule: None,
             error_sink_len: 0,
             error_stack_len: 0,
@@ -44,7 +41,7 @@ fn sample_events() -> Vec<NodeTrace> {
             trace_marker_id: Some(10),
             marker_phase: TraceMarkerPhase::Start,
             is_explicit_trace_marker: true,
-            runtime_kind: Some(TraceEventKind::CaptureEnter),
+            runtime_kind: Some(TraceEventKind::ParserEnter),
             rule: None,
             error_sink_len: 0,
             error_stack_len: 0,
@@ -64,7 +61,7 @@ fn sample_events() -> Vec<NodeTrace> {
             trace_marker_id: None,
             marker_phase: TraceMarkerPhase::None,
             is_explicit_trace_marker: false,
-            runtime_kind: Some(TraceEventKind::MatchSuccess),
+            runtime_kind: Some(TraceEventKind::ParserExit),
             rule: None,
             error_sink_len: 0,
             error_stack_len: 0,
@@ -84,7 +81,7 @@ fn sample_events() -> Vec<NodeTrace> {
             trace_marker_id: Some(10),
             marker_phase: TraceMarkerPhase::End,
             is_explicit_trace_marker: true,
-            runtime_kind: Some(TraceEventKind::CaptureExit),
+            runtime_kind: Some(TraceEventKind::MatchFail),
             rule: None,
             error_sink_len: 0,
             error_stack_len: 0,
@@ -104,7 +101,7 @@ fn sample_events() -> Vec<NodeTrace> {
             trace_marker_id: Some(11),
             marker_phase: TraceMarkerPhase::Start,
             is_explicit_trace_marker: true,
-            runtime_kind: Some(TraceEventKind::MatchSuccess),
+            runtime_kind: Some(TraceEventKind::ParserExit),
             rule: None,
             error_sink_len: 0,
             error_stack_len: 0,
@@ -113,74 +110,39 @@ fn sample_events() -> Vec<NodeTrace> {
     ]
 }
 
-fn temp_file_path(ext: &str) -> std::path::PathBuf {
-    let stamp = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap()
-        .as_nanos();
-    std::env::temp_dir().join(format!("marser_trace_{stamp}.{ext}"))
-}
-
 #[test]
-fn loads_json_trace_file() {
-    let session = TraceSession::from_events(sample_events());
-    let path = temp_file_path("json");
-    fs::write(&path, serde_json::to_string(session.events()).unwrap()).unwrap();
-    let loaded = load_trace_file(&path, Some(TraceFormat::Json)).unwrap();
-    fs::remove_file(&path).ok();
-    assert_eq!(loaded.events().len(), 5);
-    assert_eq!(loaded.events()[2].runtime_kind, Some(TraceEventKind::MatchSuccess));
-}
-
-#[test]
-fn loads_jsonl_trace_file() {
-    let path = temp_file_path("jsonl");
-    let mut body = String::new();
-    for event in sample_events() {
-        body.push_str(&serde_json::to_string(&event).unwrap());
-        body.push('\n');
-    }
-    fs::write(&path, body).unwrap();
-    let loaded = load_trace_file(&path, Some(TraceFormat::Jsonl)).unwrap();
-    fs::remove_file(&path).ok();
-    assert_eq!(loaded.events().len(), 5);
-    assert_eq!(loaded.events()[0].runtime_kind, Some(TraceEventKind::ChoiceStart));
-}
-
-#[test]
-fn replay_debug_session_steps_and_breakpoints() {
+fn replay_session_steps_and_breakpoints() {
     let trace = TraceSession::from_events(sample_events());
-    let mut debug = DebugSession::from_trace(&trace);
-    match debug.handle_command(DebugCommand::Step) {
-        Some(DebugNotification::CurrentEvent(event)) => assert_eq!(event.node_id, 1),
+    let mut debug = ReplaySession::from_trace(&trace);
+    match debug.handle_command(ReplayCommand::StepOver) {
+        Some(ReplayNotification::CurrentEvent(event)) => assert_eq!(event.node_id, 1),
         other => panic!("unexpected notification: {other:?}"),
     }
-    debug.handle_command(DebugCommand::SetBreakpoint(Breakpoint::EventKind(
-        TraceEventKind::MatchSuccess,
+    debug.handle_command(ReplayCommand::SetBreakpoint(ReplayBreakpoint::EventKind(
+        TraceEventKind::ParserExit,
     )));
-    match debug.handle_command(DebugCommand::Continue) {
-        Some(DebugNotification::BreakpointHit { event, .. }) => {
-            assert_eq!(event.runtime_kind, Some(TraceEventKind::MatchSuccess));
+    match debug.handle_command(ReplayCommand::Continue) {
+        Some(ReplayNotification::BreakpointHit { event, .. }) => {
+            assert_eq!(event.runtime_kind, Some(TraceEventKind::ParserExit));
         }
         other => panic!("unexpected notification: {other:?}"),
     }
 }
 
 #[test]
-fn replay_debug_session_step_modes() {
+fn replay_session_step_modes() {
     let trace = TraceSession::from_events(sample_events());
 
-    let mut debug = DebugSession::from_trace(&trace);
-    match debug.handle_command(DebugCommand::StepOver) {
-        Some(DebugNotification::CurrentEvent(event)) => assert_eq!(event.node_id, 1),
+    let mut debug = ReplaySession::from_trace(&trace);
+    match debug.handle_command(ReplayCommand::StepOver) {
+        Some(ReplayNotification::CurrentEvent(event)) => assert_eq!(event.node_id, 1),
         other => panic!("unexpected notification: {other:?}"),
     }
 
-    let mut debug = DebugSession::from_trace(&trace);
-    let _ = debug.handle_command(DebugCommand::StepInto);
-    match debug.handle_command(DebugCommand::StepOut) {
-        Some(DebugNotification::ParseComplete) => {}
+    let mut debug = ReplaySession::from_trace(&trace);
+    let _ = debug.handle_command(ReplayCommand::StepInto);
+    match debug.handle_command(ReplayCommand::StepOut) {
+        Some(ReplayNotification::ParseComplete) => {}
         other => panic!("unexpected notification: {other:?}"),
     }
 }
-

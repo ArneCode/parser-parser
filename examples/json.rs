@@ -2,19 +2,26 @@ use std::{env, fs, process, rc::Rc};
 
 use marser_macros::capture;
 
+#[cfg(feature = "parser-trace")]
+use marser::trace::TraceFormat;
 use marser::{
     error::{FurthestFailError, ParserError},
-    label::{WithLabel, WithTrace},
+    label::WithLabel,
+    trace::WithTrace,
     matcher::{
-        AnyToken, MatcherCombinator, commit_matcher::commit_on, if_error::{if_error, if_error_else_fail}, multiple::many,
-        negative_lookahead, one_or_more::one_or_more, optional::optional, positive_lookahead,
+        AnyToken, MatcherCombinator,
+        commit_matcher::commit_on,
+        if_error::{if_error, if_error_else_fail},
+        multiple::many,
+        negative_lookahead,
+        one_or_more::one_or_more,
+        optional::optional,
+        positive_lookahead,
         unwanted::unwanted,
     },
     one_of::one_of,
     parser::{Parser, ParserCombinator, deferred::recursive, token_parser::TokenParser},
 };
-#[cfg(feature = "parser-trace")]
-use marser::trace::load::TraceFormat;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum JsonValue<'src> {
@@ -107,10 +114,7 @@ impl<'src> JsonValue<'src> {
 
 pub fn get_json_grammar<'src>() -> impl Parser<'src, &'src str, Output = JsonValue<'src>> {
     recursive(|element| {
-        let ws = Rc::new(
-            many(one_of((' ', '\t', '\n', '\r')))
-                .with_label("whitespace"),
-        );
+        let ws = Rc::new(many(one_of((' ', '\t', '\n', '\r'))).with_label("whitespace"));
 
         let null = capture!(("null", ws.clone()) => JsonValue::Null).with_label("null");
         let bool_false =
@@ -173,15 +177,10 @@ pub fn get_json_grammar<'src>() -> impl Parser<'src, &'src str, Output = JsonVal
         .with_label("number");
 
         let character = Rc::new(
-            TokenParser::new(
-                |c| *c != '"' && *c != '\\' && (*c as u32) >= 0x20,
-                |x| *x,
-            )
-            .with_label("string character"),
+            TokenParser::new(|c| *c != '"' && *c != '\\' && (*c as u32) >= 0x20, |x| *x)
+                .with_label("string character"),
         );
-        let hex_digit = Rc::new(
-            one_of(('0'..='9', 'a'..='f', 'A'..='F')).with_label("hex digit"),
-        );
+        let hex_digit = Rc::new(one_of(('0'..='9', 'a'..='f', 'A'..='F')).with_label("hex digit"));
         let escaped_char = capture!({
             (
                 '\\',
@@ -254,7 +253,7 @@ pub fn get_json_grammar<'src>() -> impl Parser<'src, &'src str, Output = JsonVal
                         if_error(negative_lookahead(':')).trace()
                     ))
                     .trace()
-                )).trace(),
+                )),
                 ws.clone().trace(),
                 if_error(many((unwanted(',', "trailing comma"), ws.clone())))
                     .trace(),
@@ -279,7 +278,8 @@ pub fn get_json_grammar<'src>() -> impl Parser<'src, &'src str, Output = JsonVal
                 (key, value)
             })
             .with_label("key-value pair"),
-        ).maybe_erase_types();
+        )
+        .maybe_erase_types();
 
         let object = capture!({
                 commit_on((ws.clone(), '{'),
@@ -325,7 +325,7 @@ pub fn get_json_grammar<'src>() -> impl Parser<'src, &'src str, Output = JsonVal
                         ']',
                         '}',
                         ':',
-                        one_of((' ', '\t', '\n', '\r'))
+                        ws.clone()
                     ))),
                     AnyToken
                 )
@@ -350,124 +350,135 @@ pub fn get_json_grammar<'src>() -> impl Parser<'src, &'src str, Output = JsonVal
         .with_label("element")
     })
 }
-fn main() {
-    let mut args = env::args();
-    let program = args.next().unwrap_or_else(|| "json".to_string());
-    let mut path = "tests/data/json1.json".to_string();
-    #[cfg(feature = "parser-trace")]
-    let mut trace_mode: Option<&'static str> = None;
-    #[cfg(feature = "parser-trace")]
-    let mut trace_file: Option<String> = None;
-    #[cfg(feature = "parser-trace")]
-    let mut trace_format = TraceFormat::Jsonl;
 
-    #[cfg(feature = "parser-trace")]
-    let mut pending_trace_file = false;
-    #[cfg(feature = "parser-trace")]
-    let mut pending_trace_format = false;
-    for arg in args {
-        #[cfg(feature = "parser-trace")]
-        if pending_trace_file {
-            trace_file = Some(arg);
-            pending_trace_file = false;
-            continue;
-        }
-        #[cfg(feature = "parser-trace")]
-        if pending_trace_format {
-            trace_format = match arg.as_str() {
-                "json" => TraceFormat::Json,
-                "jsonl" => TraceFormat::Jsonl,
-                _ => {
-                    eprintln!("Invalid --trace-format value '{arg}'. Use json or jsonl.");
-                    process::exit(2);
-                }
-            };
-            pending_trace_format = false;
-            continue;
-        }
-        #[cfg(feature = "parser-trace")]
-        if arg == "--trace-jsonl" {
-            trace_mode = Some("jsonl");
-            continue;
-        }
-        #[cfg(feature = "parser-trace")]
-        if arg == "--trace-text" {
-            trace_mode = Some("text");
-            continue;
-        }
-        #[cfg(feature = "parser-trace")]
-        if arg == "--trace-file" {
-            pending_trace_file = true;
-            continue;
-        }
-        #[cfg(feature = "parser-trace")]
-        if arg == "--trace-format" {
-            pending_trace_format = true;
-            continue;
-        }
+const DEFAULT_JSON_PATH: &str = "tests/data/json1.json";
 
-        if path != "tests/data/json1.json" {
+fn usage(program: &str) -> ! {
+    eprintln!(
+        "Usage: {program} <path-to-json-file>{}",
+        if cfg!(feature = "parser-trace") {
+            " [--trace-file <path>]"
+        } else {
+            ""
+        }
+    );
+    process::exit(2);
+}
+
+fn print_parse_ok(value: &JsonValue<'_>, errors: &[ParserError], path: &str, source: &str) {
+    ParserError::eprint_many_miette(errors, path, source);
+    println!("\n--- Recovered JSON: ---");
+    println!("{}", value.serialize_pretty());
+}
+
+struct Cli {
+    path: String,
+    /// When set, write trace JSON here (`parser-trace` only).
+    #[cfg(feature = "parser-trace")]
+    trace_file: Option<String>,
+}
+
+impl Cli {
+    fn parse(mut args: env::Args) -> Self {
+        let program = args.next().unwrap_or_else(|| "json".to_string());
+        let mut path = DEFAULT_JSON_PATH.to_string();
+        #[cfg(feature = "parser-trace")]
+        let mut trace_file: Option<String> = None;
+        #[cfg(feature = "parser-trace")]
+        let mut expect_trace_path = false;
+
+        for arg in args {
             #[cfg(feature = "parser-trace")]
-            eprintln!("Usage: {program} <path-to-json-file> [--trace-text|--trace-jsonl] [--trace-file <path>] [--trace-format json|jsonl]");
-            #[cfg(not(feature = "parser-trace"))]
-            eprintln!("Usage: {program} <path-to-json-file>");
-            process::exit(2);
-        }
-        path = arg;
-    }
+            {
+                if expect_trace_path {
+                    trace_file = Some(arg);
+                    expect_trace_path = false;
+                    continue;
+                }
+                if arg == "--trace-file" {
+                    expect_trace_path = true;
+                    continue;
+                }
+            }
 
-    let sample = match fs::read_to_string(&path) {
+            if path != DEFAULT_JSON_PATH {
+                usage(&program);
+            }
+            path = arg;
+        }
+
+        Self {
+            path,
+            #[cfg(feature = "parser-trace")]
+            trace_file,
+        }
+    }
+}
+
+fn read_source(path: &str) -> String {
+    match fs::read_to_string(path) {
         Ok(content) => content,
         Err(err) => {
             eprintln!("Failed to read '{path}': {err}");
             process::exit(1);
         }
-    };
+    }
+}
 
-    let parser = get_json_grammar();
-    #[cfg(feature = "parser-trace")]
-    if let Some(trace_file_path) = trace_file {
-        match marser::parse_with_trace_to_file(parser, sample.as_str(), &trace_file_path, trace_format) {
+#[cfg(feature = "parser-trace")]
+fn run_traced<'src, P>(parser: P, sample: &'src str, cli: &Cli)
+where
+    P: Parser<'src, &'src str, Output = JsonValue<'src>> + 'src,
+{
+    let path = cli.path.as_str();
+    if let Some(trace_file_path) = cli.trace_file.as_ref() {
+        match marser::parse_with_trace_to_file(
+            parser,
+            sample,
+            trace_file_path,
+            TraceFormat::Json,
+        ) {
             Ok((value, errors)) => {
-                ParserError::eprint_many_miette(&errors, path.as_str(), sample.as_str());
                 eprintln!("trace written to {trace_file_path}");
-                println!("\n--- Recovered JSON: ---");
-                println!("{}", value.serialize_pretty());
+                print_parse_ok(&value, &errors, path, sample);
             }
-            Err(marser::ParseWithTraceToFileError::Parse(err)) => err.eprint_ariadne(path.as_str(), sample.as_str()),
+            Err(marser::ParseWithTraceToFileError::Parse(err)) => {
+                err.eprint_ariadne(path, sample)
+            }
             Err(marser::ParseWithTraceToFileError::Io(err)) => {
                 eprintln!("Failed to write trace file '{trace_file_path}': {err}");
                 process::exit(1);
             }
         }
     } else {
-        match marser::parse_with_trace(parser, sample.as_str()) {
-            Ok((value, errors, trace)) => {
-            // eprintln!("--- Ariadne ---");
-            // ParserError::eprint_many(&errors, path.as_str(), sample.as_str());
-            ParserError::eprint_many_miette(&errors, path.as_str(), sample.as_str());
-            if trace_mode == Some("jsonl") {
-                let mut sink = std::io::stderr();
-                let _ = trace.write_jsonl(&mut sink);
-            } else if trace_mode == Some("text") {
-                eprintln!("{}", trace.to_timeline());
+        match marser::parse_with_trace(parser, sample) {
+            Ok((value, errors, _trace)) => {
+                print_parse_ok(&value, &errors, path, sample);
             }
-            // eprintln!("--- annotate-snippets ---");
-            // ParserError::eprint_many_annotate_snippets(&errors, path.as_str(), sample.as_str());
-            println!("\n--- Recovered JSON: ---");
-            println!("{}", value.serialize_pretty());
+            Err(err) => err.eprint_ariadne(path, sample),
         }
-        Err(err) => err.eprint_ariadne(path.as_str(), sample.as_str()),
     }
-    }
+}
 
-    #[cfg(not(feature = "parser-trace"))]
-    match marser::parse(parser, sample.as_str()) {
+#[cfg(not(feature = "parser-trace"))]
+fn run_plain<'src, P>(parser: P, sample: &'src str, path: &str)
+where
+    P: Parser<'src, &'src str, Output = JsonValue<'src>> + 'src,
+{
+    match marser::parse(parser, sample) {
         Ok((value, errors)) => {
-            ParserError::eprint_many_miette(&errors, path.as_str(), sample.as_str());
-            println!("\n--- Recovered JSON: ---");
-            println!("{}", value.serialize_pretty());
+            print_parse_ok(&value, &errors, path, sample);
         }
-        Err(err) => err.eprint_ariadne(path.as_str(), sample.as_str()),
+        Err(err) => err.eprint_ariadne(path, sample),
     }
+}
+
+fn main() {
+    let cli = Cli::parse(env::args());
+    let sample = read_source(&cli.path);
+    let parser = get_json_grammar();
+    #[cfg(feature = "parser-trace")]
+    run_traced(parser, sample.as_str(), &cli);
+    #[cfg(not(feature = "parser-trace"))]
+    run_plain(parser, sample.as_str(), cli.path.as_str());
 }

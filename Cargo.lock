@@ -357,12 +357,28 @@ dependencies = [
  "annotate-snippets",
  "ariadne",
  "codespan-reporting",
- "crossterm",
+ "marser-trace-schema",
  "marser_macros",
  "miette",
- "ratatui",
  "serde",
  "serde_json",
+]
+
+[[package]]
+name = "marser-trace-schema"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "marser-trace-viewer"
+version = "0.1.0"
+dependencies = [
+ "crossterm",
+ "marser-trace-schema",
+ "ratatui",
 ]
 
 [[package]]

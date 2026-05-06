@@ -1,17 +1,12 @@
-use std::{io::{self, Read}, path::Path};
-#[cfg(feature = "parser-trace")]
-use std::{fs::File, io::{BufRead, BufReader}};
+use std::fs::File;
+use std::io::{self, BufRead, BufReader, Read};
+use std::path::Path;
 
-use crate::trace::TraceSession;
-#[cfg(feature = "parser-trace")]
-use crate::trace::NodeTrace;
+use serde::Deserialize;
 
-#[cfg(feature = "parser-trace")]
-#[derive(serde::Deserialize)]
-struct TraceJsonV2 {
-    trace_version: Option<u32>,
-    nodes: Vec<NodeTrace>,
-}
+use crate::event::NodeTrace;
+use crate::session::TraceSession;
+use crate::version::check_trace_version;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum TraceFormat {
@@ -19,38 +14,12 @@ pub enum TraceFormat {
     Jsonl,
 }
 
-#[cfg(not(feature = "parser-trace"))]
-pub fn load_trace_file(
-    _path: impl AsRef<Path>,
-    _format: Option<TraceFormat>,
-) -> io::Result<TraceSession> {
-    Err(io::Error::other(
-        "trace loading requires the `parser-trace` feature",
-    ))
+#[derive(Deserialize)]
+struct TraceJsonEnvelope {
+    trace_version: Option<u32>,
+    nodes: Vec<NodeTrace>,
 }
 
-#[cfg(not(feature = "parser-trace"))]
-pub fn detect_trace_format(_path: impl AsRef<Path>) -> io::Result<TraceFormat> {
-    Err(io::Error::other(
-        "trace loading requires the `parser-trace` feature",
-    ))
-}
-
-#[cfg(not(feature = "parser-trace"))]
-pub fn load_json(_reader: impl Read) -> io::Result<TraceSession> {
-    Err(io::Error::other(
-        "trace loading requires the `parser-trace` feature",
-    ))
-}
-
-#[cfg(not(feature = "parser-trace"))]
-pub fn load_jsonl(_reader: impl Read) -> io::Result<TraceSession> {
-    Err(io::Error::other(
-        "trace loading requires the `parser-trace` feature",
-    ))
-}
-
-#[cfg(feature = "parser-trace")]
 pub fn load_trace_file(path: impl AsRef<Path>, format: Option<TraceFormat>) -> io::Result<TraceSession> {
     let path = path.as_ref();
     let file = File::open(path)?;
@@ -64,7 +33,6 @@ pub fn load_trace_file(path: impl AsRef<Path>, format: Option<TraceFormat>) -> i
     }
 }
 
-#[cfg(feature = "parser-trace")]
 pub fn detect_trace_format(path: impl AsRef<Path>) -> io::Result<TraceFormat> {
     let mut file = File::open(path)?;
     let mut buf = [0_u8; 1];
@@ -75,25 +43,23 @@ pub fn detect_trace_format(path: impl AsRef<Path>) -> io::Result<TraceFormat> {
         }
         match buf[0] {
             b' ' | b'\n' | b'\r' | b'\t' => continue,
-            b'[' => return Ok(TraceFormat::Json),
+            b'[' | b'{' => return Ok(TraceFormat::Json),
             _ => return Ok(TraceFormat::Jsonl),
         }
     }
 }
 
-#[cfg(feature = "parser-trace")]
 pub fn load_json(reader: impl Read) -> io::Result<TraceSession> {
     let value: serde_json::Value = serde_json::from_reader(reader).map_err(io::Error::other)?;
     if value.is_array() {
         let nodes: Vec<NodeTrace> = serde_json::from_value(value).map_err(io::Error::other)?;
         return Ok(TraceSession::from_events(nodes));
     }
-    let payload: TraceJsonV2 = serde_json::from_value(value).map_err(io::Error::other)?;
-    let _version = payload.trace_version.unwrap_or(2);
+    let payload: TraceJsonEnvelope = serde_json::from_value(value).map_err(io::Error::other)?;
+    check_trace_version(payload.trace_version).map_err(|e| io::Error::other(e.to_string()))?;
     Ok(TraceSession::from_events(payload.nodes))
 }
 
-#[cfg(feature = "parser-trace")]
 pub fn load_jsonl(reader: impl Read) -> io::Result<TraceSession> {
     let mut events = Vec::new();
     for line in BufReader::new(reader).lines() {
@@ -106,4 +72,3 @@ pub fn load_jsonl(reader: impl Read) -> io::Result<TraceSession> {
     }
     Ok(TraceSession::from_events(events))
 }
-

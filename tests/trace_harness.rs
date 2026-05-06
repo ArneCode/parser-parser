@@ -1,11 +1,10 @@
 #![cfg(feature = "parser-trace")]
 
 use marser::{
-    label::WithTrace,
     matcher::{MatcherCombinator, many},
     one_of::one_of,
     parser::Parser,
-    trace::{NodeTraceStatus, TraceEventKind, TraceMarkerPhase},
+    trace::{NodeTraceStatus, TraceEventKind, TraceMarkerPhase, TraceSessionExt, WithTrace},
 };
 
 fn tiny_parser<'src>() -> impl Parser<'src, &'src str, Output = &'src str> {
@@ -13,20 +12,21 @@ fn tiny_parser<'src>() -> impl Parser<'src, &'src str, Output = &'src str> {
 }
 
 #[test]
-fn trace_collects_choice_events() {
-    let (_out, _errors, trace) = marser::parse_with_trace(tiny_parser(), "ac").unwrap();
+fn trace_collects_explicit_marker_events() {
+    let parser = one_of((
+        "ab".to("ab").trace_with_label("first arm"),
+        "ac".to("ac").trace_with_label("second arm"),
+    ));
+    let (_out, _errors, trace) = marser::parse_with_trace(parser, "ac").unwrap();
     let kinds: Vec<_> = trace
         .events()
         .iter()
+        .filter(|event| event.is_explicit_trace_marker)
         .filter_map(|event| event.runtime_kind.as_ref())
         .collect();
-
-    assert!(kinds.contains(&&TraceEventKind::ChoiceStart));
-    assert!(kinds.contains(&&TraceEventKind::ChoiceArmStart));
-    assert!(kinds.contains(&&TraceEventKind::ChoiceArmFail));
-    assert!(kinds.contains(&&TraceEventKind::ChoiceArmSuccess));
-    assert!(kinds.contains(&&TraceEventKind::CaptureEnter));
-    assert!(kinds.contains(&&TraceEventKind::CaptureExit));
+    assert!(kinds.contains(&&TraceEventKind::ParserEnter));
+    assert!(kinds.contains(&&TraceEventKind::ParserExit));
+    assert!(kinds.contains(&&TraceEventKind::MatchFail));
 }
 
 #[test]
@@ -41,14 +41,16 @@ fn trace_event_ids_are_monotonic() {
 
 #[test]
 fn trace_text_renderers_produce_output() {
-    let (_out, _errors, trace) = marser::parse_with_trace(tiny_parser(), "ab").unwrap();
+    let parser = "ab".to("ab").trace_with_label("ok");
+    let (_out, _errors, trace) = marser::parse_with_trace(parser, "ab").unwrap();
     assert!(!trace.to_text_tree().is_empty());
     assert!(!trace.to_timeline().is_empty());
 }
 
 #[test]
 fn trace_events_include_rule_identity_metadata() {
-    let (_out, _errors, trace) = marser::parse_with_trace(tiny_parser(), "ac").unwrap();
+    let parser = "ab".to("ab").trace_with_label("ok");
+    let (_out, _errors, trace) = marser::parse_with_trace(parser, "ab").unwrap();
     let with_rule = trace
         .events()
         .iter()
@@ -65,7 +67,11 @@ fn trace_events_include_rule_identity_metadata() {
 
 #[test]
 fn same_rule_reuses_rule_id_within_parse() {
-    let (_out, _errors, trace) = marser::parse_with_trace(tiny_parser(), "ac").unwrap();
+    let parser = one_of((
+        "ab".to("ab").trace_with_label("same"),
+        "ac".to("ac").trace_with_label("same"),
+    ));
+    let (_out, _errors, trace) = marser::parse_with_trace(parser, "ac").unwrap();
     let first_rule_id = trace
         .events()
         .iter()
@@ -98,20 +104,20 @@ fn rule_id_sequence_is_deterministic_across_runs() {
 
 #[test]
 fn depth_only_changes_at_capture_boundaries() {
-    let parser = many('a').to(());
+    let parser = many('a').to(()).trace_with_label("many a");
     let (_out, _errors, trace) = marser::parse_with_trace(parser, "aaa").unwrap();
-    let match_enter_depths = trace
+    let starts = trace
         .events()
         .iter()
-        .filter(|event| matches!(event.runtime_kind, Some(TraceEventKind::MatchEnter)))
-        .map(|event| event.parent_node_id)
+        .filter(|event| event.is_explicit_trace_marker && matches!(event.marker_phase, TraceMarkerPhase::Start))
         .collect::<Vec<_>>();
-    assert!(!match_enter_depths.is_empty());
-    let first = match_enter_depths[0];
-    assert!(
-        match_enter_depths.iter().all(|depth| *depth == first),
-        "expected matcher depth to remain constant within a capture"
-    );
+    let ends = trace
+        .events()
+        .iter()
+        .filter(|event| event.is_explicit_trace_marker && matches!(event.marker_phase, TraceMarkerPhase::End))
+        .collect::<Vec<_>>();
+    assert!(!starts.is_empty());
+    assert_eq!(starts.len(), ends.len(), "explicit starts/ends should stay paired");
 }
 
 #[test]

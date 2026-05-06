@@ -117,8 +117,7 @@ where
     }
 }
 
-#[cfg(feature = "parser-trace")]
-#[track_caller]
+#[cfg_attr(feature = "parser-trace", track_caller)]
 pub fn if_error<Inner>(inner: Inner) -> IfError<Inner>
 where
     Inner: super::MatcherCombinator,
@@ -126,23 +125,7 @@ where
     IfError::new(inner)
 }
 
-#[cfg(not(feature = "parser-trace"))]
-pub fn if_error<Inner>(inner: Inner) -> IfError<Inner>
-where
-    Inner: super::MatcherCombinator,
-{
-    IfError::new(inner)
-}
-
-#[cfg(feature = "parser-trace")]
-#[track_caller]
-pub fn if_error_else_fail<Inner>(inner: Inner) -> IfErrorElseFail<Inner>
-{
-    IfErrorElseFail::new(inner)
-}
-
-#[cfg(not(feature = "parser-trace"))]
-pub fn if_error_else_fail<Inner>(inner: Inner) -> IfErrorElseFail<Inner>
-{
+#[cfg_attr(feature = "parser-trace", track_caller)]
+pub fn if_error_else_fail<Inner>(inner: Inner) -> IfErrorElseFail<Inner> {
     IfErrorElseFail::new(inner)
 }

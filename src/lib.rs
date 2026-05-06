@@ -36,7 +36,7 @@ use crate::{
 #[cfg(feature = "parser-trace")]
 use crate::trace::TraceSession;
 #[cfg(feature = "parser-trace")]
-use crate::trace::load::TraceFormat;
+use crate::trace::TraceFormat;
 
 /// Parse all of `src` with a small driver around `parser`.
 ///

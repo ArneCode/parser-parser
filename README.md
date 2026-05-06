@@ -8,7 +8,7 @@ this is a parser-combinator library for PEG Grammars centered on being able to w
 A full JSON grammar example is available at `examples/json.rs` and can be run with:
 
 ```bash
-cargo run --example json -- <path-to-json-file>
+cargo run -p marser --example json -- <path-to-json-file>
 ```
 
 An example of error messages: 
@@ -42,7 +42,7 @@ It also produces a recovered AST:
 you can try this yourself by running the following command:
 
 ```bash
-cargo run --example json -- tests/data/json1.json
+cargo run -p marser --example json -- tests/data/json1.json
 ```
 
 ## Learn
