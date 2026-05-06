@@ -4,8 +4,9 @@ use marser::{
     matcher::{MatcherCombinator, many},
     one_of::one_of,
     parser::Parser,
-    trace::{NodeTraceStatus, TraceEventKind, TraceMarkerPhase, WithTrace},
+    trace::{NodeTraceStatus, TraceEventKind, TraceFormat, TraceMarkerPhase, WithTrace},
 };
+use std::{fs, time::{SystemTime, UNIX_EPOCH}};
 
 fn tiny_parser<'src>() -> impl Parser<'src, &'src str, Output = &'src str> {
     one_of(("ab".to("ab"), "ac".to("ac")))
@@ -206,6 +207,27 @@ fn explicit_trace_marker_end_includes_failure_snapshot_on_soft_fail() {
         .as_ref()
         .expect("expected marker_failure snapshot on failed trace end");
     assert!(!mf.summary.is_empty());
+}
+
+#[test]
+fn parse_with_trace_to_file_writes_trace_on_error() {
+    let parser = "ab".to("ab").trace_with_label("must fail");
+    let nanos = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .expect("system clock before unix epoch")
+        .as_nanos();
+    let trace_path = std::env::temp_dir().join(format!("marser-trace-error-{nanos}.json"));
+
+    let result = marser::parse_with_trace_to_file(parser, "ac", &trace_path, TraceFormat::Json);
+    assert!(result.is_err(), "parse should fail for mismatched input");
+
+    let trace_text = fs::read_to_string(&trace_path).expect("trace file should be written");
+    assert!(
+        trace_text.contains("\"nodes\""),
+        "expected trace JSON payload to contain nodes"
+    );
+
+    let _ = fs::remove_file(trace_path);
 }
 
 

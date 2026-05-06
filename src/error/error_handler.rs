@@ -48,13 +48,15 @@ impl ErrorHandler for EmptyErrorHandler {
 pub(crate) struct MultiErrorHandler {
     best_failure_slice: (usize, usize),
     slice_stack: Vec<(usize, usize)>,
-    expected_labels: Vec<String>,
+    expected_labels: Vec<(String, usize)>,
+    time: usize,
 }
 
 impl MultiErrorHandler {}
 
 pub(crate) struct MultiErrorHandlerIndex {
     slice_idx: usize,
+    creation_time: usize,
 }
 impl MultiErrorHandler {
     fn pop_slice_stack(&mut self, idx: &MultiErrorHandlerIndex) {
@@ -81,13 +83,16 @@ impl ErrorHandler for MultiErrorHandler {
             best_failure_slice: (0, 0),
             slice_stack: vec![(start_pos, start_pos)],
             expected_labels: Vec::new(),
+            time: 0,
         }
     }
 
     fn register_start(&mut self, pos: usize) -> Self::Indexer {
         self.slice_stack.push((pos, pos));
+        self.time += 1;
         MultiErrorHandlerIndex {
             slice_idx: self.slice_stack.len() - 1,
+            creation_time: self.time,
         }
     }
 
@@ -124,8 +129,16 @@ impl ErrorHandler for MultiErrorHandler {
             self.best_failure_slice = failure_slice;
         }
 
+        // remove all labels that were created after this label, meaning that they are shadowed by this label
+        while let Some((_label, creation_time)) = self.expected_labels.last() {
+            if *creation_time > idx.creation_time {
+                self.expected_labels.pop();
+            } else {
+                break;
+            }
+        }
         // Now this error is at least as interesting as the best failure, so register it.
-        self.expected_labels.push(label.unwrap().to_string());
+        self.expected_labels.push((label.unwrap().to_string(), idx.creation_time));
     }
     fn to_choice(&mut self) -> ErrorHandlerChoice<'_> {
         ErrorHandlerChoice::Multi(self)
@@ -156,7 +169,7 @@ impl MultiErrorHandler {
         let expected: Vec<String> = self
             .expected_labels
             .iter()
-            .map(|e| format!("'{}'", e))
+            .map(|(label, _)| format!("'{}'", label))
             .collect::<HashSet<_>>()
             .into_iter()
             .collect();
