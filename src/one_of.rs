@@ -78,7 +78,7 @@ macro_rules! impl_one_of_tuples {
         {
             type Output = Output;
             const CAN_FAIL: bool = $head::CAN_FAIL  $(&& $tail::CAN_FAIL)*;
-            fn parse(&self, context: &mut ParserContext, error_handler: &mut impl ErrorHandler, input: &mut InputStream<'src, Inp>) -> Result<Option<Output>, MatcherRunError> {
+            fn parse(&self, context: &mut ParserContext<'src>, error_handler: &mut impl ErrorHandler, input: &mut InputStream<'src, Inp>) -> Result<Option<Output>, MatcherRunError> {
 
                 #[allow(non_snake_case)]
                 let ($head, $($tail,)*) = &self.options;

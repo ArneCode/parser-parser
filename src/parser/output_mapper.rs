@@ -44,7 +44,7 @@ where
 
     fn parse(
         &self,
-        context: &mut ParserContext,
+        context: &mut ParserContext<'src>,
         error_handler: &mut impl ErrorHandler,
         input: &mut InputStream<'src, Inp>,
     ) -> Result<Option<Self::Output>, MatcherRunError> {

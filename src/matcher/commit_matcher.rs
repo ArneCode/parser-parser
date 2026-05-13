@@ -1,6 +1,6 @@
 //! Committing sequence: after `commit_on` succeeds, failure in `then_matcher` becomes a hard error.
 
-use std::{collections::HashMap, mem::swap};
+use std::mem::swap;
 
 use crate::{
     error::{
@@ -11,6 +11,7 @@ use crate::{
     matcher::{
         MatchRunner, Matcher, MatcherCombinator,
     },
+    memo_store::MemoStore,
     parser::capture::MatchResult,
 };
 
@@ -68,10 +69,10 @@ where
 
         let mut inner_error_handler = MultiErrorHandler::new(input.get_pos().into());
         // use empty cache so that every Symbol is explored fully, otherwise we might miss some errors due to memoization.
-        let mut cache = HashMap::new();
-        swap(&mut runner.get_parser_context().memo_table, &mut cache);
+        let mut cache = MemoStore::default();
+        swap(&mut runner.get_parser_context().memo_store, &mut cache);
         let result = runner.run_match(&self.then_matcher, &mut inner_error_handler, input)?;
-        swap(&mut runner.get_parser_context().memo_table, &mut cache);
+        swap(&mut runner.get_parser_context().memo_store, &mut cache);
 
         if result {
             Ok(true)

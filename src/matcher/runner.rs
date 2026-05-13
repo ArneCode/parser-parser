@@ -71,7 +71,7 @@ where
 
     fn get_match_result(self) -> Self::MRes;
 
-    fn get_parser_context(&mut self) -> &mut ParserContext;
+    fn get_parser_context(&mut self) -> &mut ParserContext<'src>;
 
     /// Build a read-only snapshot of captures committed so far and pass it to `f`.
     fn with_snapshot<R, F>(&self, f: F) -> R
@@ -83,13 +83,13 @@ where
 }
 
 pub(crate) struct NoMemoizeBacktrackingRunner<'a, 'src, Inp, MRes> {
-    parser_context: &'a mut ParserContext,
+    parser_context: &'a mut ParserContext<'src>,
     _phantom: PhantomData<(&'src (), Inp)>,
     stack: Vec<Box<dyn BoundResult<MRes> + 'src>>,
 }
 
 impl<'a, 'src, Inp: Input<'src>, MRes> NoMemoizeBacktrackingRunner<'a, 'src, Inp, MRes> {
-    pub(crate) fn new(parser_context: &'a mut ParserContext) -> Self {
+    pub(crate) fn new(parser_context: &'a mut ParserContext<'src>) -> Self {
         Self {
             parser_context,
             _phantom: PhantomData,
@@ -136,7 +136,7 @@ where
         mres
     }
 
-    fn get_parser_context(&mut self) -> &mut ParserContext {
+    fn get_parser_context(&mut self) -> &mut ParserContext<'src> {
         self.parser_context
     }
 
@@ -157,13 +157,13 @@ where
 }
 
 pub(crate) struct DirectMatchRunner<'a, 'src, Inp, MRes> {
-    parser_context: &'a mut ParserContext,
+    parser_context: &'a mut ParserContext<'src>,
     _phantom: PhantomData<(&'src (), Inp)>,
     result: MRes,
 }
 
 impl<'a, 'src, Inp: Input<'src>, MRes> DirectMatchRunner<'a, 'src, Inp, MRes> {
-    pub(crate) fn new(parser_context: &'a mut ParserContext) -> Self
+    pub(crate) fn new(parser_context: &'a mut ParserContext<'src>) -> Self
     where
         MRes: MatchResult,
     {
@@ -204,7 +204,7 @@ where
         self.result
     }
 
-    fn get_parser_context(&mut self) -> &mut ParserContext {
+    fn get_parser_context(&mut self) -> &mut ParserContext<'src> {
         self.parser_context
     }
 

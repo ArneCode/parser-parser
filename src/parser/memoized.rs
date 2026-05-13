@@ -1,5 +1,6 @@
 //! Packrat-style memoization of parse results per `(parser_id, input_position)`.
 
+use std::fmt::Display;
 use std::rc::Rc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
@@ -10,7 +11,6 @@ use crate::{
     input::{Input, InputStream},
     parser::Parser,
 };
-use std::fmt::Display;
 
 static NEXT_MEMO_ID: AtomicUsize = AtomicUsize::new(0);
 
@@ -31,59 +31,54 @@ impl<P> Memoized<P> {
     }
 }
 
-impl<P> ParserCombinator for Memoized<P> where
-    P: ParserCombinator
-{
-}
+impl<P> ParserCombinator for Memoized<P> where P: ParserCombinator {}
 
 impl<'src, Inp: Input<'src>, P, POut> super::internal::ParserImpl<'src, Inp> for Memoized<P>
 where
     P: Parser<'src, Inp, Output = POut>,
     Inp: Input<'src>,
-    POut: 'static,
+    POut: 'src,
 {
     type Output = Rc<POut>;
     const CAN_FAIL: bool = P::CAN_FAIL;
 
     fn parse(
         &self,
-        context: &mut ParserContext,
+        context: &mut ParserContext<'src>,
         error_handler: &mut impl ErrorHandler,
         input: &mut InputStream<'src, Inp>,
     ) -> Result<Option<Self::Output>, MatcherRunError> {
         let pos = input.get_pos();
-        let key = (self.id, pos.clone().into());
+        let key: usize = pos.clone().into();
 
-        if let Some(entry) = context.memo_table.get(&key) {
-            return match entry
-                .downcast_ref::<Option<(Rc<POut>, usize)>>()
-                .expect("memo table entry type mismatch")
-            {
-                None => Ok(None),
-                Some((rc, new_pos)) => {
-                    while input.get_pos().into() < *new_pos {
-                        if input.next().is_none() {
-                            break;
-                        }
+        match context.memo_store.get_entry::<POut>(self.id, key) {
+            None => {}
+            Some(None) => return Ok(None),
+            Some(Some((rc, new_pos))) => {
+                while input.get_pos().into() < new_pos {
+                    if input.next().is_none() {
+                        break;
                     }
-                    Ok(Some(Rc::clone(rc)))
                 }
-            };
+                return Ok(Some(rc));
+            }
         }
 
         match self.inner.parse(context, error_handler, input) {
             Ok(None) => {
                 context
-                    .memo_table
-                    .insert(key, Box::new(None::<(Rc<POut>, usize)>));
+                    .memo_store
+                    .table_mut::<POut>(self.id)
+                    .insert(key, None);
                 Ok(None)
             }
             Ok(Some(output)) => {
                 let rc = Rc::new(output);
                 let new_pos: usize = input.get_pos().into();
                 context
-                    .memo_table
-                    .insert(key, Box::new(Some((Rc::clone(&rc), new_pos))));
+                    .memo_store
+                    .table_mut::<POut>(self.id)
+                    .insert(key, Some((Rc::clone(&rc), new_pos)));
                 Ok(Some(rc))
             }
             Err(e) => Err(e),

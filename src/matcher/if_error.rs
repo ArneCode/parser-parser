@@ -103,7 +103,7 @@ where
 
     fn parse(
         &self,
-        context: &mut crate::context::ParserContext,
+        context: &mut crate::context::ParserContext<'src>,
         error_handler: &mut impl crate::error::error_handler::ErrorHandler,
         input: &mut crate::input::InputStream<'src, Inp>,
     ) -> Result<Option<Self::Output>, crate::error::MatcherRunError> {

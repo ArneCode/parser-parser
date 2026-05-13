@@ -10,6 +10,7 @@
 extern crate self as marser;
 
 pub(crate) mod context;
+pub(crate) mod memo_store;
 pub mod error;
 pub mod guide;
 pub mod input;
@@ -71,7 +72,7 @@ where
     Inp: Input<'src> + Clone + 'src,
     Out: 'src,
 {
-    let mut context = ParserContext::new();
+    let mut context: ParserContext<'src> = ParserContext::new();
     let mut input = InputStream::new(input);
     let start_pos = input.get_pos();
     let mut error_handler = EmptyErrorHandler;
@@ -129,7 +130,7 @@ where
     Inp: Input<'src> + Clone + 'src,
     Out: 'src,
 {
-    let mut context = ParserContext::new();
+    let mut context: ParserContext<'src> = ParserContext::new();
     context.attach_trace_session(trace_session);
     let mut input = InputStream::new(input);
     let start_pos = input.get_pos();

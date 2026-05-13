@@ -61,7 +61,7 @@ where
 
     fn parse(
         &self,
-        _context: &mut ParserContext,
+        _context: &mut ParserContext<'src>,
         _error_handler: &mut impl ErrorHandler,
         input: &mut InputStream<'src, Inp>,
     ) -> Result<Option<Self::Output>, MatcherRunError> {

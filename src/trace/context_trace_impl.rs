@@ -24,7 +24,7 @@ pub(crate) struct TraceState {
     rule_ids: HashMap<RuleMetadataKey, u64>,
 }
 
-impl ParserContext {
+impl<'src> ParserContext<'src> {
     pub fn attach_trace_session(&mut self, session: TraceSession) {
         self.trace = Some(TraceState {
             session,

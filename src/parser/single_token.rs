@@ -32,7 +32,7 @@ impl<'src, Inp: Input<'src, Token = Token>, Token: PartialEq + Clone + Debug>
     const CAN_FAIL: bool = true;
     fn parse(
         &self,
-        _context: &mut ParserContext,
+        _context: &mut ParserContext<'src>,
         _error_handler: &mut impl ErrorHandler,
         input: &mut InputStream<'src, Inp>,
     ) -> Result<Option<Self::Output>, MatcherRunError> {
@@ -58,7 +58,7 @@ impl<'src, Inp: Input<'src, Token = char>> super::internal::ParserImpl<'src, Inp
 
     fn parse(
         &self,
-        _context: &mut ParserContext,
+        _context: &mut ParserContext<'src>,
         _error_handler: &mut impl ErrorHandler,
         input: &mut InputStream<'src, Inp>,
     ) -> Result<Option<Self::Output>, MatcherRunError> {

@@ -76,7 +76,7 @@ pub(crate) mod internal {
         /// Run the parser at `pos` against `context`, reporting secondary issues through `error_handler`.
         fn parse(
             &self,
-            context: &mut ParserContext,
+            context: &mut ParserContext<'src>,
             error_handler: &mut impl ErrorHandler,
             input: &mut InputStream<'src, Inp>,
         ) -> Result<Option<Self::Output>, MatcherRunError>;
@@ -253,7 +253,7 @@ where
 }
 
 pub trait ParserCombinator {
-    /// Memoize parse results keyed by input position (output type must be `'static`).
+    /// Memoize parse results keyed by input position (including outputs that borrow the input).
     fn memoized(self) -> memoized::Memoized<Self>
     where
         Self: Sized,
@@ -359,7 +359,7 @@ impl<'src, Inp: Input<'src>, P> Parser<'src, Inp> for P where P: internal::Parse
 pub(crate) trait ParserObjSafe<'src, Inp: Input<'src>, Output>: std::fmt::Debug {
     fn parse(
         &self,
-        context: &mut ParserContext,
+        context: &mut ParserContext<'src>,
         error_handler: ErrorHandlerChoice<'_>,
         input: &mut InputStream<'src, Inp>,
     ) -> Result<Option<Output>, MatcherRunError>;
@@ -377,7 +377,7 @@ where
 {
     fn parse(
         &self,
-        context: &mut ParserContext,
+        context: &mut ParserContext<'src>,
         error_handler: ErrorHandlerChoice<'_>,
         input: &mut InputStream<'src, Inp>,
     ) -> Result<Option<Output>, MatcherRunError> {
@@ -411,7 +411,7 @@ where
 
     fn parse(
         &self,
-        context: &mut ParserContext,
+        context: &mut ParserContext<'src>,
         error_handler: &mut impl ErrorHandler,
         input: &mut InputStream<'src, Inp>,
     ) -> Result<Option<Self::Output>, MatcherRunError> {
@@ -433,7 +433,7 @@ where
 
     fn parse(
         &self,
-        context: &mut ParserContext,
+        context: &mut ParserContext<'src>,
         error_handler: &mut impl ErrorHandler,
         input: &mut InputStream<'src, Inp>,
     ) -> Result<Option<Self::Output>, MatcherRunError> {
@@ -455,7 +455,7 @@ where
 
     fn parse(
         &self,
-        context: &mut ParserContext,
+        context: &mut ParserContext<'src>,
         error_handler: &mut impl ErrorHandler,
         input: &mut InputStream<'src, Inp>,
     ) -> Result<Option<Self::Output>, MatcherRunError> {
