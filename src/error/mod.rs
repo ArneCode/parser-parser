@@ -345,3 +345,44 @@ impl std::fmt::Debug for FurthestFailError {
             .finish()
     }
 }
+
+/// Hard failure or control signal from [`crate::matcher::MatchRunner::run_match`] and matcher composition.
+#[derive(Debug)]
+pub enum MatcherRunError {
+    /// Furthest-failure with full diagnostic payload.
+    FurthestFail(FurthestFailError),
+    /// Marker: a fast path (e.g. [`crate::matcher::commit_matcher::CommitMatcher`]) requests a rewind
+    /// and re-run with a backtracking runner (e.g. capture recovery). No diagnostic was collected for this variant.
+    RetryRerunNeeded,
+}
+
+impl std::fmt::Display for MatcherRunError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            MatcherRunError::FurthestFail(e) => write!(f, "{e}"),
+            MatcherRunError::RetryRerunNeeded => write!(f, "retry rerun needed"),
+        }
+    }
+}
+
+impl From<FurthestFailError> for MatcherRunError {
+    fn from(value: FurthestFailError) -> Self {
+        MatcherRunError::FurthestFail(value)
+    }
+}
+
+impl MatcherRunError {
+    /// Convert to [`FurthestFailError`] for parser APIs. The marker becomes a minimal error at `span`.
+    pub fn into_furthest_fail_for_parser(self, span: (usize, usize)) -> FurthestFailError {
+        match self {
+            MatcherRunError::FurthestFail(f) => f,
+            MatcherRunError::RetryRerunNeeded => FurthestFailError {
+                span,
+                expected: Vec::new(),
+                annotations: Vec::new(),
+                notes: vec!["internal: unexpected nested retry marker".into()],
+                helps: Vec::new(),
+            },
+        }
+    }
+}

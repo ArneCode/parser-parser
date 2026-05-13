@@ -450,7 +450,7 @@ fn invalid_statement_parser<'src>() -> impl Parser<'src, &'src str, Output = Stm
     )
 }
 
-pub fn get_mini_script_grammar<'src>() -> impl Parser<'src, &'src str, Output = Program<'src>> {
+pub fn get_mini_script_grammar<'src>() -> impl Parser<'src, &'src str, Output = Program<'src>> + Clone {
     // Statements are recursive because blocks contain statements, and statements
     // can themselves be blocks.
     let statement = recursive(|statement| {
@@ -634,7 +634,8 @@ fn main() {
         }
     };
 
-    match marser::parse(get_mini_script_grammar(), &src) {
+    let grammar = get_mini_script_grammar();
+    match grammar.parse_str(&src) {
         Ok((program, errors)) => {
             println!("{program:#?}");
             print_errors(&errors, &path, &src);

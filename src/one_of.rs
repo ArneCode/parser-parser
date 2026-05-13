@@ -6,7 +6,7 @@
 
 use crate::{
     context::ParserContext,
-    error::{FurthestFailError, error_handler::ErrorHandler},
+    error::{MatcherRunError, error_handler::ErrorHandler},
     input::{Input, InputStream},
     matcher::{MatchRunner, Matcher, MatcherCombinator},
     parser::{Parser, ParserCombinator},
@@ -51,7 +51,7 @@ macro_rules! impl_one_of_tuples {
             const HAS_PROPERTY: bool = $head::HAS_PROPERTY  $(|| $tail::HAS_PROPERTY)*;
             const CAN_FAIL: bool = $head::CAN_FAIL  $(&& $tail::CAN_FAIL)*;
 
-            fn match_with_runner<'a, Runner>(&'a self, runner: &mut Runner, error_handler: &mut impl ErrorHandler, input: &mut InputStream<'src, Inp>) -> Result<bool, FurthestFailError>
+            fn match_with_runner<'a, Runner>(&'a self, runner: &mut Runner, error_handler: &mut impl ErrorHandler, input: &mut InputStream<'src, Inp>) -> Result<bool, MatcherRunError>
             where
                 Runner: MatchRunner<'a, 'src, Inp, MRes = MRes>,
                 'src: 'a,
@@ -78,7 +78,7 @@ macro_rules! impl_one_of_tuples {
         {
             type Output = Output;
             const CAN_FAIL: bool = $head::CAN_FAIL  $(&& $tail::CAN_FAIL)*;
-            fn parse(&self, context: &mut ParserContext, error_handler: &mut impl ErrorHandler, input: &mut InputStream<'src, Inp>) -> Result<Option<Output>, FurthestFailError> {
+            fn parse(&self, context: &mut ParserContext, error_handler: &mut impl ErrorHandler, input: &mut InputStream<'src, Inp>) -> Result<Option<Output>, MatcherRunError> {
 
                 #[allow(non_snake_case)]
                 let ($head, $($tail,)*) = &self.options;

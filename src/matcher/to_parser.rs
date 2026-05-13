@@ -2,7 +2,7 @@ use std::fmt::Display;
 
 use crate::{
     context::ParserContext,
-    error::{FurthestFailError, error_handler::ErrorHandler},
+    error::{MatcherRunError, error_handler::ErrorHandler},
     input::{Input, InputStream},
     matcher::{DirectMatchRunner, Matcher, NoMemoizeBacktrackingRunner, runner::MatchRunner},
     parser::{ParserCombinator, internal::ParserImpl},
@@ -55,8 +55,8 @@ where
         context: &mut ParserContext,
         error_handler: &mut impl ErrorHandler,
         input: &mut InputStream<'src, Inp>,
-    ) -> Result<Option<Self::Output>, FurthestFailError> {
-        if Match::CAN_MATCH_DIRECTLY && !error_handler.is_real() {
+    ) -> Result<Option<Self::Output>, MatcherRunError> {
+        if Match::CAN_MATCH_DIRECTLY && !error_handler.is_real() && !context.is_in_error_recovery {
             let mut runner = DirectMatchRunner::new(context);
             if runner.run_match(&self.matcher, error_handler, input)? {
                 Ok(Some(self.output.clone()))

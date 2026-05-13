@@ -7,7 +7,7 @@ use std::{
 
 use crate::{
     context::ParserContext,
-    error::{FurthestFailError, error_handler::ErrorHandler},
+    error::{MatcherRunError, error_handler::ErrorHandler},
     input::{Input, InputStream},
     matcher::{MatchRunner, MatcherCombinator, internal::MatcherImpl}, parser::ParserCombinator,
 };
@@ -44,7 +44,7 @@ where
         _context: &mut ParserContext,
         _error_handler: &mut impl ErrorHandler,
         input: &mut InputStream<'src, Inp>,
-    ) -> Result<Option<Self::Output>, FurthestFailError> {
+    ) -> Result<Option<Self::Output>, MatcherRunError> {
         let old_pos = input.get_pos();
         if let Some(token) = input.next()
             && self.range.contains(&token)
@@ -74,7 +74,7 @@ where
         _context: &mut ParserContext,
         _error_handler: &mut impl ErrorHandler,
         input: &mut InputStream<'src, Inp>,
-    ) -> Result<Option<Self::Output>, FurthestFailError> {
+    ) -> Result<Option<Self::Output>, MatcherRunError> {
         let old_pos = input.get_pos();
         if let Some(token) = input.next()
             && self.contains(&token)
@@ -104,7 +104,7 @@ where
         _context: &mut ParserContext,
         _error_handler: &mut impl ErrorHandler,
         input: &mut InputStream<'src, Inp>,
-    ) -> Result<Option<Self::Output>, FurthestFailError> {
+    ) -> Result<Option<Self::Output>, MatcherRunError> {
         let old_pos = input.get_pos();
         if let Some(token) = input.next()
             && self.contains(&token)
@@ -135,7 +135,7 @@ where
         _runner: &mut Runner,
         _error_handler: &mut impl ErrorHandler,
         input: &mut InputStream<'src, Inp>,
-    ) -> Result<bool, FurthestFailError>
+    ) -> Result<bool, MatcherRunError>
     where
         Runner: MatchRunner<'a, 'src, Inp, MRes = MRes>,
         'src: 'a,
@@ -172,7 +172,7 @@ where
         _runner: &mut Runner,
         _error_handler: &mut impl ErrorHandler,
         input: &mut InputStream<'src, Inp>,
-    ) -> Result<bool, FurthestFailError>
+    ) -> Result<bool, MatcherRunError>
     where
         Runner: MatchRunner<'a, 'src, Inp, MRes = MRes>,
         'src: 'a,

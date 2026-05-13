@@ -112,7 +112,7 @@ impl<'src> JsonValue<'src> {
     }
 }
 
-pub fn get_json_grammar<'src>() -> impl Parser<'src, &'src str, Output = JsonValue<'src>> {
+pub fn get_json_grammar<'src>() -> impl Parser<'src, &'src str, Output = JsonValue<'src>> + Clone {
     recursive(|element| {
         let ws = Rc::new(many(one_of((' ', '\t', '\n', '\r')).with_label("whitespace")));
 
@@ -443,16 +443,11 @@ fn read_source(path: &str) -> String {
 #[cfg(feature = "parser-trace")]
 fn run_traced<'src, P>(parser: P, sample: &'src str, cli: &Cli)
 where
-    P: Parser<'src, &'src str, Output = JsonValue<'src>> + 'src,
+    P: Parser<'src, &'src str, Output = JsonValue<'src>> + Clone + 'src,
 {
     let path = cli.path.as_str();
     if let Some(trace_file_path) = cli.trace_file.as_ref() {
-        match marser::parse_with_trace_to_file(
-            parser,
-            sample,
-            trace_file_path,
-            TraceFormat::Json,
-        ) {
+        match parser.parse_str_with_trace_to_file(sample, trace_file_path, TraceFormat::Json) {
             Ok((value, errors)) => {
                 eprintln!("trace written to {trace_file_path}");
                 print_parse_ok(&value, &errors, path, sample);
@@ -466,7 +461,7 @@ where
             }
         }
     } else {
-        match marser::parse_with_trace(parser, sample) {
+        match parser.parse_str_with_trace(sample) {
             Ok((value, errors, _trace)) => {
                 print_parse_ok(&value, &errors, path, sample);
             }
@@ -478,9 +473,9 @@ where
 #[cfg(not(feature = "parser-trace"))]
 fn run_plain<'src, P>(parser: P, sample: &'src str, path: &str)
 where
-    P: Parser<'src, &'src str, Output = JsonValue<'src>> + 'src,
+    P: Parser<'src, &'src str, Output = JsonValue<'src>> + Clone + 'src,
 {
-    match marser::parse(parser, sample) {
+    match parser.parse_str(sample) {
         Ok((value, errors)) => {
             print_parse_ok(&value, &errors, path, sample);
         }

@@ -12,7 +12,7 @@
 //! - `HAS_PROPERTY` — may write into `MRes` (captures).
 //! - `CAN_MATCH_DIRECTLY` — optimization hint for the runner.
 //!
-//! `CAN_FAIL` does **not** indicate whether `Err` with [`crate::error::FurthestFailError`] is possible.
+//! `CAN_FAIL` does **not** indicate whether `Err` with [`crate::error::MatcherRunError`] is possible.
 
 pub mod any_token;
 pub mod commit_matcher;
@@ -47,12 +47,13 @@ pub use positive_lookahead::{PositiveLookahead, positive_lookahead};
 pub(crate) use runner::{DirectMatchRunner, MatchRunner, NoMemoizeBacktrackingRunner};
 pub use string::StringMatcher;
 pub use to_parser::ToParser;
+pub use crate::error::MatcherRunError;
 
 use std::{fmt::Display, ops::Deref, rc::Rc};
 
 use crate::{
     error::{
-        FurthestFailError, MissingSyntax, UnwantedSyntax,
+        MissingSyntax, UnwantedSyntax,
         error_handler::ErrorHandler,
     },
     input::{Input, InputStream},
@@ -62,7 +63,7 @@ pub(crate) mod internal {
     use std::fmt::{Debug, Display};
 
     use crate::{
-        error::{FurthestFailError, error_handler::ErrorHandler},
+        error::{MatcherRunError, error_handler::ErrorHandler},
         input::{Input, InputStream},
         matcher::{MatcherCombinator, runner::MatchRunner},
     };
@@ -83,7 +84,7 @@ pub(crate) mod internal {
         /// `true` when this matcher can return `Ok(false)` on a normal match path.
         ///
         /// This constant models match absence and does not indicate whether
-        /// `Err(FurthestFailError)` may be returned.
+        /// `Err([`MatcherRunError`])` may be returned.
         const CAN_FAIL: bool;
 
         /// Run this matcher via `runner`, updating `pos` and possibly `MRes` on success.
@@ -92,7 +93,7 @@ pub(crate) mod internal {
             runner: &mut Runner,
             error_handler: &mut impl ErrorHandler,
             input: &mut InputStream<'src, Inp>,
-        ) -> Result<bool, FurthestFailError>
+        ) -> Result<bool, MatcherRunError>
         where
             Runner: MatchRunner<'a, 'src, Inp, MRes = MRes>,
             'src: 'a;
@@ -197,7 +198,7 @@ where
         runner: &mut Runner,
         error_handler: &mut impl ErrorHandler,
         input: &mut InputStream<'src, Inp>,
-    ) -> Result<bool, FurthestFailError>
+    ) -> Result<bool, MatcherRunError>
     where
         Runner: MatchRunner<'a, 'src, Inp, MRes = MRes>,
         'src: 'a,
@@ -225,7 +226,7 @@ where
         runner: &mut Runner,
         error_handler: &mut impl ErrorHandler,
         input: &mut InputStream<'src, Inp>,
-    ) -> Result<bool, FurthestFailError>
+    ) -> Result<bool, MatcherRunError>
     where
         Runner: MatchRunner<'a, 'src, Inp, MRes = MRes>,
         'src: 'a,
@@ -253,7 +254,7 @@ where
         runner: &mut Runner,
         error_handler: &mut impl ErrorHandler,
         input: &mut InputStream<'src, Inp>,
-    ) -> Result<bool, FurthestFailError>
+    ) -> Result<bool, MatcherRunError>
     where
         Runner: MatchRunner<'a, 'src, Inp, MRes = MRes>,
         'src: 'a,
@@ -278,7 +279,7 @@ impl<'src, Inp: Input<'src>, MRes> internal::MatcherImpl<'src, Inp, MRes> for ()
         _runner: &mut Runner,
         _error_handler: &mut impl ErrorHandler,
         _input: &mut InputStream<'src, Inp>,
-    ) -> Result<bool, FurthestFailError>
+    ) -> Result<bool, MatcherRunError>
     where
         Runner: MatchRunner<'a, 'src, Inp, MRes = MRes>,
         'src: 'a,

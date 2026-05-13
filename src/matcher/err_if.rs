@@ -1,9 +1,13 @@
 //! Matchers that emit [`crate::error::InlineError`] when an inner pattern matches / does not match.
+//!
+//! [`ErrIfMatchedMatcher`] records diagnostics via [`ParserContext::push_stack_error`]
+//! whenever the inner pattern matches; [`MatchRunner::run_match`](crate::matcher::MatchRunner::run_match)
+//! truncates the stack on failed branches so exploratory matches do not leak stale errors.
 
 use std::fmt;
 
 use crate::{
-    error::{BuildInlineError, FurthestFailError, MatchDiagCtx, ParserError},
+    error::{BuildInlineError, MatchDiagCtx, MatcherRunError, ParserError},
     input::{Input, InputStream},
     matcher::{Matcher, MatcherCombinator, internal::MatcherImpl},
     parser::capture::MatchResult,
@@ -47,7 +51,7 @@ where
         runner: &mut Runner,
         error_handler: &mut impl crate::error::error_handler::ErrorHandler,
         input: &mut InputStream<'src, Inp>,
-    ) -> Result<bool, FurthestFailError>
+    ) -> Result<bool, MatcherRunError>
     where
         Runner: super::MatchRunner<'a, 'src, Inp, MRes = MRes>,
         'src: 'a,
@@ -111,14 +115,14 @@ where
         runner: &mut Runner,
         error_handler: &mut impl crate::error::error_handler::ErrorHandler,
         input: &mut InputStream<'src, Inp>,
-    ) -> Result<bool, FurthestFailError>
+    ) -> Result<bool, MatcherRunError>
     where
         Runner: super::MatchRunner<'a, 'src, Inp, MRes = MRes>,
         'src: 'a,
     {
         let start_pos: usize = input.get_pos().into();
         let matched = runner.run_match(&self.inner, error_handler, input)?;
-        if matched && error_handler.is_real() {
+        if matched {
             let end_pos: usize = input.get_pos().into();
             let ctx = MatchDiagCtx {
                 start: start_pos,

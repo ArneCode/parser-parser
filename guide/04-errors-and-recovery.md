@@ -10,7 +10,7 @@ can recover and continue.
 
 ## Parse outcomes
 
-When you call `marser::parse(parser, src)`, there are two top-level outcomes:
+When you call `parser.parse_str(src)` (or the thin alias `marser::parse(parser, src)`), there are two top-level outcomes:
 
 - `Err(FurthestFailError)` means parsing failed hard and no complete output was
   produced.

@@ -1,5 +1,5 @@
 use crate::{
-    error::{FurthestFailError, error_handler::ErrorHandler},
+    error::{MatcherRunError, error_handler::ErrorHandler},
     input::{InputStream, SliceableInput},
     matcher::{MatchRunner, Matcher, MatcherCombinator, internal::MatcherImpl},
     parser::{BoundValue, Property, capture::MatchResult},
@@ -52,7 +52,7 @@ where
         runner: &mut Runner,
         error_handler: &mut impl ErrorHandler,
         input: &mut InputStream<'src, Inp>,
-    ) -> Result<bool, FurthestFailError>
+    ) -> Result<bool, MatcherRunError>
     where
         Runner: MatchRunner<'a, 'src, Inp, MRes = MRes>,
         'src: 'a,

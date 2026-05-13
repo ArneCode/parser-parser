@@ -4,7 +4,7 @@ use std::fmt::Display;
 
 use crate::{
     context::ParserContext,
-    error::{FurthestFailError, error_handler::ErrorHandler},
+    error::{MatcherRunError, error_handler::ErrorHandler},
     input::{Input, InputStream},
     matcher::{MatchRunner, Matcher, MatcherCombinator, internal::MatcherImpl},
     parser::{Parser, ParserCombinator, internal::ParserImpl},
@@ -21,12 +21,12 @@ use super::{
 fn trace_failure_snapshot_for_end(
     end_outcome: ExplicitMarkerEndOutcome,
     error_handler: &mut impl ErrorHandler,
-    hard_err: Option<&FurthestFailError>,
+    hard_err: Option<TraceMarkerFailureSnapshot>,
     input_pos: usize,
 ) -> Option<TraceMarkerFailureSnapshot> {
     match end_outcome {
         ExplicitMarkerEndOutcome::Success => None,
-        ExplicitMarkerEndOutcome::HardError => hard_err.map(TraceMarkerFailureSnapshot::from),
+        ExplicitMarkerEndOutcome::HardError => hard_err,
         ExplicitMarkerEndOutcome::SoftFail => match error_handler.to_choice() {
             ErrorHandlerChoice::Multi(m) => Some(TraceMarkerFailureSnapshot::from(&m.to_parser_error())),
             ErrorHandlerChoice::Empty(_) => Some(TraceMarkerFailureSnapshot {
@@ -83,7 +83,7 @@ where
         runner: &mut Runner,
         error_handler: &mut impl ErrorHandler,
         input: &mut InputStream<'src, Inp>,
-    ) -> Result<bool, FurthestFailError>
+    ) -> Result<bool, MatcherRunError>
     where
         Runner: MatchRunner<'a, 'src, Inp, MRes = MRes>,
         'src: 'a,
@@ -120,7 +120,7 @@ where
             let failure_snapshot = trace_failure_snapshot_for_end(
                 end_outcome,
                 error_handler,
-                matched.as_ref().err(),
+                matched.as_ref().err().map(TraceMarkerFailureSnapshot::from),
                 input.get_pos().into(),
             );
             runner.get_parser_context().trace_explicit_marker(
@@ -154,7 +154,7 @@ where
         context: &mut ParserContext,
         error_handler: &mut impl ErrorHandler,
         input: &mut InputStream<'src, Inp>,
-    ) -> Result<Option<Self::Output>, FurthestFailError> {
+    ) -> Result<Option<Self::Output>, MatcherRunError> {
         #[cfg(feature = "parser-trace")]
         let trace_label = self
             .label
@@ -186,7 +186,7 @@ where
             let failure_snapshot = trace_failure_snapshot_for_end(
                 end_outcome,
                 error_handler,
-                parsed.as_ref().err(),
+                parsed.as_ref().err().map(TraceMarkerFailureSnapshot::from),
                 input.get_pos().into(),
             );
             context.trace_explicit_marker(

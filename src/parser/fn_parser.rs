@@ -45,7 +45,7 @@ pub fn break_type<'src, Pars, Inp>(
         &'ctx mut crate::context::ParserContext,
         ErrorHandlerChoice<'eh>,
         &mut crate::input::InputStream<'src, Inp>,
-    ) -> Result<Option<Pars::Output>, crate::error::FurthestFailError>,
+    ) -> Result<Option<Pars::Output>, crate::error::MatcherRunError>,
     Pars::Output,
 >
 where
@@ -62,7 +62,7 @@ where
             &'ctx mut crate::context::ParserContext,
             ErrorHandlerChoice<'eh>,
             &mut crate::input::InputStream<'src, Inp>,
-        ) -> Result<Option<Out>, crate::error::FurthestFailError>,
+        ) -> Result<Option<Out>, crate::error::MatcherRunError>,
         Inp: Input<'src>,
     {
         f
@@ -84,7 +84,7 @@ where
             &'ctx mut crate::context::ParserContext,
             ErrorHandlerChoice<'eh>,
             &mut crate::input::InputStream<'src, Inp>,
-        ) -> Result<Option<Out>, crate::error::FurthestFailError>
+        ) -> Result<Option<Out>, crate::error::MatcherRunError>
         + Clone,
     Inp: crate::input::Input<'src>,
 {
@@ -96,7 +96,7 @@ where
         context: &mut crate::context::ParserContext,
         error_handler: &mut impl ErrorHandler,
         input: &mut crate::input::InputStream<'src, Inp>,
-    ) -> Result<Option<Self::Output>, crate::error::FurthestFailError> {
+    ) -> Result<Option<Self::Output>, crate::error::MatcherRunError> {
         (self.parse_fn)(context, error_handler.to_choice(), input)
     }
 }
@@ -106,18 +106,18 @@ mod tests {
     use crate::{error::error_handler::ErrorHandlerChoice, parse, parser::fn_parser::FnParser};
 
     fn f<'src>(
-        context: &mut crate::context::ParserContext,
-        empty_handler: ErrorHandlerChoice,
-        input: &mut crate::input::InputStream<'src, impl crate::input::Input<'src>>,
-    ) -> Result<Option<()>, crate::error::FurthestFailError> {
+        _context: &mut crate::context::ParserContext,
+        _empty_handler: ErrorHandlerChoice,
+        _input: &mut crate::input::InputStream<'src, impl crate::input::Input<'src>>,
+    ) -> Result<Option<()>, crate::error::MatcherRunError> {
         Ok(Some(()))
     }
 
     #[test]
     fn test_fn_parser() {
         let parser = FnParser::new(f);
-        let mut context = crate::context::ParserContext::new();
-        let result = parse(parser, "abc");
+        let _context = crate::context::ParserContext::new();
+        let _result = parse(parser, "abc");
         // assert_eq!(result.unwrap(), Some(()));
     }
 }

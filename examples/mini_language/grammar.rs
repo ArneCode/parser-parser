@@ -607,8 +607,8 @@ fn function_def<'src>() -> impl Parser<'src, &'src str, Output = FunctionDef<'sr
     .maybe_erase_types()
 }
 
-pub fn get_mini_language_grammar<'src>()
--> impl Parser<'src, &'src str, Output = Vec<FunctionDef<'src>>> {
+pub fn get_mini_language_grammar<'src>(
+) -> impl Parser<'src, &'src str, Output = Vec<FunctionDef<'src>>> + Clone {
     capture!(
         (
             whitespace(),

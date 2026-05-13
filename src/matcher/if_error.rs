@@ -1,5 +1,6 @@
 use std::fmt::Display;
 
+use crate::error::MatcherRunError;
 use crate::matcher::internal::MatcherImpl;
 
 #[derive(Debug, Clone)]
@@ -46,7 +47,7 @@ where
         runner: &mut Runner,
         error_handler: &mut impl crate::error::error_handler::ErrorHandler,
         input: &mut crate::input::InputStream<'src, Inp>,
-    ) -> Result<bool, crate::error::FurthestFailError>
+    ) -> Result<bool, MatcherRunError>
     where
         Runner: super::MatchRunner<'a, 'src, Inp, MRes = MRes>,
         'src: 'a,
@@ -76,7 +77,7 @@ where
         runner: &mut Runner,
         error_handler: &mut impl crate::error::error_handler::ErrorHandler,
         input: &mut crate::input::InputStream<'src, Inp>,
-    ) -> Result<bool, crate::error::FurthestFailError>
+    ) -> Result<bool, MatcherRunError>
     where
         Runner: super::MatchRunner<'a, 'src, Inp, MRes = MRes>,
         'src: 'a,
@@ -105,7 +106,7 @@ where
         context: &mut crate::context::ParserContext,
         error_handler: &mut impl crate::error::error_handler::ErrorHandler,
         input: &mut crate::input::InputStream<'src, Inp>,
-    ) -> Result<Option<Self::Output>, crate::error::FurthestFailError> {
+    ) -> Result<Option<Self::Output>, crate::error::MatcherRunError> {
         if !error_handler.is_real() {
             return Ok(None);
         }

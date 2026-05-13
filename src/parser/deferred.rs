@@ -10,7 +10,7 @@ use std::{
 
 use crate::{
     context::ParserContext,
-    error::{FurthestFailError, error_handler::ErrorHandler},
+    error::{MatcherRunError, error_handler::ErrorHandler},
     input::{Input, InputStream},
     parser::{Parser, ParserCombinator, ParserObjSafe},
 };
@@ -105,7 +105,7 @@ where
         context: &mut ParserContext,
         error_handler: &mut impl ErrorHandler,
         input: &mut InputStream<'src, Inp>,
-    ) -> Result<Option<Self::Output>, FurthestFailError> {
+    ) -> Result<Option<Self::Output>, MatcherRunError> {
         if let Some(parser) = self.parser.get() {
             parser.parse(context, error_handler.to_choice(), input)
         } else {
@@ -131,7 +131,7 @@ where
         context: &mut ParserContext,
         error_handler: &mut impl ErrorHandler,
         input: &mut InputStream<'src, Inp>,
-    ) -> Result<Option<Self::Output>, FurthestFailError> {
+    ) -> Result<Option<Self::Output>, MatcherRunError> {
         if let Some(parser) = self.parser.upgrade() {
             if let Some(parser) = parser.get() {
                 parser.parse(context, error_handler.to_choice(), input)

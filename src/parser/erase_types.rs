@@ -1,5 +1,5 @@
 use crate::context::ParserContext;
-use crate::error::FurthestFailError;
+use crate::error::MatcherRunError;
 use crate::error::error_handler::ErrorHandler;
 use crate::input::{Input, InputStream};
 use crate::parser::internal::ParserImpl;
@@ -54,7 +54,7 @@ where
         context: &mut ParserContext,
         error_handler: &mut impl ErrorHandler,
         input: &mut InputStream<'src, Inp>,
-    ) -> Result<Option<Self::Output>, FurthestFailError> {
+    ) -> Result<Option<Self::Output>, MatcherRunError> {
         self.inner.parse(context, error_handler.to_choice(), input)
     }
 

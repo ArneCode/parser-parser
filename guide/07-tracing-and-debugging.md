@@ -56,7 +56,7 @@ markers in your own grammar.
 
 ## Which API should I use?
 
-- `marser::parse(parser, src)`: normal parse, no trace collection.
+- `parser.parse_str(src)`: normal parse, no trace collection (same driver as `marser::parse(parser, src)`).
 - `marser::parse_with_trace(parser, src)`: parse + in-memory `TraceSession`.
 - `marser::parse_with_trace_to_file(parser, src, path, format)`: parse + write
   trace directly to disk (good for larger traces and tooling workflows).

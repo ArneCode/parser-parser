@@ -22,3 +22,18 @@ impl From<&crate::error::FurthestFailError> for TraceMarkerFailureSnapshot {
         }
     }
 }
+
+#[cfg(feature = "parser-trace")]
+impl From<&crate::error::MatcherRunError> for TraceMarkerFailureSnapshot {
+    fn from(e: &crate::error::MatcherRunError) -> Self {
+        match e {
+            crate::error::MatcherRunError::FurthestFail(f) => Self::from(f),
+            crate::error::MatcherRunError::RetryRerunNeeded => Self {
+                span_start: 0,
+                span_end: 0,
+                expected: vec![],
+                summary: "retry rerun needed".to_string(),
+            },
+        }
+    }
+}

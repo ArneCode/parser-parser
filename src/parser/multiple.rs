@@ -1,10 +1,8 @@
 //! Greedy repetition: parse zero or more `Pars` outputs, then fold with `combine_fn`.
 
-use std::fmt::Display;
-
 use crate::{
     context::ParserContext,
-    error::{FurthestFailError, error_handler::ErrorHandler},
+    error::{MatcherRunError, error_handler::ErrorHandler},
     input::{Input, InputStream},
     parser::{Parser, ParserCombinator},
 };
@@ -53,7 +51,7 @@ where
         context: &mut ParserContext,
         error_handler: &mut impl ErrorHandler,
         input: &mut InputStream<'src, Inp>,
-    ) -> Result<Option<Self::Output>, FurthestFailError>
+    ) -> Result<Option<Self::Output>, MatcherRunError>
     where
         Inp: Input<'src>,
     {

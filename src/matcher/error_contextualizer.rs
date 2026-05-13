@@ -1,10 +1,15 @@
 //! Enrich [`crate::error::FurthestFailError`] from `happy_matcher` using a small [`crate::parser::Parser`] callback.
+//!
+//! On [`crate::error::MatcherRunError::FurthestFail`], this combinator runs `error_parser` at the failure cursor to obtain a
+//! callback that mutates the error. [`crate::error::MatcherRunError::RetryRerunNeeded`] is forwarded unchanged so the outer
+//! capture retry path can rewind and rerun with a recovery [`crate::matcher::NoMemoizeBacktrackingRunner`]
+//! without nested `error_parser` work.
 
 use std::fmt::Display;
 
 use crate::{
     context::ParserContext,
-    error::{FurthestFailError, error_handler::ErrorHandler},
+    error::{FurthestFailError, MatcherRunError, error_handler::ErrorHandler},
     input::{Input, InputStream},
     matcher::{MatchRunner, Matcher, MatcherCombinator},
     parser::{Parser, ParserCombinator, internal::ParserImpl},
@@ -51,7 +56,7 @@ where
         runner: &mut Runner,
         error_handler: &mut impl ErrorHandler,
         input: &mut InputStream<'src, Inp>,
-    ) -> Result<bool, FurthestFailError>
+    ) -> Result<bool, MatcherRunError>
     where
         Runner: MatchRunner<'a, 'src, Inp, MRes = MRes>,
         'src: 'a,
@@ -60,7 +65,8 @@ where
         match runner.run_match(&self.happy, error_handler, input) {
             Ok(true) => Ok(true),
             Ok(false) => Ok(false),
-            Err(mut e) => {
+            Err(MatcherRunError::RetryRerunNeeded) => Err(MatcherRunError::RetryRerunNeeded),
+            Err(MatcherRunError::FurthestFail(mut e)) => {
                 let resume_pos = input.get_pos();
                 input.set_pos(start_pos.clone());
                 if let Ok(Some(f)) =
@@ -70,7 +76,7 @@ where
                     f(&mut e);
                 }
                 input.set_pos(resume_pos);
-                Err(e)
+                Err(MatcherRunError::FurthestFail(e))
             }
         }
     }
@@ -95,19 +101,20 @@ where
         context: &mut ParserContext,
         error_handler: &mut impl ErrorHandler,
         input: &mut InputStream<'src, Inp>,
-    ) -> Result<Option<Self::Output>, FurthestFailError> {
+    ) -> Result<Option<Self::Output>, MatcherRunError> {
         let start_pos = input.get_pos();
         match self.happy.parse(context, error_handler, input) {
             Ok(Some(output)) => Ok(Some(output)),
             Ok(None) => Ok(None),
-            Err(mut e) => {
+            Err(MatcherRunError::RetryRerunNeeded) => Err(MatcherRunError::RetryRerunNeeded),
+            Err(MatcherRunError::FurthestFail(mut e)) => {
                 let resume_pos = input.get_pos();
                 input.set_pos(start_pos);
                 if let Ok(Some(f)) = self.error_parser.parse(context, error_handler, input) {
                     f(&mut e);
                 }
                 input.set_pos(resume_pos);
-                Err(e)
+                Err(MatcherRunError::FurthestFail(e))
             }
         }
     }
