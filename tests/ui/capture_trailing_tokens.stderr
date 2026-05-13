@@ -1,0 +1,5 @@
+error: unexpected tokens in `bind!` (expected `bind!(parser, target [, span_target])`)
+ --> tests/ui/capture_trailing_tokens.rs:7:10
+  |
+7 |         y,
+  |          ^

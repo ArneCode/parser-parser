@@ -2,7 +2,7 @@
 use std::{env, fs, process};
 use std::rc::Rc;
 
-use marser_macros::capture;
+use marser::capture;
 
 #[cfg(feature = "parser-trace")]
 use marser::trace::TraceFormat;

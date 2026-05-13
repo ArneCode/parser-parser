@@ -5,6 +5,14 @@
 //! crate: it extends a crate-private implementation trait, so only types
 //! defined here can satisfy the full bound.
 //!
+//! # Runtime invariants
+//!
+//! - [`internal::ParserImpl::parse`] receives [`crate::context::ParserContext<'src>`] and must not
+//!   retain references to it past the call unless owned data is explicitly `'src`-bounded (for
+//!   example memoized [`Rc`] outputs).
+//! - [`capture::Capture`] is normally constructed via [`crate::capture`]; bind slot layout matches
+//!   [`capture::MatchResult`] tuple indexing described in [`capture::property`].
+//!
 //! ## Associated constants
 //!
 //! Implementations expose `CAN_FAIL`. When `true`, the parser may return `Ok(None)` on a normal path

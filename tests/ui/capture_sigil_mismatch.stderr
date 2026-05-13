@@ -1,0 +1,5 @@
+error: binding `x` is used with incompatible sigils (for example `x` vs `*x` vs `?x`) in the same `capture!`
+ --> tests/ui/capture_sigil_mismatch.rs:7:65
+  |
+7 |             bind!(marser::parser::SingleTokenParser::new('b'), *x)
+  |                                                                 ^

@@ -1,17 +1,19 @@
 //! Procedural macros for [`marser`](https://docs.rs/marser).
 //!
-//! The main entry point is [`capture`], which builds a
-//! `marser::parser::capture::Capture` parser from a grammar expression.
+//! Prefer `use marser::capture;` (re-exported from the main crate). This crate is the proc-macro
+//! implementation; [`capture`] builds a `marser::parser::capture::Capture` parser from a grammar expression.
+
+use std::cell::RefCell;
 
 use proc_macro::TokenStream;
 use proc_macro_crate::{FoundCrate, crate_name};
 use proc_macro2::Span;
 use quote::{quote, quote_spanned};
-use syn::parse::{Parse, ParseStream};
+use syn::parse::{Parse, ParseStream, Result as ParseResult};
 use syn::visit::{self, Visit};
 use syn::visit_mut::{self, VisitMut};
 use syn::{
-    Expr, ExprClosure, Ident, Index, Path, Pat, Result, Token, Type, parse_macro_input, parse_quote,
+    Expr, ExprClosure, Ident, Index, Path, Pat, Token, Type, parse_quote,
 };
 
 // ---------------------------------------------------------------------------
@@ -25,10 +27,13 @@ struct CaptureInput {
 }
 
 impl Parse for CaptureInput {
-    fn parse(input: ParseStream) -> Result<Self> {
+    fn parse(input: ParseStream) -> ParseResult<Self> {
         let grammar = input.parse()?;
         let _arrow = input.parse::<Token![=>]>()?;
         let result_expr = input.parse()?;
+        if !input.is_empty() {
+            return Err(input.error("unexpected tokens after `capture!( … => … )`"));
+        }
         Ok(CaptureInput {
             grammar,
             _arrow,
@@ -45,7 +50,7 @@ enum BindKind {
 }
 
 /// Shared helper: peek at an optional `*` / `?` sigil, then parse the ident.
-fn parse_kind_and_ident(input: ParseStream) -> Result<(BindKind, Ident)> {
+fn parse_kind_and_ident(input: ParseStream) -> ParseResult<(BindKind, Ident)> {
     if input.peek(Token![*]) {
         input.parse::<Token![*]>()?;
         Ok((BindKind::Multiple, input.parse()?))
@@ -64,7 +69,7 @@ struct TypedBindTarget {
     ty: Option<Type>,
 }
 
-fn parse_typed_target(input: ParseStream) -> Result<TypedBindTarget> {
+fn parse_typed_target(input: ParseStream) -> ParseResult<TypedBindTarget> {
     let (kind, ident) = parse_kind_and_ident(input)?;
     let ty = if input.peek(Token![as]) {
         input.parse::<Token![as]>()?;
@@ -87,7 +92,7 @@ struct BindInfo {
 }
 
 impl Parse for BindInfo {
-    fn parse(input: ParseStream) -> Result<Self> {
+    fn parse(input: ParseStream) -> ParseResult<Self> {
         let parser: Expr = input.parse()?;
         let _: Token![,] = input.parse()?;
         let value_target = parse_typed_target(input)?;
@@ -99,6 +104,10 @@ impl Parse for BindInfo {
         } else {
             (None, None, None)
         };
+
+        if !input.is_empty() {
+            return Err(input.error("unexpected tokens in `bind!` (expected `bind!(parser, target [, span_target])`)"));
+        }
 
         Ok(BindInfo {
             parser,
@@ -121,10 +130,13 @@ struct BindSpanInfo {
 }
 
 impl Parse for BindSpanInfo {
-    fn parse(input: ParseStream) -> Result<Self> {
+    fn parse(input: ParseStream) -> ParseResult<Self> {
         let parser: Expr = input.parse()?;
         let _: Token![,] = input.parse()?;
         let target = parse_typed_target(input)?;
+        if !input.is_empty() {
+            return Err(input.error("unexpected tokens in `bind_span!`"));
+        }
         Ok(BindSpanInfo {
             parser,
             span_ident: target.ident,
@@ -143,10 +155,13 @@ struct BindSliceInfo {
 }
 
 impl Parse for BindSliceInfo {
-    fn parse(input: ParseStream) -> Result<Self> {
+    fn parse(input: ParseStream) -> ParseResult<Self> {
         let parser: Expr = input.parse()?;
         let _: Token![,] = input.parse()?;
         let target = parse_typed_target(input)?;
+        if !input.is_empty() {
+            return Err(input.error("unexpected tokens in `bind_slice!`"));
+        }
         Ok(BindSliceInfo {
             parser,
             slice_ident: target.ident,
@@ -156,7 +171,13 @@ impl Parse for BindSliceInfo {
     }
 }
 
-/// Registry of `bind!` / `bind_span!` / `bind_slice!` idents (same layout as [`BindVisitor`]).
+#[derive(Clone)]
+struct TypedBinding {
+    ident: Ident,
+    ty: Option<Type>,
+}
+
+/// Registry of `bind!` / `bind_span!` / `bind_slice!` idents (layout matches [`BindCollector`] output).
 #[derive(Default, Clone)]
 struct BindRegistry {
     single_values: Vec<TypedBinding>,
@@ -168,85 +189,247 @@ struct BindRegistry {
 }
 
 impl BindRegistry {
-    fn push_unique(list: &mut Vec<TypedBinding>, ident: Ident, ty: Option<Type>) {
-        if list.iter().all(|entry| entry.ident != ident) {
+    fn types_compatible(a: &Option<Type>, b: &Option<Type>) -> bool {
+        match (a, b) {
+            (None, _) | (_, None) => true,
+            (Some(t1), Some(t2)) => quote!(#t1).to_string() == quote!(#t2).to_string(),
+        }
+    }
+
+    fn value_kind_if_present(&self, id: &Ident) -> Option<BindKind> {
+        if self.single_values.iter().any(|b| b.ident == *id) {
+            Some(BindKind::Single)
+        } else if self.multiple_values.iter().any(|b| b.ident == *id) {
+            Some(BindKind::Multiple)
+        } else if self.optional_values.iter().any(|b| b.ident == *id) {
+            Some(BindKind::Optional)
+        } else {
+            None
+        }
+    }
+
+    fn span_kind_if_present(&self, id: &Ident) -> Option<BindKind> {
+        if self.single_spans.iter().any(|b| b.ident == *id) {
+            Some(BindKind::Single)
+        } else if self.multiple_spans.iter().any(|b| b.ident == *id) {
+            Some(BindKind::Multiple)
+        } else if self.optional_spans.iter().any(|b| b.ident == *id) {
+            Some(BindKind::Optional)
+        } else {
+            None
+        }
+    }
+
+    fn ident_in_any_span_list(&self, id: &Ident) -> bool {
+        self.span_kind_if_present(id).is_some()
+    }
+
+    fn ident_in_any_value_list(&self, id: &Ident) -> bool {
+        self.value_kind_if_present(id).is_some()
+    }
+
+    fn values_mut(&mut self, kind: &BindKind) -> &mut Vec<TypedBinding> {
+        match kind {
+            BindKind::Single => &mut self.single_values,
+            BindKind::Multiple => &mut self.multiple_values,
+            BindKind::Optional => &mut self.optional_values,
+        }
+    }
+
+    fn spans_mut(&mut self, kind: &BindKind) -> &mut Vec<TypedBinding> {
+        match kind {
+            BindKind::Single => &mut self.single_spans,
+            BindKind::Multiple => &mut self.multiple_spans,
+            BindKind::Optional => &mut self.optional_spans,
+        }
+    }
+
+    fn merge_into(list: &mut Vec<TypedBinding>, ident: Ident, ty: Option<Type>) -> std::result::Result<(), syn::Error> {
+        if let Some(existing) = list.iter_mut().find(|e| e.ident == ident) {
+            if !Self::types_compatible(&existing.ty, &ty) {
+                return Err(syn::Error::new_spanned(
+                    &ident,
+                    format!(
+                        "conflicting explicit `as` types for repeated binding `{}` in `capture!`",
+                        ident
+                    ),
+                ));
+            }
+            if existing.ty.is_none() {
+                if let Some(t) = ty {
+                    existing.ty = Some(t);
+                }
+            }
+            Ok(())
+        } else {
             list.push(TypedBinding { ident, ty });
+            Ok(())
         }
     }
 
-    fn register_value(&mut self, ident: Ident, ty: Option<Type>, kind: &BindKind) {
-        match kind {
-            BindKind::Single => Self::push_unique(&mut self.single_values, ident, ty),
-            BindKind::Multiple => Self::push_unique(&mut self.multiple_values, ident, ty),
-            BindKind::Optional => Self::push_unique(&mut self.optional_values, ident, ty),
+    /// Register a value capture. Repeated uses of the same `ident` with the same sigil bucket are merged
+    /// when `as` types are compatible (see module docs on `capture!`).
+    fn register_value(&mut self, ident: Ident, ty: Option<Type>, kind: &BindKind) -> std::result::Result<(), syn::Error> {
+        if self.ident_in_any_span_list(&ident) {
+            return Err(syn::Error::new_spanned(
+                &ident,
+                format!(
+                    "binding `{}` is already used as a span binding; value and span captures cannot share an identifier in `capture!`",
+                    ident
+                ),
+            ));
         }
+        if let Some(existing) = self.value_kind_if_present(&ident) {
+            if existing != *kind {
+                return Err(syn::Error::new_spanned(
+                    &ident,
+                    format!(
+                        "binding `{}` is used with incompatible sigils (for example `x` vs `*x` vs `?x`) in the same `capture!`",
+                        ident
+                    ),
+                ));
+            }
+        }
+        let list = self.values_mut(kind);
+        Self::merge_into(list, ident, ty)
     }
 
-    fn register_span(&mut self, ident: Ident, ty: Option<Type>, kind: &BindKind) {
-        match kind {
-            BindKind::Single => Self::push_unique(&mut self.single_spans, ident, ty),
-            BindKind::Multiple => Self::push_unique(&mut self.multiple_spans, ident, ty),
-            BindKind::Optional => Self::push_unique(&mut self.optional_spans, ident, ty),
+    fn register_span(&mut self, ident: Ident, ty: Option<Type>, kind: &BindKind) -> std::result::Result<(), syn::Error> {
+        if self.ident_in_any_value_list(&ident) {
+            return Err(syn::Error::new_spanned(
+                &ident,
+                format!(
+                    "binding `{}` is already used as a value binding; value and span captures cannot share an identifier in `capture!`",
+                    ident
+                ),
+            ));
         }
+        if let Some(existing) = self.span_kind_if_present(&ident) {
+            if existing != *kind {
+                return Err(syn::Error::new_spanned(
+                    &ident,
+                    format!(
+                        "span binding `{}` is used with incompatible sigils in the same `capture!`",
+                        ident
+                    ),
+                ));
+            }
+        }
+        let list = self.spans_mut(kind);
+        Self::merge_into(list, ident, ty)
     }
 }
 
 /// Walk the raw grammar `Expr` before `bind!` expansion and collect binding targets.
 struct BindCollector {
     reg: BindRegistry,
+    errors: Option<syn::Error>,
 }
 
 impl BindCollector {
-    fn collect(expr: &Expr) -> BindRegistry {
+    fn bump_err(&mut self, e: syn::Error) {
+        self.errors = Some(match self.errors.take() {
+            None => e,
+            Some(mut prev) => {
+                prev.combine(e);
+                prev
+            }
+        });
+    }
+
+    fn collect(expr: &Expr) -> std::result::Result<BindRegistry, syn::Error> {
         let mut c = Self {
             reg: BindRegistry::default(),
+            errors: None,
         };
         c.visit_expr(expr);
-        c.reg
+        if let Some(e) = c.errors {
+            Err(e)
+        } else {
+            Ok(c.reg)
+        }
     }
 }
 
 impl<'ast> Visit<'ast> for BindCollector {
     fn visit_expr(&mut self, expr: &'ast Expr) {
         if let Expr::Macro(m) = expr {
-            if m.mac.path.is_ident("bind")
-                && let Ok(info) = m.mac.parse_body::<BindInfo>() {
-                    self.reg.register_value(
-                        info.ident.clone(),
-                        info.value_ty.clone(),
-                        &info.kind,
-                    );
-                    if let Some(span_ident) = &info.span_ident {
-                        let span_kind = info.span_kind.as_ref().unwrap();
-                        self.reg.register_span(
-                            span_ident.clone(),
-                            info.span_ty.clone(),
-                            span_kind,
-                        );
+            if m.mac.path.is_ident("bind") {
+                let info = match m.mac.parse_body::<BindInfo>() {
+                    Ok(i) => i,
+                    Err(e) => {
+                        self.bump_err(e);
+                        visit::visit_expr(self, expr);
+                        return;
                     }
-                    self.visit_expr(&info.parser);
-                    return;
+                };
+                if let Some(ref span_ident) = info.span_ident {
+                    if *span_ident == info.ident {
+                        self.bump_err(syn::Error::new_spanned(
+                            span_ident,
+                            "`bind!` value and span targets must use distinct identifiers",
+                        ));
+                        self.visit_expr(&info.parser);
+                        return;
+                    }
                 }
-            if m.mac.path.is_ident("bind_span")
-                && let Ok(info) = m.mac.parse_body::<BindSpanInfo>() {
-                    self.reg.register_span(
-                        info.span_ident.clone(),
-                        info.ty.clone(),
-                        &info.kind,
-                    );
-                    self.visit_expr(&info.parser);
-                    return;
+                if let Err(e) = self.reg.register_value(
+                    info.ident.clone(),
+                    info.value_ty.clone(),
+                    &info.kind,
+                ) {
+                    self.bump_err(e);
                 }
-            if m.mac.path.is_ident("bind_slice")
-                && let Ok(info) = m.mac.parse_body::<BindSliceInfo>() {
-                    self.reg.register_value(
-                        info.slice_ident.clone(),
-                        info.ty.clone(),
-                        &info.kind,
-                    );
-                    self.visit_expr(&info.parser);
-                    return;
+                if let Some(span_ident) = &info.span_ident {
+                    let span_kind = info.span_kind.as_ref().unwrap();
+                    if let Err(e) = self.reg.register_span(
+                        span_ident.clone(),
+                        info.span_ty.clone(),
+                        span_kind,
+                    ) {
+                        self.bump_err(e);
+                    }
                 }
+                self.visit_expr(&info.parser);
+                return;
+            }
+            if m.mac.path.is_ident("bind_span") {
+                let info = match m.mac.parse_body::<BindSpanInfo>() {
+                    Ok(i) => i,
+                    Err(e) => {
+                        self.bump_err(e);
+                        visit::visit_expr(self, expr);
+                        return;
+                    }
+                };
+                if let Err(e) = self
+                    .reg
+                    .register_span(info.span_ident.clone(), info.ty.clone(), &info.kind)
+                {
+                    self.bump_err(e);
+                }
+                self.visit_expr(&info.parser);
+                return;
+            }
+            if m.mac.path.is_ident("bind_slice") {
+                let info = match m.mac.parse_body::<BindSliceInfo>() {
+                    Ok(i) => i,
+                    Err(e) => {
+                        self.bump_err(e);
+                        visit::visit_expr(self, expr);
+                        return;
+                    }
+                };
+                if let Err(e) = self.reg.register_value(
+                    info.slice_ident.clone(),
+                    info.ty.clone(),
+                    &info.kind,
+                ) {
+                    self.bump_err(e);
+                }
+                self.visit_expr(&info.parser);
+                return;
+            }
         }
         visit::visit_expr(self, expr);
     }
@@ -257,7 +440,7 @@ fn expand_use_binds_macro(
     reg: &BindRegistry,
     marser: &Path,
     _mres_tuple_unused: &proc_macro2::TokenStream,
-) -> Expr {
+) -> std::result::Result<Expr, syn::Error> {
     let ctx_ident = match closure.inputs.iter().next() {
         Some(Pat::Type(pt)) => {
             if let Pat::Ident(pi) = pt.pat.as_ref() {
@@ -366,7 +549,7 @@ fn expand_use_binds_macro(
     // Implementing the trait directly lets us name the snapshot lifetime explicitly with the
     // bound `where MRes: 'snap`, so the WF check on `MRes::Snapshot<'snap>` is satisfied without
     // universal quantification.
-    syn::parse2(quote! {
+    let factory_tokens = quote! {
         {
             struct __UseBindsFactory;
             impl ::core::clone::Clone for __UseBindsFactory {
@@ -395,153 +578,161 @@ fn expand_use_binds_macro(
             }
             __UseBindsFactory
         }
-    })
-    .expect("use_binds! expansion should parse as an expression")
+    };
+    syn::parse2(factory_tokens)
 }
 
 struct UseBindsRewriter<'a> {
     registry: &'a BindRegistry,
     marser_path: Path,
     mres_tuple: proc_macro2::TokenStream,
+    errors: RefCell<Option<syn::Error>>,
 }
 
 impl VisitMut for UseBindsRewriter<'_> {
     fn visit_expr_mut(&mut self, expr: &mut Expr) {
         if let Expr::Macro(m) = expr
             && m.mac.path.is_ident("use_binds")
-                && let Ok(closure) = m.mac.parse_body::<ExprClosure>() {
-                    *expr = expand_use_binds_macro(
-                        closure,
-                        self.registry,
-                        &self.marser_path,
-                        &self.mres_tuple,
-                    );
+        {
+            let closure = match m.mac.parse_body::<ExprClosure>() {
+                Ok(c) => c,
+                Err(e) => {
+                    let mut slot = self.errors.borrow_mut();
+                    *slot = Some(match slot.take() {
+                        None => e,
+                        Some(mut prev) => {
+                            prev.combine(e);
+                            prev
+                        }
+                    });
                     return;
                 }
+            };
+            match expand_use_binds_macro(
+                closure,
+                self.registry,
+                &self.marser_path,
+                &self.mres_tuple,
+            ) {
+                Ok(expanded) => *expr = expanded,
+                Err(e) => {
+                    let mut slot = self.errors.borrow_mut();
+                    *slot = Some(match slot.take() {
+                        None => e,
+                        Some(mut prev) => {
+                            prev.combine(e);
+                            prev
+                        }
+                    });
+                }
+            }
+            return;
+        }
         visit_mut::visit_expr_mut(self, expr);
     }
 }
 
 // ---------------------------------------------------------------------------
-// Visitor
+// Bind macro expansion
 // ---------------------------------------------------------------------------
 
-/// Collects all bound idents, keeping value idents and span idents in separate
-/// ordered lists so the generated tuple is `(vals…, spans…)` for each bucket.
-struct BindVisitor {
+/// Expands `bind!` / `bind_span!` / `bind_slice!` inside `capture!` after [`BindCollector`] validation.
+struct BindMacroExpander {
     marser_path: Path,
-    // Singles (Option<_> / Option<Span>)
-    single_values: Vec<TypedBinding>,
-    single_spans: Vec<TypedBinding>,
-    // Multiples (Vec<_> / Vec<Span>)
-    multiple_values: Vec<TypedBinding>,
-    multiple_spans: Vec<TypedBinding>,
-    // Optionals (Option<_> / Option<Span>)
-    optional_values: Vec<TypedBinding>,
-    optional_spans: Vec<TypedBinding>,
+    errors: Option<syn::Error>,
 }
 
-#[derive(Clone)]
-struct TypedBinding {
-    ident: Ident,
-    ty: Option<Type>,
-}
-
-impl BindVisitor {
+impl BindMacroExpander {
     fn new(marser_path: Path) -> Self {
         Self {
             marser_path,
-            single_values: vec![],
-            single_spans: vec![],
-            multiple_values: vec![],
-            multiple_spans: vec![],
-            optional_values: vec![],
-            optional_spans: vec![],
+            errors: None,
         }
     }
 
-    fn push_unique(list: &mut Vec<TypedBinding>, ident: Ident, ty: Option<Type>) {
-        if list.iter().all(|entry| entry.ident != ident) {
-            list.push(TypedBinding { ident, ty });
-        }
+    fn bump_err(&mut self, e: syn::Error) {
+        self.errors = Some(match self.errors.take() {
+            None => e,
+            Some(mut prev) => {
+                prev.combine(e);
+                prev
+            }
+        });
     }
 
-    fn register_value(&mut self, ident: Ident, ty: Option<Type>, kind: &BindKind) {
-        match kind {
-            BindKind::Single => Self::push_unique(&mut self.single_values, ident, ty),
-            BindKind::Multiple => Self::push_unique(&mut self.multiple_values, ident, ty),
-            BindKind::Optional => Self::push_unique(&mut self.optional_values, ident, ty),
-        }
-    }
-
-    fn register_span(&mut self, ident: Ident, ty: Option<Type>, kind: &BindKind) {
-        match kind {
-            BindKind::Single => Self::push_unique(&mut self.single_spans, ident, ty),
-            BindKind::Multiple => Self::push_unique(&mut self.multiple_spans, ident, ty),
-            BindKind::Optional => Self::push_unique(&mut self.optional_spans, ident, ty),
-        }
+    fn take_errors(self) -> Option<syn::Error> {
+        self.errors
     }
 }
 
-impl VisitMut for BindVisitor {
+impl VisitMut for BindMacroExpander {
     fn visit_expr_mut(&mut self, i: &mut Expr) {
         if let Expr::Macro(m) = i {
-            // ── bind!(parser, [*|?]ident [, [*|?]span_ident]) ──────────────
-            if m.mac.path.is_ident("bind")
-                && let Ok(info) = m.mac.parse_body::<BindInfo>() {
-                    let id = &info.ident;
-                    let parser = &info.parser;
-
-                    self.register_value(id.clone(), info.value_ty.clone(), &info.kind);
-
-                    let bind_span = id.span();
-                    *i = if let Some(span_id) = &info.span_ident {
-                        let marser = self.marser_path.clone();
-                        let span_kind = info.span_kind.as_ref().unwrap();
-                        self.register_span(span_id.clone(), info.span_ty.clone(), span_kind);
-                        // wrap: bind_span( bind_result(parser, id), span_id )
-                        syn::parse2(quote_spanned! {bind_span=>
-                            #marser::parser::capture::bind_span(
-                                #marser::parser::capture::bind_result(#parser, #id),
-                                #span_id
-                            )
-                        })
-                        .expect("bind! rewrite should produce a valid expression")
-                    } else {
-                        let marser = self.marser_path.clone();
-                        syn::parse2(quote_spanned! {bind_span=>
-                            #marser::parser::capture::bind_result(#parser, #id)
-                        })
-                        .expect("bind! rewrite should produce a valid expression")
-                    };
-                    return;
-                }
-
-            // ── bind_span!(parser, [*|?]span_ident) ─────────────────────────
-            if m.mac.path.is_ident("bind_span")
-                && let Ok(info) = m.mac.parse_body::<BindSpanInfo>() {
-                    let span_id = &info.span_ident;
-                    let parser = &info.parser;
-
-                    self.register_span(span_id.clone(), info.ty.clone(), &info.kind);
-
+            if m.mac.path.is_ident("bind") {
+                let info = match m.mac.parse_body::<BindInfo>() {
+                    Ok(info) => info,
+                    Err(e) => {
+                        self.bump_err(e);
+                        visit_mut::visit_expr_mut(self, i);
+                        return;
+                    }
+                };
+                let id = &info.ident;
+                let parser = &info.parser;
+                let bind_span = id.span();
+                let rewrite = if let Some(span_id) = &info.span_ident {
                     let marser = self.marser_path.clone();
-                    *i = parse_quote! { #marser::parser::capture::bind_span(#parser, #span_id) };
-                    return;
-                }
-
-            // ── bind_slice!(parser, [*|?]slice_ident) ───────────────────────
-            if m.mac.path.is_ident("bind_slice")
-                && let Ok(info) = m.mac.parse_body::<BindSliceInfo>() {
-                    let slice_id = &info.slice_ident;
-                    let parser = &info.parser;
-
-                    self.register_value(slice_id.clone(), info.ty.clone(), &info.kind);
-
+                    let span_id = span_id;
+                    quote_spanned! {bind_span=>
+                        #marser::parser::capture::bind_span(
+                            #marser::parser::capture::bind_result(#parser, #id),
+                            #span_id
+                        )
+                    }
+                } else {
                     let marser = self.marser_path.clone();
-                    *i = parse_quote! { #marser::parser::capture::bind_slice(#parser, #slice_id) };
-                    return;
+                    quote_spanned! {bind_span=>
+                        #marser::parser::capture::bind_result(#parser, #id)
+                    }
+                };
+                match syn::parse2(rewrite) {
+                    Ok(expr) => *i = expr,
+                    Err(e) => self.bump_err(e),
                 }
+                return;
+            }
+
+            if m.mac.path.is_ident("bind_span") {
+                let info = match m.mac.parse_body::<BindSpanInfo>() {
+                    Ok(i) => i,
+                    Err(e) => {
+                        self.bump_err(e);
+                        visit_mut::visit_expr_mut(self, i);
+                        return;
+                    }
+                };
+                let span_id = &info.span_ident;
+                let parser = &info.parser;
+                let marser = self.marser_path.clone();
+                *i = parse_quote! { #marser::parser::capture::bind_span(#parser, #span_id) };
+                return;
+            }
+
+            if m.mac.path.is_ident("bind_slice") {
+                let info = match m.mac.parse_body::<BindSliceInfo>() {
+                    Ok(i) => i,
+                    Err(e) => {
+                        self.bump_err(e);
+                        visit_mut::visit_expr_mut(self, i);
+                        return;
+                    }
+                };
+                let slice_id = &info.slice_ident;
+                let parser = &info.parser;
+                let marser = self.marser_path.clone();
+                *i = parse_quote! { #marser::parser::capture::bind_slice(#parser, #slice_id) };
+                return;
+            }
         }
         visit_mut::visit_expr_mut(self, i);
     }
@@ -580,25 +771,34 @@ impl VisitMut for BindVisitor {
 /// - **`use_binds!(move \|ctx: MatchDiagCtx\| { … })`** — builds a [`marser::error::SnapshotFactory`] so
 ///   `err_if_no_match` / `err_if_matched` factories can read prior captures from a snapshot.
 ///
-/// Each binding becomes a parameter to both the grammar closure and the result closure generated
-/// by this macro. Those identifiers are often unread in the grammar closure (wiring goes through
-/// `bind_result` / `bind_span`). The expansion wraps [`Capture::new`](https://docs.rs/marser/latest/marser/parser/capture/struct.Capture.html)
-/// in a block with `#[allow(unused_variables)]` so callers do not need a local attribute. (Using
-/// opaque bucket parameters plus an inner `let (…) = __single` indirection was tried but breaks
-/// type inference for the matcher tree in current Rust.)
+/// Repeated **compatible** binds to the same identifier (same sigil bucket and compatible `as`
+/// types) are merged into one capture slot. Conflicting sigils, incompatible explicit types, or
+/// reusing the same name for both value and span captures are **compile errors** with spans on the
+/// offending `bind!` / `bind_span!` / `bind_slice!` sites.
 ///
-/// # Crate path
+/// These helper macros are only expanded meaningfully inside `capture!`; using them elsewhere
+/// yields normal unresolved-macro errors unless you import the `marser` crate and use `capture!`
+/// from it (or depend on `marser_macros` directly for experimentation).
+///
+/// Each binding becomes a parameter to both the grammar closure and the result closure; the grammar
+/// side often ignores those names because wiring goes through `bind_result` / `bind_span`.
 ///
 /// The expansion prefixes APIs with the dependency name from Cargo (via `proc_macro_crate::crate_name("marser")`).
 /// If you rename the `marser` dependency in your `Cargo.toml`, generated paths use that name.
 #[proc_macro]
 pub fn capture(input: TokenStream) -> TokenStream {
-    let mut input = parse_macro_input!(input as CaptureInput);
+    let mut input: CaptureInput = syn::parse_macro_input!(input as CaptureInput);
     let marser_path = marser_crate_path();
-    let registry = BindCollector::collect(&input.grammar);
-    let mut visitor = BindVisitor::new(marser_path.clone());
+    let registry = match BindCollector::collect(&input.grammar) {
+        Ok(r) => r,
+        Err(e) => return e.to_compile_error().into(),
+    };
 
-    visitor.visit_expr_mut(&mut input.grammar);
+    let mut expander = BindMacroExpander::new(marser_path.clone());
+    expander.visit_expr_mut(&mut input.grammar);
+    if let Some(e) = expander.take_errors() {
+        return e.to_compile_error().into();
+    }
 
     let pat_tuple = |values: &[TypedBinding], spans: &[TypedBinding]| {
         let all: Vec<_> = values.iter().chain(spans.iter()).map(|x| &x.ident).collect();
@@ -652,22 +852,26 @@ pub fn capture(input: TokenStream) -> TokenStream {
         }
     };
 
-    let s_pat = pat_tuple(&visitor.single_values, &visitor.single_spans);
-    let m_pat = pat_tuple(&visitor.multiple_values, &visitor.multiple_spans);
-    let o_pat = pat_tuple(&visitor.optional_values, &visitor.optional_spans);
+    let s_pat = pat_tuple(&registry.single_values, &registry.single_spans);
+    let m_pat = pat_tuple(&registry.multiple_values, &registry.multiple_spans);
+    let o_pat = pat_tuple(&registry.optional_values, &registry.optional_spans);
 
-    let s_ty = type_tuple(&visitor.single_values, &visitor.single_spans, false);
-    let m_ty = type_tuple(&visitor.multiple_values, &visitor.multiple_spans, true);
-    let o_ty = type_tuple(&visitor.optional_values, &visitor.optional_spans, false);
+    let s_ty = type_tuple(&registry.single_values, &registry.single_spans, false);
+    let m_ty = type_tuple(&registry.multiple_values, &registry.multiple_spans, true);
+    let o_ty = type_tuple(&registry.optional_values, &registry.optional_spans, false);
 
     let mres_tuple = quote! { (#s_ty, #m_ty, #o_ty) };
     let mut use_binds_rw = UseBindsRewriter {
         registry: &registry,
         marser_path: marser_path.clone(),
         mres_tuple,
+        errors: RefCell::new(None),
     };
     use_binds_rw.visit_expr_mut(&mut input.grammar);
     use_binds_rw.visit_expr_mut(&mut input.result_expr);
+    if let Some(e) = use_binds_rw.errors.into_inner() {
+        return e.to_compile_error().into();
+    }
 
     let grammar = &input.grammar;
     let result_expr = &input.result_expr;

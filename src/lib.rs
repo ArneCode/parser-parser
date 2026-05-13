@@ -20,7 +20,8 @@ pub mod one_of;
 pub mod parser;
 pub mod trace;
 
-use marser_macros::capture;
+pub use marser_macros::capture;
+
 use std::rc::Rc;
 #[cfg(feature = "parser-trace")]
 use std::{fs::File, io, path::Path};

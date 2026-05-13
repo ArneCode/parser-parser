@@ -1,3 +1,16 @@
+//! Tuple-shaped [`MatchResult`] implementations used by [`super::Capture`].
+//!
+//! # Invariants
+//!
+//! - **Snapshots** — [`MatchResult::snapshot`] / [`MatchResult::new_empty_snapshot`] expose the
+//!   same slot layout as the live result for `use_binds!` / inline error factories (see
+//!   [`crate::matcher::MatchRunner::with_snapshot`]).
+//! - **Subtraction** — [`MatchResult::subtract_from_result`] removes captures that were committed
+//!   on a successful branch when backtracking unwinds a parent alternative.
+//!
+//! The per-bucket traits ([`MatchResultSingle`], [`MatchResultMultiple`], [`MatchResultOptional`])
+//! split tuple fields so generated code can index value vs optional vs repeated columns separately.
+
 use super::property::{
     MultipleProperty, MultipleSnapProj, MultipleSnapProjAt, OptionalProperty, OptionalSnapProj,
     OptionalSnapProjAt, SingleProperty, SingleSnapProj, SingleSnapProjAt,

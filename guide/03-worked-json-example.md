@@ -34,7 +34,7 @@ Mini idea (illustrative only):
 ```rust
 use marser::one_of::one_of;
 use marser::parser::{Parser, deferred::recursive};
-use marser_macros::capture;
+use marser::capture;
 use std::rc::Rc;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -80,7 +80,7 @@ Mini idea (illustrative only):
 ```rust
 use marser::one_of::one_of;
 use marser::parser::{Parser, ParserCombinator, deferred::recursive};
-use marser_macros::capture;
+use marser::capture;
 use std::rc::Rc;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -150,7 +150,7 @@ Mini idea (illustrative only):
 ```rust
 use marser::one_of::one_of;
 use marser::parser::{Parser, ParserCombinator, deferred::recursive};
-use marser_macros::capture;
+use marser::capture;
 use std::rc::Rc;
 
 #[derive(Debug, Clone, PartialEq)]

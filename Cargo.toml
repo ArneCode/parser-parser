@@ -40,3 +40,6 @@ marser_macros = { version = "0.1.0", path = "macros" }
 marser-trace-schema = { version = "0.1.0", path = "marser-trace-schema", optional = true }
 serde = { version = "1", features = ["derive"], optional = true }
 serde_json = { version = "1", optional = true }
+
+[dev-dependencies]
+trybuild = "1.0.105"

@@ -1,6 +1,14 @@
 //! Capture “properties”: how each `bind!` slot maps into the live [`MatchResult`] and into its
 //! [`MatchResult::Snapshot`](super::match_result::MatchResult::Snapshot).
 //!
+//! # Bucket semantics (invariants)
+//!
+//! - **`SingleProperty`** — At most one successful write per match attempt for that slot; the
+//!   aggregate holds `Option<_>`.
+//! - **`MultipleProperty`** — Appends on each successful bind in document order within one match;
+//!   the aggregate holds `Vec<_>`.
+//! - **`OptionalProperty`** — At most one write per attempt, like single but for `?` binds.
+//!
 //! Each [`Property`] implementation carries two pieces of logic:
 //! - **Direct** (`direct_setter`): read/write owned values in the aggregate result while matching.
 //! - **Snapshot** (`snapshot_setter`): pick the correct tuple field inside a *snapshot* of one

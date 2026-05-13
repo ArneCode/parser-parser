@@ -1,3 +1,20 @@
+//! Matcher execution driver: [`MatchRunner`] wraps [`crate::context::ParserContext`], records
+//! match attempts with the [`crate::error::ErrorHandler`], and restores input position on failure.
+//!
+//! # Invariants
+//!
+//! - **Input position** — [`MatchRunner::run_match`] saves `old_pos` before [`Matcher::match_with_runner`].
+//!   On `Ok(false)` (soft miss) it restores `input` to `old_pos`. On `Ok(true)` the stream stays
+//!   advanced. On `Err` it restores position and clears context error stack to the pre-match
+//!   length after `register_failure`.
+//! - **Error handler pairing** — Every attempt calls `register_start`, then exactly one of
+//!   `register_success` or `register_failure` for that index (see [`crate::error::ErrorHandler`]).
+//! - **Recovery mode** — [`MatchRunner::is_in_error_recovery_mode`] reflects
+//!   [`crate::context::ParserContext::is_in_error_recovery`] for diagnostics that differ in the
+//!   second pass.
+//! - **Deferred captures** — [`MatchRunner::register_result`] stores [`crate::parser::capture::BoundResult`]
+//!   values at lifetime `'src`; they must not outlive the parse.
+
 use std::marker::PhantomData;
 
 use crate::{

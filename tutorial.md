@@ -28,7 +28,7 @@ The usual top-level flow is:
 ## 2) Minimal parser example
 
 ```rust
-use marser_macros::capture;
+use marser::capture;
 use marser::{
     matcher::{one_of::one_of, multiple::many},
     parser::token_parser::TokenParser,

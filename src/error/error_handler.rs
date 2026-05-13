@@ -1,3 +1,12 @@
+//! Match attempt bookkeeping for furthest-fail and recovery diagnostics.
+//!
+//! # Contract
+//!
+//! [`MatchRunner`](crate::matcher::MatchRunner) calls [`ErrorHandler::register_start`] before each
+//! `match_with_runner` attempt, then exactly one of [`ErrorHandler::register_success`] or
+//! [`ErrorHandler::register_failure`] with the returned indexer. [`register_watermark`] tracks the
+//! furthest input position seen during the attempt for diagnostics.
+
 use std::{collections::HashSet, fmt::Display};
 
 pub(crate) enum ErrorHandlerChoice<'a> {

@@ -13,7 +13,7 @@ use marser::{
     one_of::one_of,
     parser::{DeferredWeak, Parser, ParserCombinator, recursive},
 };
-use marser_macros::capture;
+use marser::capture;
 
 #[derive(Clone, Debug)]
 pub enum UnaryOp {

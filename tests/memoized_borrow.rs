@@ -3,7 +3,7 @@
 use std::rc::Rc;
 
 use marser::parser::{Parser, ParserCombinator};
-use marser_macros::capture;
+use marser::capture;
 
 fn letter_word<'src>() -> impl Parser<'src, &'src str, Output = Rc<&'src str>> + Clone {
     capture!(
