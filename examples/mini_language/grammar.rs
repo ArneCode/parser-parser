@@ -159,7 +159,7 @@ fn number_expr<'src>() -> impl Parser<'src, &'src str, Output = Expr<'src>> {
         negative_lookahead('0'..='9')
         )
         => Box::new(|e: &mut FurthestFailError| {
-            e.add_note_mut("Numbers must have digits after the decimal point");
+            e.add_note("Numbers must have digits after the decimal point");
         }) as Box<_>
     ))
     .recover_with(capture!(
@@ -223,8 +223,8 @@ fn expr<'src>() -> impl Parser<'src, &'src str, Output = Expr<'src>> {
                 ')'.err_if_no_match(use_binds!(|ctx: MatchDiagCtx| {
                     let open_paren_span: Option<(usize, usize)> = open_paren_span.copied();
                     InlineError::new("missing closing parenthesis")
-                        .set_span(Some(ctx.span()))
-                        .add_annotation(
+                        .with_span(Some(ctx.span()))
+                        .with_annotation(
                             open_paren_span.unwrap(),
                             "bracket opened here",
                             AnnotationKind::Context,
@@ -464,7 +464,7 @@ fn block<'src>() -> impl Parser<'src, &'src str, Output = Block<'src>> {
                 negative_lookahead(identifier().ignore_result()),
                 bind_span!((), span)
             ) => Box::new(move|e: &mut FurthestFailError| {
-                e.add_annotation_mut(
+                e.add_annotation(
                     span,
                     "missing identifier",
                     AnnotationKind::Context,

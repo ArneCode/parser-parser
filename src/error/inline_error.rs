@@ -37,7 +37,7 @@ impl InlineError {
     }
 
     pub fn at(span: (usize, usize), message: impl Into<String>) -> Self {
-        Self::new(message).set_span(Some(span))
+        Self::new(message).with_span(Some(span))
     }
 
     /// Span used when reporting (falls back to `(0, 0)` if unset).
@@ -45,49 +45,37 @@ impl InlineError {
         self.span.unwrap_or((0, 0))
     }
 
-    pub fn set_span(mut self, span: Option<(usize, usize)>) -> Self {
+    pub fn with_span(mut self, span: Option<(usize, usize)>) -> Self {
         self.span = span;
         self
     }
 
-    pub fn with_span(self, span: Option<(usize, usize)>) -> Self {
-        self.set_span(span)
-    }
-
-    pub fn set_span_mut(&mut self, span: Option<(usize, usize)>) -> &mut Self {
+    pub fn set_span(&mut self, span: Option<(usize, usize)>) -> &mut Self {
         self.span = span;
         self
     }
 
-    pub fn add_note(mut self, note: impl Into<String>) -> Self {
+    pub fn with_note(mut self, note: impl Into<String>) -> Self {
         self.notes.push(note.into());
         self
     }
 
-    pub fn with_note(self, note: impl Into<String>) -> Self {
-        self.add_note(note)
-    }
-
-    pub fn add_note_mut(&mut self, note: impl Into<String>) -> &mut Self {
+    pub fn add_note(&mut self, note: impl Into<String>) -> &mut Self {
         self.notes.push(note.into());
         self
     }
 
-    pub fn add_help(mut self, help: impl Into<String>) -> Self {
+    pub fn with_help(mut self, help: impl Into<String>) -> Self {
         self.helps.push(help.into());
         self
     }
 
-    pub fn with_help(self, help: impl Into<String>) -> Self {
-        self.add_help(help)
-    }
-
-    pub fn add_help_mut(&mut self, help: impl Into<String>) -> &mut Self {
+    pub fn add_help(&mut self, help: impl Into<String>) -> &mut Self {
         self.helps.push(help.into());
         self
     }
 
-    pub fn add_annotation(
+    pub fn with_annotation(
         mut self,
         span: (usize, usize),
         message: impl Into<String>,
@@ -101,16 +89,7 @@ impl InlineError {
         self
     }
 
-    pub fn with_annotation(
-        self,
-        span: (usize, usize),
-        message: impl Into<String>,
-        kind: AnnotationKind,
-    ) -> Self {
-        self.add_annotation(span, message, kind)
-    }
-
-    pub fn add_annotation_mut(
+    pub fn add_annotation(
         &mut self,
         span: (usize, usize),
         message: impl Into<String>,
@@ -190,7 +169,7 @@ impl<MRes: MatchResult> BuildInlineError<MRes> for MissingSyntax {
     where
         MRes: 'snap,
     {
-        InlineError::new(self.0.clone()).set_span(Some((ctx.start, ctx.start)))
+        InlineError::new(self.0.clone()).with_span(Some((ctx.start, ctx.start)))
     }
 }
 
@@ -206,7 +185,7 @@ impl<MRes: MatchResult> BuildInlineError<MRes> for UnwantedSyntax {
     where
         MRes: 'snap,
     {
-        InlineError::new(self.0.clone()).set_span(Some((ctx.start, ctx.end)))
+        InlineError::new(self.0.clone()).with_span(Some((ctx.start, ctx.end)))
     }
 }
 

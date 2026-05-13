@@ -152,12 +152,12 @@ pub fn get_json_grammar<'src>() -> impl Parser<'src, &'src str, Output = JsonVal
                     '0'..='9'
                 )
                 => Box::new(move |err: &mut FurthestFailError|{
-                    err.add_annotation_mut(
+                    err.add_annotation(
                         zero,
                         "leading zero",
                         AnnotationKind::Context,
                     )
-                    .add_note_mut("Leading zeros are not allowed in JSON numbers".to_string());
+                    .add_note("Leading zeros are not allowed in JSON numbers".to_string());
                 }) as Box<dyn Fn(&mut FurthestFailError)>
             ),
             capture!(
@@ -166,12 +166,12 @@ pub fn get_json_grammar<'src>() -> impl Parser<'src, &'src str, Output = JsonVal
                     bind_span!('.', dot),
                 )
                 => Box::new(move |err: &mut FurthestFailError|{
-                    err.add_annotation_mut(
+                    err.add_annotation(
                         dot,
                         "missing integer part",
                         AnnotationKind::Context,
                     )
-                    .add_note_mut("Floating point numbers need an integer part".to_string());
+                    .add_note("Floating point numbers need an integer part".to_string());
             }) as Box<dyn Fn(&mut FurthestFailError)>
             ),
         )))
@@ -239,7 +239,7 @@ pub fn get_json_grammar<'src>() -> impl Parser<'src, &'src str, Output = JsonVal
             })
             .add_error_info(capture!(
                 bind_span!('"', quote) => Box::new(move |err: &mut FurthestFailError|{
-                err.add_annotation_mut(
+                err.add_annotation(
                     quote,
                     "unmatched quote",
                     AnnotationKind::Context,
