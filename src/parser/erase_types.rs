@@ -62,10 +62,16 @@ where
         self.inner.maybe_label()
     }
 }
-pub fn erase<'a, 'src, Inp, Out, P>(p: P) -> Erased<'a, 'src, Inp, Out>
+/// Boxes `p` behind a trait object whose **self** lifetime equals `'src`.
+///
+/// We tie `'a = 'src` on [`Erased`] so callers cannot instantiate an erased parser
+/// with an unconstrained `'a` lifetime (rustc would otherwise happily infer
+/// `'a = 'static`, which incorrectly forces `'src` to outlive `'static` whenever
+/// the output type contains `'_`/`'src` placeholders).
+pub fn erase<'src, Inp, Out, P>(p: P) -> Erased<'src, 'src, Inp, Out>
 where
-    Inp: Input<'src>,
-    P: Parser<'src, Inp, Output = Out> + 'a,
+    Inp: Input<'src> + 'src,
+    P: Parser<'src, Inp, Output = Out> + 'src,
 {
     Erased { inner: Box::new(p) }
 }

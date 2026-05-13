@@ -24,6 +24,10 @@ use std::rc::Rc;
 #[cfg(feature = "parser-trace")]
 use std::{fs::File, io, path::Path};
 
+#[cfg(feature = "parser-trace")]
+use crate::trace::TraceFormat;
+#[cfg(feature = "parser-trace")]
+use crate::trace::TraceSession;
 use crate::{
     context::ParserContext,
     error::{FurthestFailError, ParserError, error_handler::EmptyErrorHandler},
@@ -33,10 +37,6 @@ use crate::{
     },
     parser::{Parser, internal::ParserImpl},
 };
-#[cfg(feature = "parser-trace")]
-use crate::trace::TraceSession;
-#[cfg(feature = "parser-trace")]
-use crate::trace::TraceFormat;
 
 /// Parse all of `src` with a small driver around `parser`.
 ///
@@ -76,7 +76,10 @@ fn parse_inner_with_trace<'src, Pars, Out: 'src>(
     parser: Pars,
     src: &'src str,
     trace_session: TraceSession,
-) -> (Result<(Out, Vec<ParserError>), FurthestFailError>, TraceSession)
+) -> (
+    Result<(Out, Vec<ParserError>), FurthestFailError>,
+    TraceSession,
+)
 where
     Pars: Parser<'src, &'src str, Output = Out> + 'src,
 {

@@ -150,11 +150,14 @@ where
 }
 
 /// Creates a [`Deferred`] parser: `parser_fn` receives a weak handle and must return the real parser.
-pub fn recursive<'a, 'src, Inp, Output, F, Pars>(parser_fn: F) -> Deferred<'a, 'src, Inp, Output>
+///
+/// The erased cell lifetime is **`'src`**, matching parsers whose stored data lives for the parse
+/// session (see [`crate::parser::erase_types::erase`] for why `'a ≠ 'src` inference was problematic).
+pub fn recursive<'src, Inp, Output, F, Pars>(parser_fn: F) -> Deferred<'src, 'src, Inp, Output>
 where
     Inp: Input<'src>,
-    F: FnOnce(DeferredWeak<'a, 'src, Inp, Output>) -> Pars,
-    Pars: Parser<'src, Inp, Output = Output> + 'a,
+    F: FnOnce(DeferredWeak<'src, 'src, Inp, Output>) -> Pars,
+    Pars: Parser<'src, Inp, Output = Output> + 'src,
 {
     let deferred = Deferred::new();
     let parser = parser_fn(deferred.clone_weak());

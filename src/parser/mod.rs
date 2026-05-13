@@ -157,11 +157,11 @@ pub trait ParserCombinator {
     ///
     /// This is useful when parser combinator types become very large and you
     /// want a stable, uniform type at the cost of dynamic dispatch.
-    fn erase_types<'a, 'src, Inp, Out>(self) -> erase_types::Erased<'a, 'src, Inp, Out>
+    fn erase_types<'src, Inp, Out>(self) -> erase_types::Erased<'src, 'src, Inp, Out>
     where
-        Self: Sized + Parser<'src, Inp, Output = Out> + 'a,
-        Inp: Input<'src> + 'a,
-        Out: 'a,
+        Self: Sized + Parser<'src, Inp, Output = Out> + 'src,
+        Inp: Input<'src> + 'src,
+        Out: 'src,
     {
         erase_types::erase(self)
     }
@@ -175,11 +175,11 @@ pub trait ParserCombinator {
     /// This keeps call sites stable while allowing opt-in type erasure from
     /// Cargo features instead of debug/release profile differences.
     #[cfg(feature = "parser-erased")]
-    fn maybe_erase_types<'a, 'src, Inp, Out>(self) -> erase_types::Erased<'a, 'src, Inp, Out>
+    fn maybe_erase_types<'src, Inp, Out>(self) -> erase_types::Erased<'src, 'src, Inp, Out>
     where
-        Self: Sized + Parser<'src, Inp, Output = Out> + 'a,
-        Inp: Input<'src> + 'a,
-        Out: 'a,
+        Self: Sized + Parser<'src, Inp, Output = Out> + 'src,
+        Inp: Input<'src> + 'src,
+        Out: 'src,
     {
         erase_types::erase(self)
     }

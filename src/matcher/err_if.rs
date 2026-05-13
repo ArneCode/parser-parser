@@ -1,0 +1,168 @@
+//! Matchers that emit [`crate::error::InlineError`] when an inner pattern matches / does not match.
+
+use std::fmt;
+
+use crate::{
+    error::{BuildInlineError, FurthestFailError, MatchDiagCtx, ParserError},
+    input::{Input, InputStream},
+    matcher::{Matcher, MatcherCombinator, internal::MatcherImpl},
+    parser::capture::MatchResult,
+};
+
+#[derive(Clone)]
+pub struct ErrIfNoMatchMatcher<Inner, F> {
+    pub inner: Inner,
+    pub factory: F,
+}
+
+impl<Inner, F> ErrIfNoMatchMatcher<Inner, F> {
+    pub fn new(inner: Inner, factory: F) -> Self {
+        Self { inner, factory }
+    }
+}
+
+impl<Inner, F> fmt::Debug for ErrIfNoMatchMatcher<Inner, F> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("ErrIfNoMatchMatcher")
+            .finish_non_exhaustive()
+    }
+}
+
+impl<Inner, F> MatcherCombinator for ErrIfNoMatchMatcher<Inner, F> where Inner: MatcherCombinator {}
+
+impl<'src, Inp: Input<'src>, MRes, Inner, F> MatcherImpl<'src, Inp, MRes>
+    for ErrIfNoMatchMatcher<Inner, F>
+where
+    Inner: Matcher<'src, Inp, MRes>,
+    F: BuildInlineError<MRes>,
+    Inp: Input<'src>,
+    MRes: MatchResult,
+{
+    const CAN_MATCH_DIRECTLY: bool = Inner::CAN_MATCH_DIRECTLY;
+    const HAS_PROPERTY: bool = Inner::HAS_PROPERTY;
+    const CAN_FAIL: bool = true;
+
+    fn match_with_runner<'a, Runner>(
+        &'a self,
+        runner: &mut Runner,
+        error_handler: &mut impl crate::error::error_handler::ErrorHandler,
+        input: &mut InputStream<'src, Inp>,
+    ) -> Result<bool, FurthestFailError>
+    where
+        Runner: super::MatchRunner<'a, 'src, Inp, MRes = MRes>,
+        'src: 'a,
+    {
+        let start_pos: usize = input.get_pos().into();
+        match runner.run_match(&self.inner, error_handler, input)? {
+            true => Ok(true),
+            false => {
+                if error_handler.is_real() {
+                    let ctx = MatchDiagCtx::insertion_point(start_pos);
+                    let err = runner.with_snapshot(|snap| {
+                        self.factory.build_inline_error(ctx, snap)
+                    });
+                    runner
+                        .get_parser_context()
+                        .push_stack_error(ParserError::Inline(err));
+                    Ok(true)
+                } else {
+                    Ok(false)
+                }
+            }
+        }
+    }
+}
+
+#[derive(Clone)]
+pub struct ErrIfMatchedMatcher<Inner, F> {
+    pub inner: Inner,
+    pub factory: F,
+}
+
+impl<Inner, F> ErrIfMatchedMatcher<Inner, F> {
+    pub fn new(inner: Inner, factory: F) -> Self {
+        Self { inner, factory }
+    }
+}
+
+impl<Inner, F> fmt::Debug for ErrIfMatchedMatcher<Inner, F> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("ErrIfMatchedMatcher")
+            .finish_non_exhaustive()
+    }
+}
+
+impl<Inner, F> MatcherCombinator for ErrIfMatchedMatcher<Inner, F> where Inner: MatcherCombinator {}
+
+impl<'src, Inp: Input<'src>, MRes, Inner, F> MatcherImpl<'src, Inp, MRes>
+    for ErrIfMatchedMatcher<Inner, F>
+where
+    Inner: Matcher<'src, Inp, MRes>,
+    F: BuildInlineError<MRes>,
+    Inp: Input<'src>,
+    MRes: MatchResult,
+{
+    const CAN_MATCH_DIRECTLY: bool = true;
+    const HAS_PROPERTY: bool = false;
+    const CAN_FAIL: bool = true;
+
+    fn match_with_runner<'a, Runner>(
+        &'a self,
+        runner: &mut Runner,
+        error_handler: &mut impl crate::error::error_handler::ErrorHandler,
+        input: &mut InputStream<'src, Inp>,
+    ) -> Result<bool, FurthestFailError>
+    where
+        Runner: super::MatchRunner<'a, 'src, Inp, MRes = MRes>,
+        'src: 'a,
+    {
+        let start_pos: usize = input.get_pos().into();
+        let matched = runner.run_match(&self.inner, error_handler, input)?;
+        if matched && error_handler.is_real() {
+            let end_pos: usize = input.get_pos().into();
+            let ctx = MatchDiagCtx {
+                start: start_pos,
+                end: end_pos,
+            };
+            let err = runner.with_snapshot(|snap| self.factory.build_inline_error(ctx, snap));
+            runner
+                .get_parser_context()
+                .push_stack_error(ParserError::Inline(err));
+        }
+        Ok(matched)
+    }
+}
+
+pub fn err_if_no_match<Inner, F>(inner: Inner, factory: F) -> ErrIfNoMatchMatcher<Inner, F>
+where
+    Inner: super::MatcherCombinator,
+{
+    ErrIfNoMatchMatcher::new(inner, factory)
+}
+
+pub fn try_insert_if_missing<Inner>(
+    inner: Inner,
+    message: impl Into<String>,
+) -> ErrIfNoMatchMatcher<Inner, crate::error::MissingSyntax>
+where
+    Inner: super::MatcherCombinator,
+{
+    ErrIfNoMatchMatcher::new(inner, crate::error::MissingSyntax(message.into()))
+}
+
+pub fn err_if_matched<Inner, F>(inner: Inner, factory: F) -> ErrIfMatchedMatcher<Inner, F>
+where
+    Inner: super::MatcherCombinator,
+{
+    ErrIfMatchedMatcher::new(inner, factory)
+}
+
+pub fn unwanted<Inner>(
+    inner: Inner,
+    message: impl Into<String>,
+) -> ErrIfMatchedMatcher<Inner, crate::error::UnwantedSyntax>
+where
+    Inner: super::MatcherCombinator,
+{
+    ErrIfMatchedMatcher::new(inner, crate::error::UnwantedSyntax(message.into()))
+}

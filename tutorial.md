@@ -133,7 +133,7 @@ This helper also enforces full input consumption (via lookahead) so trailing gar
 You have:
 
 - `ParserError` with span + expected labels
-- `err.eprint_ariadne(file, source)` for rich terminal diagnostics
+- `ParserError::eprint_many(&errors, file, source)` for rich terminal diagnostics
 - `add_error_info(...)` to attach contextual annotations to failures
 
 Best practice:

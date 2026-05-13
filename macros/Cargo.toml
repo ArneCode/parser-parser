@@ -15,4 +15,4 @@ proc-macro = true
 proc-macro-crate = "3"
 proc-macro2 = "1.0.106"
 quote = "1.0.45"
-syn = { version = "2.0.117", features = ["full", "visit-mut"] }
+syn = { version = "2.0.117", features = ["full", "visit", "visit-mut"] }

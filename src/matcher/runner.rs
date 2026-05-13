@@ -74,9 +74,18 @@ where
     fn get_parser_context(&mut self) -> &mut ParserContext;
 
     fn apply_results(&mut self, results: Vec<Box<dyn BoundResult<Self::MRes> + 'src>>);
+    /// Build a read-only snapshot of captures committed so far and pass it to `f`.
+    fn with_snapshot<R, F>(&self, f: F) -> R
+    where
+        F: FnOnce(<Self::MRes as MatchResult>::Snapshot<'_>) -> R;
     fn maybe_get_as_direct_match_runner(
         &mut self,
     ) -> Option<&mut DirectMatchRunner<'a, 'src, Inp, Self::MRes>> {
+        None
+    }
+    fn maybe_get_as_no_memo_runner(
+        &mut self,
+    ) -> Option<&mut NoMemoizeBacktrackingRunner<'a, 'src, Inp, Self::MRes>> {
         None
     }
 }
@@ -153,6 +162,23 @@ where
     fn apply_results(&mut self, results: Vec<Box<dyn BoundResult<Self::MRes> + 'src>>) {
         self.stack.extend(results);
     }
+
+    fn with_snapshot<R, F>(&self, f: F) -> R
+    where
+        F: FnOnce(MRes::Snapshot<'_>) -> R,
+    {
+        let mut snap = MRes::new_empty_snapshot();
+        for bound in &self.stack {
+            bound.put_ref_in_snapshot(&mut snap);
+        }
+        f(snap)
+    }
+
+    fn maybe_get_as_no_memo_runner(
+        &mut self,
+    ) -> Option<&mut NoMemoizeBacktrackingRunner<'a, 'src, Inp, Self::MRes>> {
+        Some(self)
+    }
 }
 
 pub(crate) struct DirectMatchRunner<'a, 'src, Inp, MRes> {
@@ -175,6 +201,10 @@ impl<'a, 'src, Inp: Input<'src>, MRes> DirectMatchRunner<'a, 'src, Inp, MRes> {
 
     pub(crate) fn get_match_result_mut(&mut self) -> &mut MRes {
         &mut self.result
+    }
+
+    pub(crate) fn match_result_ref(&self) -> &MRes {
+        &self.result
     }
 }
 
@@ -215,6 +245,13 @@ where
         for result in results {
             result.put_boxed_in_result(&mut self.result);
         }
+    }
+
+    fn with_snapshot<R, F>(&self, f: F) -> R
+    where
+        F: FnOnce(MRes::Snapshot<'_>) -> R,
+    {
+        f(self.result.snapshot())
     }
 
     fn maybe_get_as_direct_match_runner(

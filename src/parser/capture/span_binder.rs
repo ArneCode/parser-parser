@@ -2,6 +2,7 @@ use crate::{
     error::{FurthestFailError, error_handler::ErrorHandler},
     input::{Input, InputStream},
     matcher::{Matcher, MatcherCombinator, internal::MatcherImpl, runner::MatchRunner},
+    parser::capture::MatchResult,
 };
 
 use super::{bound::BoundValue, property::Property};
@@ -13,7 +14,8 @@ pub struct SpanBinder<Match, Prop> {
     pub(super) property: Prop,
 }
 
-impl<Match, Prop> std::fmt::Debug for SpanBinder<Match, Prop> where
+impl<Match, Prop> std::fmt::Debug for SpanBinder<Match, Prop>
+where
     Match: std::fmt::Debug,
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -30,10 +32,7 @@ impl<Match, Prop> SpanBinder<Match, Prop> {
     }
 }
 
-impl<Match, Prop> MatcherCombinator for SpanBinder<Match, Prop> where
-    Match: MatcherCombinator
-{
-}
+impl<Match, Prop> MatcherCombinator for SpanBinder<Match, Prop> where Match: MatcherCombinator {}
 
 /// Convenience constructor for [`SpanBinder`].
 pub fn bind_span<Match, Prop>(matcher: Match, property: Prop) -> SpanBinder<Match, Prop> {
@@ -45,6 +44,7 @@ impl<'src, Inp: Input<'src>, MRes, Match, Prop> MatcherImpl<'src, Inp, MRes>
 where
     Match: Matcher<'src, Inp, MRes>,
     Inp: Input<'src>,
+    MRes: MatchResult,
     Prop: Property<(Inp::Pos, Inp::Pos), MRes> + Clone + 'src,
 {
     const CAN_MATCH_DIRECTLY: bool = Match::CAN_MATCH_DIRECTLY;

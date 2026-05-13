@@ -1,15 +1,14 @@
 use marser::{
-    error::FurthestFailError,
+    error::{AnnotationKind, FurthestFailError, InlineError, MatchDiagCtx},
     label::WithLabel,
     matcher::{
-        Matcher, MatcherCombinator, commit_on,
+        Matcher, MatcherCombinator, commit_on, unwanted,
         if_error::{if_error, if_error_else_fail},
         many, negative_lookahead,
         none_of::none_of,
         one_or_more, optional,
         parser_matcher::match_parsed,
         positive_lookahead,
-        unwanted::unwanted,
     },
     one_of::one_of,
     parser::{DeferredWeak, Parser, ParserCombinator, recursive},
@@ -160,7 +159,7 @@ fn number_expr<'src>() -> impl Parser<'src, &'src str, Output = Expr<'src>> {
         negative_lookahead('0'..='9')
         )
         => Box::new(|e: &mut FurthestFailError| {
-            e.add_note("Numbers must have digits after the decimal point");
+            e.add_note_mut("Numbers must have digits after the decimal point");
         }) as Box<_>
     ))
     .recover_with(capture!(
@@ -207,7 +206,7 @@ fn expr<'src>() -> impl Parser<'src, &'src str, Output = Expr<'src>> {
         let function_call = capture!(
             commit_on((
                 bind!(user_identifier(), name),
-                '('
+                bind_span!('(', open_paren_span as (usize, usize))
             ),(
                 optional((
                     bind!(expr.clone(), *args),
@@ -221,7 +220,16 @@ fn expr<'src>() -> impl Parser<'src, &'src str, Output = Expr<'src>> {
                     if_error(many(unwanted(',', "trailing comma"))),
                 )),
                 if_error(many(unwanted(',', "missing argument"))),
-                ')'.try_insert_if_missing("missing closing parenthesis")
+                ')'.err_if_no_match(use_binds!(|ctx: MatchDiagCtx| {
+                    let open_paren_span: Option<(usize, usize)> = open_paren_span.copied();
+                    InlineError::new("missing closing parenthesis")
+                        .set_span(Some(ctx.span()))
+                        .add_annotation(
+                            open_paren_span.unwrap(),
+                            "bracket opened here",
+                            AnnotationKind::Context,
+                        )
+                }))
             )
             ) => Expr::FuncCall { name, args }
         );
@@ -248,28 +256,30 @@ fn expr<'src>() -> impl Parser<'src, &'src str, Output = Expr<'src>> {
             var_expr,
             group,
             invalid_expr,
-        ))
-        .maybe_erase_types();
+        ));
 
-        let unary = one_of((capture!(
-            (
-                one_or_more(bind!(one_of(('-'.to(UnaryOp::Neg), '!'.to(UnaryOp::Not))), *ops)),
-                inline_whitespace(),
-                one_of((
-                    bind!(primary.clone(), operand),
-                    if_error_else_fail(unwanted(
-                        bind!(().to(Expr::Invalid("")), operand),
-                        "missing operand after unary operator"
+        let unary = one_of((
+            capture!(
+                (
+                    one_or_more(bind!(one_of(('-'.to(UnaryOp::Neg), '!'.to(UnaryOp::Not))), *ops)),
+                    inline_whitespace(),
+                    one_of((
+                        bind!(primary.clone(), operand),
+                        if_error_else_fail(unwanted(
+                            bind!(().to(Expr::Invalid("")), operand),
+                            "missing operand after unary operator"
+                        ))
                     ))
-                ))
-            )
-            => ops.into_iter().rev().fold(operand, |acc, op| {
-                Expr::UnaryOp {
-                    operand: Box::new(acc),
-                    op,
-                }
-            })
-        ), primary.clone()))
+                )
+                => ops.into_iter().rev().fold(operand, |acc, op| {
+                    Expr::UnaryOp {
+                        operand: Box::new(acc),
+                        op,
+                    }
+                })
+            ),
+            primary.clone(),
+        ))
         .maybe_erase_types();
 
         let mul_or_div = capture!(
@@ -421,15 +431,13 @@ fn expr<'src>() -> impl Parser<'src, &'src str, Output = Expr<'src>> {
         .maybe_erase_types();
 
         one_of((
-            if_error_else_fail(
-                capture!((
+            if_error_else_fail(capture!((
                     bind!(or_expr.clone(), valid_expr),
                     many((
                         unwanted((), "missing operand"),
                         or_expr.clone().ignore_result()
                     )),
-                ) => valid_expr)
-            ),
+                ) => valid_expr)),
             or_expr,
         ))
     })
@@ -451,15 +459,17 @@ fn block<'src>() -> impl Parser<'src, &'src str, Output = Block<'src>> {
                 )
             ) => Statement::Let { name, value }
         )
-        .add_error_info(one_of((
-            capture!((
+        .add_error_info(one_of((capture!((
                 match_parsed(identifier(), "let"),
                 negative_lookahead(identifier().ignore_result()),
                 bind_span!((), span)
             ) => Box::new(move|e: &mut FurthestFailError| {
-                e.add_extra_label(span, "missing identifier", ariadne::Color::Blue);
-            }) as Box<_>),
-        )))
+                e.add_annotation_mut(
+                    span,
+                    "missing identifier",
+                    AnnotationKind::Context,
+                );
+            }) as Box<_>),)))
         .maybe_erase_types();
 
         let assign_stmt = capture!(
@@ -597,7 +607,8 @@ fn function_def<'src>() -> impl Parser<'src, &'src str, Output = FunctionDef<'sr
     .maybe_erase_types()
 }
 
-pub fn get_mini_language_grammar<'src>() -> impl Parser<'src, &'src str, Output = Vec<FunctionDef<'src>>> {
+pub fn get_mini_language_grammar<'src>()
+-> impl Parser<'src, &'src str, Output = Vec<FunctionDef<'src>>> {
     capture!(
         (
             whitespace(),

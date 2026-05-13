@@ -21,4 +21,6 @@ pub use result_binder::{ResultBinder, bind_result};
 pub use slice_binder::{SliceBinder, bind_slice};
 pub use span_binder::{SpanBinder, bind_span};
 
-pub(crate) use match_result::MatchResult;
+pub use match_result::{
+    MatchResult, MatchResultMultiple, MatchResultOptional, MatchResultSingle,
+};

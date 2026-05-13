@@ -2,7 +2,7 @@ use crate::{
     error::{FurthestFailError, error_handler::ErrorHandler},
     input::{InputStream, SliceableInput},
     matcher::{MatchRunner, Matcher, MatcherCombinator, internal::MatcherImpl},
-    parser::{BoundValue, Property},
+    parser::{BoundValue, Property, capture::MatchResult},
 };
 
 #[derive(Clone)]
@@ -11,7 +11,8 @@ pub struct SliceBinder<Match, Prop> {
     pub(super) property: Prop,
 }
 
-impl<Match, Prop> std::fmt::Debug for SliceBinder<Match, Prop> where
+impl<Match, Prop> std::fmt::Debug for SliceBinder<Match, Prop>
+where
     Match: std::fmt::Debug,
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -33,15 +34,13 @@ pub fn bind_slice<Match, Prop>(matcher: Match, property: Prop) -> SliceBinder<Ma
     SliceBinder::new(matcher, property)
 }
 
-impl<Match, Prop> MatcherCombinator for SliceBinder<Match, Prop> where
-    Match: MatcherCombinator
-{
-}
+impl<Match, Prop> MatcherCombinator for SliceBinder<Match, Prop> where Match: MatcherCombinator {}
 
 impl<'src, Inp: SliceableInput<'src>, MRes, Match, Prop> MatcherImpl<'src, Inp, MRes>
     for SliceBinder<Match, Prop>
 where
     Match: Matcher<'src, Inp, MRes>,
+    MRes: MatchResult,
     Prop: Property<Inp::Slice, MRes> + Clone + 'src,
 {
     const CAN_MATCH_DIRECTLY: bool = Match::CAN_MATCH_DIRECTLY;

@@ -148,13 +148,13 @@ impl ErrorHandler for MultiErrorHandler {
 // ── MultiErrorHandler → ParserError ─────────────────────────────────────────
 
 impl MultiErrorHandler {
-    /// Convert the accumulated error state into a [`ParserError`].
+    /// Convert the accumulated error state into a [`FurthestFailError`].
     ///
     /// * If any errors were recorded, `span` covers `best_failure_slice`.
     /// * If no errors were recorded (e.g. the parse succeeded or never
     ///   encountered a labelled failure), falls back to the **bottom slice**
     ///   — the outermost span tracking how far the parser actually reached.
-    pub fn to_parser_error(&self) -> FurthestFailError {
+    pub fn to_parser_error(&self) -> crate::error::FurthestFailError {
         let has_errors = !self.expected_labels.is_empty();
 
         let span = if has_errors {
@@ -174,62 +174,12 @@ impl MultiErrorHandler {
             .into_iter()
             .collect();
 
-        FurthestFailError {
+        crate::error::FurthestFailError {
             span,
             expected,
-            annotations: ParserErrorAnnotations::default(),
+            annotations: Vec::new(),
+            notes: Vec::new(),
+            helps: Vec::new(),
         }
-    }
-}
-
-impl Display for FurthestFailError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let expected_msg = match self.expected.len() {
-            0 => "unexpected token".to_string(),
-            1 => format!("expected {}", self.expected[0]),
-            _ => {
-                // Sorting for consistent output
-                let mut sorted = self.expected.clone();
-                sorted.sort();
-                format!("expected one of {}", sorted.join(", "))
-            }
-        };
-
-        // Output format: "expected one of String, Number at 10..15"
-        write!(f, "{} at {}..{}", expected_msg, self.span.0, self.span.1)
-    }
-}
-
-use std::fmt::{Debug, Formatter};
-
-use crate::error::{ExtraLabel, FurthestFailError, ParserErrorAnnotations};
-
-impl Debug for ExtraLabel {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("ExtraLabel")
-            .field("span", &self.span)
-            .field("message", &self.message)
-            .field("color", &format_args!("{:?}", self.color))
-            .finish()
-    }
-}
-
-impl Debug for ParserErrorAnnotations {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("ParserErrorAnnotations")
-            .field("notes", &self.notes)
-            .field("help", &self.help)
-            .field("extra_labels", &self.extra_labels)
-            .finish()
-    }
-}
-
-impl Debug for FurthestFailError {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("ParserError")
-            .field("span", &self.span)
-            .field("expected", &self.expected)
-            .field("annotations", &self.annotations)
-            .finish()
     }
 }

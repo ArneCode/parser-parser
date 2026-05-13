@@ -5,7 +5,7 @@ use marser_macros::capture;
 #[cfg(feature = "parser-trace")]
 use marser::trace::TraceFormat;
 use marser::{
-    error::{FurthestFailError, ParserError},
+    error::{AnnotationKind, FurthestFailError, ParserError},
     label::WithLabel,
     trace::WithTrace,
     matcher::{
@@ -17,7 +17,7 @@ use marser::{
         one_or_more::one_or_more,
         optional::optional,
         positive_lookahead,
-        unwanted::unwanted,
+        unwanted,
     },
     one_of::one_of,
     parser::{Parser, ParserCombinator, deferred::recursive, token_parser::TokenParser},
@@ -152,8 +152,12 @@ pub fn get_json_grammar<'src>() -> impl Parser<'src, &'src str, Output = JsonVal
                     '0'..='9'
                 )
                 => Box::new(move |err: &mut FurthestFailError|{
-                    err.add_extra_label(zero,"leading zero",ariadne::Color::Blue);
-                    err.add_note("Leading zeros are not allowed in JSON numbers".to_string());
+                    err.add_annotation_mut(
+                        zero,
+                        "leading zero",
+                        AnnotationKind::Context,
+                    )
+                    .add_note_mut("Leading zeros are not allowed in JSON numbers".to_string());
                 }) as Box<dyn Fn(&mut FurthestFailError)>
             ),
             capture!(
@@ -162,8 +166,12 @@ pub fn get_json_grammar<'src>() -> impl Parser<'src, &'src str, Output = JsonVal
                     bind_span!('.', dot),
                 )
                 => Box::new(move |err: &mut FurthestFailError|{
-                    err.add_extra_label(dot,"missing integer part",ariadne::Color::Blue);
-                    err.add_note("Floating point numbers need an integer part".to_string());
+                    err.add_annotation_mut(
+                        dot,
+                        "missing integer part",
+                        AnnotationKind::Context,
+                    )
+                    .add_note_mut("Floating point numbers need an integer part".to_string());
             }) as Box<dyn Fn(&mut FurthestFailError)>
             ),
         )))
@@ -231,7 +239,11 @@ pub fn get_json_grammar<'src>() -> impl Parser<'src, &'src str, Output = JsonVal
             })
             .add_error_info(capture!(
                 bind_span!('"', quote) => Box::new(move |err: &mut FurthestFailError|{
-                err.add_extra_label(quote,"unmatched quote",ariadne::Color::Blue);
+                err.add_annotation_mut(
+                    quote,
+                    "unmatched quote",
+                    AnnotationKind::Context,
+                );
             }) as Box<dyn Fn(&mut FurthestFailError)>
             )),
         )
@@ -369,7 +381,7 @@ fn usage(program: &str) -> ! {
 }
 
 fn print_parse_ok(value: &JsonValue<'_>, errors: &[ParserError], path: &str, source: &str) {
-    ParserError::eprint_many_miette(errors, path, source);
+    ParserError::eprint_many(errors, path, source);
     println!("\n--- Recovered JSON: ---");
     println!("{}", value.serialize_pretty());
 }
@@ -446,7 +458,7 @@ where
                 print_parse_ok(&value, &errors, path, sample);
             }
             Err(marser::ParseWithTraceToFileError::Parse(err)) => {
-                err.eprint_ariadne(path, sample)
+                err.eprint(path, sample)
             }
             Err(marser::ParseWithTraceToFileError::Io(err)) => {
                 eprintln!("Failed to write trace file '{trace_file_path}': {err}");
@@ -458,7 +470,7 @@ where
             Ok((value, errors, _trace)) => {
                 print_parse_ok(&value, &errors, path, sample);
             }
-            Err(err) => err.eprint_ariadne(path, sample),
+            Err(err) => err.eprint(path, sample),
         }
     }
 }
@@ -472,7 +484,7 @@ where
         Ok((value, errors)) => {
             print_parse_ok(&value, &errors, path, sample);
         }
-        Err(err) => err.eprint_ariadne(path, sample),
+        Err(err) => err.eprint(path, sample),
     }
 }
 
