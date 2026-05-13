@@ -73,7 +73,6 @@ where
 
     fn get_parser_context(&mut self) -> &mut ParserContext;
 
-    fn apply_results(&mut self, results: Vec<Box<dyn BoundResult<Self::MRes> + 'src>>);
     /// Build a read-only snapshot of captures committed so far and pass it to `f`.
     fn with_snapshot<R, F>(&self, f: F) -> R
     where
@@ -81,17 +80,6 @@ where
 
     /// `true` when [`ParserContext::is_in_error_recovery`] is set by the global parse driver.
     fn is_in_error_recovery_mode(&self) -> bool;
-
-    fn maybe_get_as_direct_match_runner(
-        &mut self,
-    ) -> Option<&mut DirectMatchRunner<'a, 'src, Inp, Self::MRes>> {
-        None
-    }
-    fn maybe_get_as_no_memo_runner(
-        &mut self,
-    ) -> Option<&mut NoMemoizeBacktrackingRunner<'a, 'src, Inp, Self::MRes>> {
-        None
-    }
 }
 
 pub(crate) struct NoMemoizeBacktrackingRunner<'a, 'src, Inp, MRes> {
@@ -107,17 +95,6 @@ impl<'a, 'src, Inp: Input<'src>, MRes> NoMemoizeBacktrackingRunner<'a, 'src, Inp
             _phantom: PhantomData,
             stack: Vec::new(),
         }
-    }
-}
-
-impl<'a, 'src, Inp: Input<'src>, MRes> NoMemoizeBacktrackingRunner<'a, 'src, Inp, MRes> {
-    pub(crate) fn get_data(
-        self,
-    ) -> (
-        &'a mut ParserContext,
-        Vec<Box<dyn BoundResult<MRes> + 'src>>,
-    ) {
-        (self.parser_context, self.stack)
     }
 }
 
@@ -163,10 +140,6 @@ where
         self.parser_context
     }
 
-    fn apply_results(&mut self, results: Vec<Box<dyn BoundResult<Self::MRes> + 'src>>) {
-        self.stack.extend(results);
-    }
-
     fn with_snapshot<R, F>(&self, f: F) -> R
     where
         F: FnOnce(MRes::Snapshot<'_>) -> R,
@@ -180,12 +153,6 @@ where
 
     fn is_in_error_recovery_mode(&self) -> bool {
         self.parser_context.is_in_error_recovery
-    }
-
-    fn maybe_get_as_no_memo_runner(
-        &mut self,
-    ) -> Option<&mut NoMemoizeBacktrackingRunner<'a, 'src, Inp, Self::MRes>> {
-        Some(self)
     }
 }
 
@@ -205,14 +172,6 @@ impl<'a, 'src, Inp: Input<'src>, MRes> DirectMatchRunner<'a, 'src, Inp, MRes> {
             _phantom: PhantomData,
             result: MRes::new_empty(),
         }
-    }
-
-    pub(crate) fn get_match_result_mut(&mut self) -> &mut MRes {
-        &mut self.result
-    }
-
-    pub(crate) fn match_result_ref(&self) -> &MRes {
-        &self.result
     }
 }
 
@@ -249,12 +208,6 @@ where
         self.parser_context
     }
 
-    fn apply_results(&mut self, results: Vec<Box<dyn BoundResult<Self::MRes> + 'src>>) {
-        for result in results {
-            result.put_boxed_in_result(&mut self.result);
-        }
-    }
-
     fn with_snapshot<R, F>(&self, f: F) -> R
     where
         F: FnOnce(MRes::Snapshot<'_>) -> R,
@@ -264,11 +217,5 @@ where
 
     fn is_in_error_recovery_mode(&self) -> bool {
         self.parser_context.is_in_error_recovery
-    }
-
-    fn maybe_get_as_direct_match_runner(
-        &mut self,
-    ) -> Option<&mut DirectMatchRunner<'a, 'src, Inp, Self::MRes>> {
-        Some(self)
     }
 }

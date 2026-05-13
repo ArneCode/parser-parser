@@ -1,4 +1,6 @@
-use std::{env, fs, process, rc::Rc};
+#[cfg(not(test))]
+use std::{env, fs, process};
+use std::rc::Rc;
 
 use marser_macros::capture;
 
@@ -347,7 +349,7 @@ pub fn get_json_grammar<'src>() -> impl Parser<'src, &'src str, Output = JsonVal
         .with_label("invalid element")
         .maybe_erase_types();
 
-        let element = capture!((
+        capture!((
             ws.clone().trace(),
             bind!(one_of((
                 object.trace(),
@@ -360,14 +362,14 @@ pub fn get_json_grammar<'src>() -> impl Parser<'src, &'src str, Output = JsonVal
             )), result),
             ws.clone().trace()
         ) => result)
-        .with_label("element");
-
-        element
+        .with_label("element")
     })
 }
 
+#[cfg(not(test))]
 const DEFAULT_JSON_PATH: &str = "tests/data/json1.json";
 
+#[cfg(not(test))]
 fn usage(program: &str) -> ! {
     eprintln!(
         "Usage: {program} <path-to-json-file>{}",
@@ -380,12 +382,14 @@ fn usage(program: &str) -> ! {
     process::exit(2);
 }
 
+#[cfg(not(test))]
 fn print_parse_ok(value: &JsonValue<'_>, errors: &[ParserError], path: &str, source: &str) {
     ParserError::eprint_many(errors, path, source);
     println!("\n--- Recovered JSON: ---");
     println!("{}", value.serialize_pretty());
 }
 
+#[cfg(not(test))]
 struct Cli {
     path: String,
     /// When set, write trace JSON here (`parser-trace` only).
@@ -393,6 +397,7 @@ struct Cli {
     trace_file: Option<String>,
 }
 
+#[cfg(not(test))]
 impl Cli {
     fn parse(mut args: env::Args) -> Self {
         let program = args.next().unwrap_or_else(|| "json".to_string());
@@ -430,6 +435,7 @@ impl Cli {
     }
 }
 
+#[cfg(not(test))]
 fn read_source(path: &str) -> String {
     match fs::read_to_string(path) {
         Ok(content) => content,
@@ -440,7 +446,7 @@ fn read_source(path: &str) -> String {
     }
 }
 
-#[cfg(feature = "parser-trace")]
+#[cfg(all(not(test), feature = "parser-trace"))]
 fn run_traced<'src, P>(parser: P, sample: &'src str, cli: &Cli)
 where
     P: Parser<'src, &'src str, Output = JsonValue<'src>> + Clone + 'src,
@@ -470,7 +476,7 @@ where
     }
 }
 
-#[cfg(not(feature = "parser-trace"))]
+#[cfg(all(not(test), not(feature = "parser-trace")))]
 fn run_plain<'src, P>(parser: P, sample: &'src str, path: &str)
 where
     P: Parser<'src, &'src str, Output = JsonValue<'src>> + Clone + 'src,
@@ -483,6 +489,7 @@ where
     }
 }
 
+#[cfg(not(test))]
 fn main() {
     let cli = Cli::parse(env::args());
     let sample = read_source(&cli.path);

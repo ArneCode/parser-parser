@@ -1,5 +1,5 @@
 use marser::{
-    error::{AnnotationKind, FurthestFailError, InlineError, MatchDiagCtx},
+    error::{AnnotationKind, FurthestFailError, InlineError},
     label::WithLabel,
     matcher::{
         Matcher, MatcherCombinator, commit_on, unwanted,
@@ -220,7 +220,7 @@ fn expr<'src>() -> impl Parser<'src, &'src str, Output = Expr<'src>> {
                     if_error(many(unwanted(',', "trailing comma"))),
                 )),
                 if_error(many(unwanted(',', "missing argument"))),
-                ')'.err_if_no_match(use_binds!(|ctx: MatchDiagCtx| {
+                ')'.err_if_no_match(use_binds!(|ctx| {
                     let open_paren_span: Option<(usize, usize)> = open_paren_span.copied();
                     InlineError::new("missing closing parenthesis")
                         .with_span(Some(ctx.span()))

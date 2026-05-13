@@ -209,7 +209,7 @@ impl MatchResultSingle for () {
     where
         Self: 'a,
     {
-        ()
+        
     }
 }
 
@@ -227,7 +227,7 @@ impl MatchResultMultiple for () {
     where
         Self: 'a,
     {
-        ()
+        
     }
 }
 
@@ -245,7 +245,7 @@ impl MatchResultOptional for () {
     where
         Self: 'a,
     {
-        ()
+        
     }
 }
 

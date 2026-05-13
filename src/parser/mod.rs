@@ -14,7 +14,6 @@
 pub mod capture;
 pub mod deferred;
 pub mod erase_types;
-pub(crate) mod fn_parser;
 pub mod memoized;
 pub mod multiple;
 pub mod output_mapper;
@@ -367,7 +366,7 @@ pub(crate) trait ParserObjSafe<'src, Inp: Input<'src>, Output>: std::fmt::Debug 
 
     fn maybe_label(&self) -> Option<Box<dyn std::fmt::Display>>;
 
-    fn clone_boxed<'a>(self: &Self) -> Box<dyn ParserObjSafe<'src, Inp, Output> + 'a>
+    fn clone_boxed<'a>(&self) -> Box<dyn ParserObjSafe<'src, Inp, Output> + 'a>
     where
         Self: 'a;
 }
@@ -392,7 +391,7 @@ where
         <Self as internal::ParserImpl<'src, Inp>>::maybe_label(self)
     }
 
-    fn clone_boxed<'a>(self: &Self) -> Box<dyn ParserObjSafe<'src, Inp, Output> + 'a>
+    fn clone_boxed<'a>(&self) -> Box<dyn ParserObjSafe<'src, Inp, Output> + 'a>
     where
         Self: 'a,
     {

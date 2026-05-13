@@ -97,7 +97,7 @@ where
         Err(MatcherRunError::FurthestFail(e)) => Err(e),
         Err(MatcherRunError::RetryRerunNeeded) => {
             input.set_pos(start_pos.clone());
-            context.reset_for_global_recovery_reparse();
+            context = ParserContext::new();
             context.is_in_error_recovery = true;
             match eof_wrapped.parse(&mut context, &mut error_handler, &mut input) {
                 Ok(Some(out)) => Ok((out, context.get_errors())),
@@ -147,7 +147,11 @@ where
     let mut parse_result = eof_wrapped.parse(&mut context, &mut error_handler, &mut input);
     if matches!(parse_result, Err(MatcherRunError::RetryRerunNeeded)) {
         input.set_pos(start_pos.clone());
-        context.reset_for_global_recovery_reparse();
+        let session = context
+            .take_trace_session()
+            .unwrap_or_else(TraceSession::new);
+        context = ParserContext::new();
+        context.attach_trace_session(session);
         context.is_in_error_recovery = true;
         parse_result = eof_wrapped.parse(&mut context, &mut error_handler, &mut input);
     }

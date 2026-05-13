@@ -209,8 +209,8 @@ impl BindCollector {
 impl<'ast> Visit<'ast> for BindCollector {
     fn visit_expr(&mut self, expr: &'ast Expr) {
         if let Expr::Macro(m) = expr {
-            if m.mac.path.is_ident("bind") {
-                if let Ok(info) = m.mac.parse_body::<BindInfo>() {
+            if m.mac.path.is_ident("bind")
+                && let Ok(info) = m.mac.parse_body::<BindInfo>() {
                     self.reg.register_value(
                         info.ident.clone(),
                         info.value_ty.clone(),
@@ -227,9 +227,8 @@ impl<'ast> Visit<'ast> for BindCollector {
                     self.visit_expr(&info.parser);
                     return;
                 }
-            }
-            if m.mac.path.is_ident("bind_span") {
-                if let Ok(info) = m.mac.parse_body::<BindSpanInfo>() {
+            if m.mac.path.is_ident("bind_span")
+                && let Ok(info) = m.mac.parse_body::<BindSpanInfo>() {
                     self.reg.register_span(
                         info.span_ident.clone(),
                         info.ty.clone(),
@@ -238,9 +237,8 @@ impl<'ast> Visit<'ast> for BindCollector {
                     self.visit_expr(&info.parser);
                     return;
                 }
-            }
-            if m.mac.path.is_ident("bind_slice") {
-                if let Ok(info) = m.mac.parse_body::<BindSliceInfo>() {
+            if m.mac.path.is_ident("bind_slice")
+                && let Ok(info) = m.mac.parse_body::<BindSliceInfo>() {
                     self.reg.register_value(
                         info.slice_ident.clone(),
                         info.ty.clone(),
@@ -249,7 +247,6 @@ impl<'ast> Visit<'ast> for BindCollector {
                     self.visit_expr(&info.parser);
                     return;
                 }
-            }
         }
         visit::visit_expr(self, expr);
     }
@@ -410,9 +407,9 @@ struct UseBindsRewriter<'a> {
 
 impl VisitMut for UseBindsRewriter<'_> {
     fn visit_expr_mut(&mut self, expr: &mut Expr) {
-        if let Expr::Macro(m) = expr {
-            if m.mac.path.is_ident("use_binds") {
-                if let Ok(closure) = m.mac.parse_body::<ExprClosure>() {
+        if let Expr::Macro(m) = expr
+            && m.mac.path.is_ident("use_binds")
+                && let Ok(closure) = m.mac.parse_body::<ExprClosure>() {
                     *expr = expand_use_binds_macro(
                         closure,
                         self.registry,
@@ -421,8 +418,6 @@ impl VisitMut for UseBindsRewriter<'_> {
                     );
                     return;
                 }
-            }
-        }
         visit_mut::visit_expr_mut(self, expr);
     }
 }
@@ -492,8 +487,8 @@ impl VisitMut for BindVisitor {
     fn visit_expr_mut(&mut self, i: &mut Expr) {
         if let Expr::Macro(m) = i {
             // ── bind!(parser, [*|?]ident [, [*|?]span_ident]) ──────────────
-            if m.mac.path.is_ident("bind") {
-                if let Ok(info) = m.mac.parse_body::<BindInfo>() {
+            if m.mac.path.is_ident("bind")
+                && let Ok(info) = m.mac.parse_body::<BindInfo>() {
                     let id = &info.ident;
                     let parser = &info.parser;
 
@@ -507,49 +502,46 @@ impl VisitMut for BindVisitor {
                         // wrap: bind_span( bind_result(parser, id), span_id )
                         syn::parse2(quote_spanned! {bind_span=>
                             #marser::parser::capture::bind_span(
-                                #marser::parser::capture::bind_result(#parser, #id.clone()),
-                                #span_id.clone()
+                                #marser::parser::capture::bind_result(#parser, #id),
+                                #span_id
                             )
                         })
                         .expect("bind! rewrite should produce a valid expression")
                     } else {
                         let marser = self.marser_path.clone();
                         syn::parse2(quote_spanned! {bind_span=>
-                            #marser::parser::capture::bind_result(#parser, #id.clone())
+                            #marser::parser::capture::bind_result(#parser, #id)
                         })
                         .expect("bind! rewrite should produce a valid expression")
                     };
                     return;
                 }
-            }
 
             // ── bind_span!(parser, [*|?]span_ident) ─────────────────────────
-            if m.mac.path.is_ident("bind_span") {
-                if let Ok(info) = m.mac.parse_body::<BindSpanInfo>() {
+            if m.mac.path.is_ident("bind_span")
+                && let Ok(info) = m.mac.parse_body::<BindSpanInfo>() {
                     let span_id = &info.span_ident;
                     let parser = &info.parser;
 
                     self.register_span(span_id.clone(), info.ty.clone(), &info.kind);
 
                     let marser = self.marser_path.clone();
-                    *i = parse_quote! { #marser::parser::capture::bind_span(#parser, #span_id.clone()) };
+                    *i = parse_quote! { #marser::parser::capture::bind_span(#parser, #span_id) };
                     return;
                 }
-            }
 
             // ── bind_slice!(parser, [*|?]slice_ident) ───────────────────────
-            if m.mac.path.is_ident("bind_slice") {
-                if let Ok(info) = m.mac.parse_body::<BindSliceInfo>() {
+            if m.mac.path.is_ident("bind_slice")
+                && let Ok(info) = m.mac.parse_body::<BindSliceInfo>() {
                     let slice_id = &info.slice_ident;
                     let parser = &info.parser;
 
                     self.register_value(slice_id.clone(), info.ty.clone(), &info.kind);
 
                     let marser = self.marser_path.clone();
-                    *i = parse_quote! { #marser::parser::capture::bind_slice(#parser, #slice_id.clone()) };
+                    *i = parse_quote! { #marser::parser::capture::bind_slice(#parser, #slice_id) };
                     return;
                 }
-            }
         }
         visit_mut::visit_expr_mut(self, i);
     }
@@ -589,7 +581,11 @@ impl VisitMut for BindVisitor {
 ///   `err_if_no_match` / `err_if_matched` factories can read prior captures from a snapshot.
 ///
 /// Each binding becomes a parameter to both the grammar closure and the result closure generated
-/// by this macro.
+/// by this macro. Those identifiers are often unread in the grammar closure (wiring goes through
+/// `bind_result` / `bind_span`). The expansion wraps [`Capture::new`](https://docs.rs/marser/latest/marser/parser/capture/struct.Capture.html)
+/// in a block with `#[allow(unused_variables)]` so callers do not need a local attribute. (Using
+/// opaque bucket parameters plus an inner `let (…) = __single` indirection was tried but breaks
+/// type inference for the matcher tree in current Rust.)
 ///
 /// # Crate path
 ///
@@ -677,10 +673,13 @@ pub fn capture(input: TokenStream) -> TokenStream {
     let result_expr = &input.result_expr;
 
     TokenStream::from(quote! {
-        #marser_path::parser::capture::Capture::<(#s_ty, #m_ty, #o_ty), _, _>::new(
-            |#s_pat, #m_pat, #o_pat| { #grammar     },
-            |#s_pat, #m_pat, #o_pat| { #result_expr },
-        )
+        {
+            #[allow(unused_variables)]
+            #marser_path::parser::capture::Capture::<(#s_ty, #m_ty, #o_ty), _, _>::new(
+                |#s_pat, #m_pat, #o_pat| { #grammar     },
+                |#s_pat, #m_pat, #o_pat| { #result_expr },
+            )
+        }
     })
 }
 
