@@ -12,14 +12,14 @@
 //! - `HAS_PROPERTY` — may write into `MRes` (captures).
 //! - `CAN_MATCH_DIRECTLY` — optimization hint for the runner.
 //!
-//! `CAN_FAIL` does **not** indicate whether `Err` with [`crate::error::FurthestFailError`] is possible.
+//! `CAN_FAIL` does **not** indicate whether `Err` with [`crate::error::MatcherRunError`] is possible.
 
 pub mod any_token;
 pub mod commit_matcher;
+pub mod err_if;
 pub mod error_contextualizer;
 pub mod if_error;
 pub mod ignore_result;
-pub mod insert_on_error;
 pub mod multiple;
 pub mod negative_lookahead;
 pub mod none_of;
@@ -31,12 +31,13 @@ pub(crate) mod runner;
 pub mod sequence;
 pub mod string;
 pub mod to_parser;
-pub mod unwanted;
-
 pub use any_token::AnyToken;
 pub use commit_matcher::{CommitMatcher, commit_on};
+pub use err_if::{
+    ErrIfMatchedMatcher, ErrIfNoMatchMatcher, err_if_matched, err_if_no_match, try_insert_if_missing,
+    unwanted,
+};
 pub use error_contextualizer::ErrorContextualizer;
-pub use insert_on_error::InsertOnErrorMatcher;
 pub use multiple::{Multiple, many};
 pub use negative_lookahead::{NegativeLookahead, negative_lookahead};
 pub use one_or_more::{OneOrMore, one_or_more};
@@ -46,11 +47,15 @@ pub use positive_lookahead::{PositiveLookahead, positive_lookahead};
 pub(crate) use runner::{DirectMatchRunner, MatchRunner, NoMemoizeBacktrackingRunner};
 pub use string::StringMatcher;
 pub use to_parser::ToParser;
+pub use crate::error::MatcherRunError;
 
 use std::{fmt::Display, ops::Deref, rc::Rc};
 
 use crate::{
-    error::{FurthestFailError, error_handler::ErrorHandler},
+    error::{
+        MissingSyntax, UnwantedSyntax,
+        error_handler::ErrorHandler,
+    },
     input::{Input, InputStream},
 };
 
@@ -58,7 +63,7 @@ pub(crate) mod internal {
     use std::fmt::{Debug, Display};
 
     use crate::{
-        error::{FurthestFailError, error_handler::ErrorHandler},
+        error::{MatcherRunError, error_handler::ErrorHandler},
         input::{Input, InputStream},
         matcher::{MatcherCombinator, runner::MatchRunner},
     };
@@ -79,7 +84,7 @@ pub(crate) mod internal {
         /// `true` when this matcher can return `Ok(false)` on a normal match path.
         ///
         /// This constant models match absence and does not indicate whether
-        /// `Err(FurthestFailError)` may be returned.
+        /// `Err([`MatcherRunError`])` may be returned.
         const CAN_FAIL: bool;
 
         /// Run this matcher via `runner`, updating `pos` and possibly `MRes` on success.
@@ -88,7 +93,7 @@ pub(crate) mod internal {
             runner: &mut Runner,
             error_handler: &mut impl ErrorHandler,
             input: &mut InputStream<'src, Inp>,
-        ) -> Result<bool, FurthestFailError>
+        ) -> Result<bool, MatcherRunError>
         where
             Runner: MatchRunner<'a, 'src, Inp, MRes = MRes>,
             'src: 'a;
@@ -125,23 +130,40 @@ pub trait MatcherCombinator {
         ErrorContextualizer::new(self, error_parser)
     }
 
-    /// If the matcher fails to extend the furthest error, insert `message` into that error.
-    #[cfg(feature = "parser-trace")]
-    #[track_caller]
-    fn try_insert_if_missing<M: Display>(self, message: M) -> InsertOnErrorMatcher<Self>
+    /// Emit an inline diagnostic if this matcher does not match and error handling is active.
+    fn err_if_no_match<F>(self, factory: F) -> ErrIfNoMatchMatcher<Self, F>
     where
         Self: Sized,
     {
-        InsertOnErrorMatcher::new(self, message.to_string())
+        ErrIfNoMatchMatcher::new(self, factory)
     }
 
-    /// If the matcher fails to extend the furthest error, insert `message` into that error.
-    #[cfg(not(feature = "parser-trace"))]
-    fn try_insert_if_missing<M: Display>(self, message: M) -> InsertOnErrorMatcher<Self>
+    /// If the matcher does not match, record an [`crate::error::InlineError`] (missing syntax)
+    /// when error handling is active — built on [`err_if_no_match`].
+    fn try_insert_if_missing<M: Display>(
+        self,
+        message: M,
+    ) -> ErrIfNoMatchMatcher<Self, MissingSyntax>
     where
         Self: Sized,
     {
-        InsertOnErrorMatcher::new(self, message.to_string())
+        self.err_if_no_match(MissingSyntax(message.to_string()))
+    }
+
+    /// Emit an inline diagnostic when this matcher matches.
+    fn err_if_matched<F>(self, factory: F) -> ErrIfMatchedMatcher<Self, F>
+    where
+        Self: Sized,
+    {
+        ErrIfMatchedMatcher::new(self, factory)
+    }
+
+    /// Emit an inline diagnostic when this matcher matches (unwanted syntax) — built on [`err_if_matched`].
+    fn unwanted<M: Display>(self, message: M) -> ErrIfMatchedMatcher<Self, UnwantedSyntax>
+    where
+        Self: Sized,
+    {
+        self.err_if_matched(UnwantedSyntax(message.to_string()))
     }
 
     /// Convert this matcher into a parser that returns `output` when the matcher succeeds.
@@ -176,7 +198,7 @@ where
         runner: &mut Runner,
         error_handler: &mut impl ErrorHandler,
         input: &mut InputStream<'src, Inp>,
-    ) -> Result<bool, FurthestFailError>
+    ) -> Result<bool, MatcherRunError>
     where
         Runner: MatchRunner<'a, 'src, Inp, MRes = MRes>,
         'src: 'a,
@@ -204,7 +226,7 @@ where
         runner: &mut Runner,
         error_handler: &mut impl ErrorHandler,
         input: &mut InputStream<'src, Inp>,
-    ) -> Result<bool, FurthestFailError>
+    ) -> Result<bool, MatcherRunError>
     where
         Runner: MatchRunner<'a, 'src, Inp, MRes = MRes>,
         'src: 'a,
@@ -232,7 +254,7 @@ where
         runner: &mut Runner,
         error_handler: &mut impl ErrorHandler,
         input: &mut InputStream<'src, Inp>,
-    ) -> Result<bool, FurthestFailError>
+    ) -> Result<bool, MatcherRunError>
     where
         Runner: MatchRunner<'a, 'src, Inp, MRes = MRes>,
         'src: 'a,
@@ -257,7 +279,7 @@ impl<'src, Inp: Input<'src>, MRes> internal::MatcherImpl<'src, Inp, MRes> for ()
         _runner: &mut Runner,
         _error_handler: &mut impl ErrorHandler,
         _input: &mut InputStream<'src, Inp>,
-    ) -> Result<bool, FurthestFailError>
+    ) -> Result<bool, MatcherRunError>
     where
         Runner: MatchRunner<'a, 'src, Inp, MRes = MRes>,
         'src: 'a,

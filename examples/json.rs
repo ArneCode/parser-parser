@@ -1,11 +1,13 @@
-use std::{env, fs, process, rc::Rc};
+#[cfg(not(test))]
+use std::{env, fs, process};
+use std::rc::Rc;
 
 use marser_macros::capture;
 
 #[cfg(feature = "parser-trace")]
 use marser::trace::TraceFormat;
 use marser::{
-    error::{FurthestFailError, ParserError},
+    error::{AnnotationKind, FurthestFailError, ParserError},
     label::WithLabel,
     trace::WithTrace,
     matcher::{
@@ -17,7 +19,7 @@ use marser::{
         one_or_more::one_or_more,
         optional::optional,
         positive_lookahead,
-        unwanted::unwanted,
+        unwanted,
     },
     one_of::one_of,
     parser::{Parser, ParserCombinator, deferred::recursive, token_parser::TokenParser},
@@ -112,7 +114,7 @@ impl<'src> JsonValue<'src> {
     }
 }
 
-pub fn get_json_grammar<'src>() -> impl Parser<'src, &'src str, Output = JsonValue<'src>> {
+pub fn get_json_grammar<'src>() -> impl Parser<'src, &'src str, Output = JsonValue<'src>> + Clone {
     recursive(|element| {
         let ws = Rc::new(many(one_of((' ', '\t', '\n', '\r')).with_label("whitespace")));
 
@@ -152,8 +154,12 @@ pub fn get_json_grammar<'src>() -> impl Parser<'src, &'src str, Output = JsonVal
                     '0'..='9'
                 )
                 => Box::new(move |err: &mut FurthestFailError|{
-                    err.add_extra_label(zero,"leading zero",ariadne::Color::Blue);
-                    err.add_note("Leading zeros are not allowed in JSON numbers".to_string());
+                    err.add_annotation(
+                        zero,
+                        "leading zero",
+                        AnnotationKind::Context,
+                    )
+                    .add_note("Leading zeros are not allowed in JSON numbers".to_string());
                 }) as Box<dyn Fn(&mut FurthestFailError)>
             ),
             capture!(
@@ -162,8 +168,12 @@ pub fn get_json_grammar<'src>() -> impl Parser<'src, &'src str, Output = JsonVal
                     bind_span!('.', dot),
                 )
                 => Box::new(move |err: &mut FurthestFailError|{
-                    err.add_extra_label(dot,"missing integer part",ariadne::Color::Blue);
-                    err.add_note("Floating point numbers need an integer part".to_string());
+                    err.add_annotation(
+                        dot,
+                        "missing integer part",
+                        AnnotationKind::Context,
+                    )
+                    .add_note("Floating point numbers need an integer part".to_string());
             }) as Box<dyn Fn(&mut FurthestFailError)>
             ),
         )))
@@ -231,7 +241,11 @@ pub fn get_json_grammar<'src>() -> impl Parser<'src, &'src str, Output = JsonVal
             })
             .add_error_info(capture!(
                 bind_span!('"', quote) => Box::new(move |err: &mut FurthestFailError|{
-                err.add_extra_label(quote,"unmatched quote",ariadne::Color::Blue);
+                err.add_annotation(
+                    quote,
+                    "unmatched quote",
+                    AnnotationKind::Context,
+                );
             }) as Box<dyn Fn(&mut FurthestFailError)>
             )),
         )
@@ -335,7 +349,7 @@ pub fn get_json_grammar<'src>() -> impl Parser<'src, &'src str, Output = JsonVal
         .with_label("invalid element")
         .maybe_erase_types();
 
-        let element = capture!((
+        capture!((
             ws.clone().trace(),
             bind!(one_of((
                 object.trace(),
@@ -348,14 +362,14 @@ pub fn get_json_grammar<'src>() -> impl Parser<'src, &'src str, Output = JsonVal
             )), result),
             ws.clone().trace()
         ) => result)
-        .with_label("element");
-
-        element
+        .with_label("element")
     })
 }
 
+#[cfg(not(test))]
 const DEFAULT_JSON_PATH: &str = "tests/data/json1.json";
 
+#[cfg(not(test))]
 fn usage(program: &str) -> ! {
     eprintln!(
         "Usage: {program} <path-to-json-file>{}",
@@ -368,12 +382,14 @@ fn usage(program: &str) -> ! {
     process::exit(2);
 }
 
+#[cfg(not(test))]
 fn print_parse_ok(value: &JsonValue<'_>, errors: &[ParserError], path: &str, source: &str) {
-    ParserError::eprint_many_miette(errors, path, source);
+    ParserError::eprint_many(errors, path, source);
     println!("\n--- Recovered JSON: ---");
     println!("{}", value.serialize_pretty());
 }
 
+#[cfg(not(test))]
 struct Cli {
     path: String,
     /// When set, write trace JSON here (`parser-trace` only).
@@ -381,6 +397,7 @@ struct Cli {
     trace_file: Option<String>,
 }
 
+#[cfg(not(test))]
 impl Cli {
     fn parse(mut args: env::Args) -> Self {
         let program = args.next().unwrap_or_else(|| "json".to_string());
@@ -418,6 +435,7 @@ impl Cli {
     }
 }
 
+#[cfg(not(test))]
 fn read_source(path: &str) -> String {
     match fs::read_to_string(path) {
         Ok(content) => content,
@@ -428,25 +446,20 @@ fn read_source(path: &str) -> String {
     }
 }
 
-#[cfg(feature = "parser-trace")]
+#[cfg(all(not(test), feature = "parser-trace"))]
 fn run_traced<'src, P>(parser: P, sample: &'src str, cli: &Cli)
 where
-    P: Parser<'src, &'src str, Output = JsonValue<'src>> + 'src,
+    P: Parser<'src, &'src str, Output = JsonValue<'src>> + Clone + 'src,
 {
     let path = cli.path.as_str();
     if let Some(trace_file_path) = cli.trace_file.as_ref() {
-        match marser::parse_with_trace_to_file(
-            parser,
-            sample,
-            trace_file_path,
-            TraceFormat::Json,
-        ) {
+        match parser.parse_str_with_trace_to_file(sample, trace_file_path, TraceFormat::Json) {
             Ok((value, errors)) => {
                 eprintln!("trace written to {trace_file_path}");
                 print_parse_ok(&value, &errors, path, sample);
             }
             Err(marser::ParseWithTraceToFileError::Parse(err)) => {
-                err.eprint_ariadne(path, sample)
+                err.eprint(path, sample)
             }
             Err(marser::ParseWithTraceToFileError::Io(err)) => {
                 eprintln!("Failed to write trace file '{trace_file_path}': {err}");
@@ -454,28 +467,29 @@ where
             }
         }
     } else {
-        match marser::parse_with_trace(parser, sample) {
+        match parser.parse_str_with_trace(sample) {
             Ok((value, errors, _trace)) => {
                 print_parse_ok(&value, &errors, path, sample);
             }
-            Err(err) => err.eprint_ariadne(path, sample),
+            Err(err) => err.eprint(path, sample),
         }
     }
 }
 
-#[cfg(not(feature = "parser-trace"))]
+#[cfg(all(not(test), not(feature = "parser-trace")))]
 fn run_plain<'src, P>(parser: P, sample: &'src str, path: &str)
 where
-    P: Parser<'src, &'src str, Output = JsonValue<'src>> + 'src,
+    P: Parser<'src, &'src str, Output = JsonValue<'src>> + Clone + 'src,
 {
-    match marser::parse(parser, sample) {
+    match parser.parse_str(sample) {
         Ok((value, errors)) => {
             print_parse_ok(&value, &errors, path, sample);
         }
-        Err(err) => err.eprint_ariadne(path, sample),
+        Err(err) => err.eprint(path, sample),
     }
 }
 
+#[cfg(not(test))]
 fn main() {
     let cli = Cli::parse(env::args());
     let sample = read_source(&cli.path);

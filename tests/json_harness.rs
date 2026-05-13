@@ -1,6 +1,8 @@
 use std::fs;
 use std::path::Path;
 
+use marser::parser::Parser;
+
 #[path = "../examples/json.rs"]
 mod json_example;
 
@@ -17,7 +19,9 @@ fn valid_json_parses_without_recovery_errors() {
     for path in valid_files {
         let source = read_fixture(path);
         let parser = json_example::get_json_grammar();
-        let (value, errors) = marser::parse(parser, source.as_str()).unwrap_or_else(|err| {
+        let (value, errors) = parser
+            .parse_str(source.as_str())
+            .unwrap_or_else(|err| {
             panic!("valid fixture {} failed with hard parse error:\n{err:#?}", path);
         });
 
@@ -50,7 +54,7 @@ fn invalid_json_produces_recovery_errors_and_recovered_ast() {
         let source = read_fixture(path);
         let parser = json_example::get_json_grammar();
 
-        let parse_result = marser::parse(parser, source.as_str());
+        let parse_result = parser.parse_str(source.as_str());
         let (value, errors) = parse_result.unwrap_or_else(|err| {
             panic!(
                 "invalid fixture {} should recover into AST, but failed hard:\n{err:#?}",

@@ -10,7 +10,7 @@ use std::{
 
 use crate::{
     context::ParserContext,
-    error::{FurthestFailError, error_handler::ErrorHandler},
+    error::{MatcherRunError, error_handler::ErrorHandler},
     input::{Input, InputStream},
     parser::{Parser, ParserCombinator, ParserObjSafe},
 };
@@ -105,7 +105,7 @@ where
         context: &mut ParserContext,
         error_handler: &mut impl ErrorHandler,
         input: &mut InputStream<'src, Inp>,
-    ) -> Result<Option<Self::Output>, FurthestFailError> {
+    ) -> Result<Option<Self::Output>, MatcherRunError> {
         if let Some(parser) = self.parser.get() {
             parser.parse(context, error_handler.to_choice(), input)
         } else {
@@ -131,7 +131,7 @@ where
         context: &mut ParserContext,
         error_handler: &mut impl ErrorHandler,
         input: &mut InputStream<'src, Inp>,
-    ) -> Result<Option<Self::Output>, FurthestFailError> {
+    ) -> Result<Option<Self::Output>, MatcherRunError> {
         if let Some(parser) = self.parser.upgrade() {
             if let Some(parser) = parser.get() {
                 parser.parse(context, error_handler.to_choice(), input)
@@ -150,11 +150,14 @@ where
 }
 
 /// Creates a [`Deferred`] parser: `parser_fn` receives a weak handle and must return the real parser.
-pub fn recursive<'a, 'src, Inp, Output, F, Pars>(parser_fn: F) -> Deferred<'a, 'src, Inp, Output>
+///
+/// The erased cell lifetime is **`'src`**, matching parsers whose stored data lives for the parse
+/// session (see [`crate::parser::erase_types::erase`] for why `'a ≠ 'src` inference was problematic).
+pub fn recursive<'src, Inp, Output, F, Pars>(parser_fn: F) -> Deferred<'src, 'src, Inp, Output>
 where
     Inp: Input<'src>,
-    F: FnOnce(DeferredWeak<'a, 'src, Inp, Output>) -> Pars,
-    Pars: Parser<'src, Inp, Output = Output> + 'a,
+    F: FnOnce(DeferredWeak<'src, 'src, Inp, Output>) -> Pars,
+    Pars: Parser<'src, Inp, Output = Output> + 'src,
 {
     let deferred = Deferred::new();
     let parser = parser_fn(deferred.clone_weak());

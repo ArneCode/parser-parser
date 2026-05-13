@@ -19,9 +19,9 @@ You build grammars from small parts:
 
 The usual top-level flow is:
 
-1. Build a parser value.
-2. Call `parse(&parser, input_str)`.
-3. Get `Result<(output, extra_errors), ParserError>`.
+1. Build a parser value (`Clone` is required for the default whole-input driver).
+2. Call `parser.parse_str(input_str)` (or the thin alias `marser::parse(parser, input_str)`).
+3. Get `Result<(output, extra_errors), FurthestFailError>`.
 
 ---
 
@@ -116,12 +116,12 @@ For recursive JSON-like structures, this is the standard pattern used in `exampl
 
 ## 6) Running a grammar against input
 
-Use the helper in `marser::parse`:
+Use `marser::parser::Parser::parse_str` on a `Clone` grammar (or the thin alias `marser::parse`):
 
 ```rust
-use marser::parse;
+use marser::parser::Parser;
 
-let (value, non_fatal_errors) = parse(&my_grammar, input)?;
+let (value, non_fatal_errors) = my_grammar.parse_str(input)?;
 ```
 
 This helper also enforces full input consumption (via lookahead) so trailing garbage is rejected.
@@ -133,7 +133,7 @@ This helper also enforces full input consumption (via lookahead) so trailing gar
 You have:
 
 - `ParserError` with span + expected labels
-- `err.eprint_ariadne(file, source)` for rich terminal diagnostics
+- `ParserError::eprint_many(&errors, file, source)` for rich terminal diagnostics
 - `add_error_info(...)` to attach contextual annotations to failures
 
 Best practice:

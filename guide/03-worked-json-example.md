@@ -47,14 +47,14 @@ pub enum JsonValue {
     Object(Vec<(String, JsonValue)>),
 }
 
-fn json<'src>() -> impl Parser<'src, &'src str, Output = JsonValue> {
+fn json<'src>() -> impl Parser<'src, &'src str, Output = JsonValue> + Clone {
     recursive(|_value| {
         let ws = Rc::new(marser::matcher::multiple::many(one_of((' ', '\n', '\r', '\t'))));
         capture!((ws.clone(), "null", ws.clone()) => JsonValue::Null)
     })
 }
 
-let (value, errors) = marser::parse(json(), "null").unwrap();
+let (value, errors) = json().parse_str("null").unwrap();
 assert_eq!(value, JsonValue::Null);
 assert!(errors.is_empty());
 ```
@@ -93,7 +93,7 @@ pub enum JsonValue {
     Object(Vec<(String, JsonValue)>),
 }
 
-fn json<'src>() -> impl Parser<'src, &'src str, Output = JsonValue> {
+fn json<'src>() -> impl Parser<'src, &'src str, Output = JsonValue> + Clone {
     recursive(|_value| {
         let ws = Rc::new(marser::matcher::multiple::many(one_of((' ', '\n', '\r', '\t'))));
         let null = capture!(("null", ws.clone()) => JsonValue::Null);
@@ -124,7 +124,7 @@ fn json<'src>() -> impl Parser<'src, &'src str, Output = JsonValue> {
     })
 }
 
-let (value, errors) = marser::parse(json(), " 123 ").unwrap();
+let (value, errors) = json().parse_str(" 123 ").unwrap();
 assert_eq!(value, JsonValue::Number(123));
 assert!(errors.is_empty());
 ```
@@ -163,7 +163,7 @@ pub enum JsonValue {
     Object(Vec<(String, JsonValue)>),
 }
 
-fn json<'src>() -> impl Parser<'src, &'src str, Output = JsonValue> {
+fn json<'src>() -> impl Parser<'src, &'src str, Output = JsonValue> + Clone {
     recursive(|value| {
         let ws = Rc::new(marser::matcher::multiple::many(one_of((' ', '\n', '\r', '\t'))));
         let null = capture!(("null", ws.clone()) => JsonValue::Null);
@@ -232,7 +232,7 @@ fn json<'src>() -> impl Parser<'src, &'src str, Output = JsonValue> {
 }
 
 let src = r#"{"ok": true, "items": [1, 2, 3]}"#;
-let (value, errors) = marser::parse(json(), src).unwrap();
+let (value, errors) = json().parse_str(src).unwrap();
 assert!(errors.is_empty());
 assert!(matches!(value, JsonValue::Object(_)));
 ```

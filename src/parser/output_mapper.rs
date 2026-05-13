@@ -2,7 +2,7 @@ use std::fmt::Display;
 
 use crate::{
     context::ParserContext,
-    error::{FurthestFailError, error_handler::ErrorHandler},
+    error::{MatcherRunError, error_handler::ErrorHandler},
     input::{Input, InputStream},
     parser::{Parser, ParserCombinator},
 };
@@ -47,7 +47,7 @@ where
         context: &mut ParserContext,
         error_handler: &mut impl ErrorHandler,
         input: &mut InputStream<'src, Inp>,
-    ) -> Result<Option<Self::Output>, FurthestFailError> {
+    ) -> Result<Option<Self::Output>, MatcherRunError> {
         if let Some(result) = self.parser.parse(context, error_handler, input)? {
             Ok(Some((self.map_fn)(result)))
         } else {

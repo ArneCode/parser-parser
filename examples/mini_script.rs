@@ -29,7 +29,7 @@ use std::{env, fs, process, rc::Rc};
 
 use marser::{
     error::{FurthestFailError, ParserError}, input::Input, label::WithLabel, matcher::{
-        AnyToken, Matcher, MatcherCombinator, commit_matcher::commit_on, if_error::if_error, multiple::many, negative_lookahead::negative_lookahead, one_or_more::one_or_more, optional::optional, parser_matcher::match_parsed, positive_lookahead::positive_lookahead, unwanted::unwanted
+        AnyToken, Matcher, MatcherCombinator, commit_matcher::commit_on, if_error::if_error, multiple::many, negative_lookahead::negative_lookahead, one_or_more::one_or_more, optional::optional, parser_matcher::match_parsed, positive_lookahead::positive_lookahead, unwanted
     }, one_of::one_of, parser::{Parser, ParserCombinator, deferred::recursive}
 };
 use marser_macros::capture;
@@ -450,7 +450,7 @@ fn invalid_statement_parser<'src>() -> impl Parser<'src, &'src str, Output = Stm
     )
 }
 
-pub fn get_mini_script_grammar<'src>() -> impl Parser<'src, &'src str, Output = Program<'src>> {
+pub fn get_mini_script_grammar<'src>() -> impl Parser<'src, &'src str, Output = Program<'src>> + Clone {
     // Statements are recursive because blocks contain statements, and statements
     // can themselves be blocks.
     let statement = recursive(|statement| {
@@ -634,7 +634,8 @@ fn main() {
         }
     };
 
-    match marser::parse(get_mini_script_grammar(), &src) {
+    let grammar = get_mini_script_grammar();
+    match grammar.parse_str(&src) {
         Ok((program, errors)) => {
             println!("{program:#?}");
             print_errors(&errors, &path, &src);

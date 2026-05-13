@@ -1,10 +1,10 @@
 use std::marker::PhantomData;
 
 use crate::{
-    error::{FurthestFailError, error_handler::ErrorHandler},
+    error::{MatcherRunError, error_handler::ErrorHandler},
     input::{Input, InputStream},
     matcher::{MatcherCombinator, internal::MatcherImpl, runner::MatchRunner},
-    parser::{Parser, ParserCombinator},
+    parser::{Parser, ParserCombinator, capture::MatchResult},
 };
 
 use super::property::Property;
@@ -17,11 +17,9 @@ pub struct ResultBinder<Pars, Prop, Inp> {
     pub(super) _phantom: PhantomData<Inp>,
 }
 
-impl<Pars, Prop, Inp> std::fmt::Debug for ResultBinder<Pars, Prop, Inp>
-{
+impl<Pars, Prop, Inp> std::fmt::Debug for ResultBinder<Pars, Prop, Inp> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("ResultBinder")
-            .finish()
+        f.debug_struct("ResultBinder").finish()
     }
 }
 
@@ -50,6 +48,7 @@ impl<'src, Inp: Input<'src> + 'src, Pars, Prop, MRes> MatcherImpl<'src, Inp, MRe
 where
     Pars: Parser<'src, Inp> + 'src,
     Inp: Input<'src> + Clone,
+    MRes: MatchResult,
     Prop: Property<Pars::Output, MRes> + Clone + 'src,
 {
     const CAN_MATCH_DIRECTLY: bool = true;
@@ -61,7 +60,7 @@ where
         runner: &mut Runner,
         error_handler: &mut impl ErrorHandler,
         input: &mut InputStream<'src, Inp>,
-    ) -> Result<bool, FurthestFailError>
+    ) -> Result<bool, MatcherRunError>
     where
         Runner: MatchRunner<'a, 'src, Inp, MRes = MRes>,
         'src: 'a,

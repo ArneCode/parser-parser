@@ -4,7 +4,7 @@ use std::fmt::Debug;
 
 use crate::{
     context::ParserContext,
-    error::{FurthestFailError, error_handler::ErrorHandler},
+    error::{MatcherRunError, error_handler::ErrorHandler},
     input::{Input, InputStream}, parser::ParserCombinator,
 };
 
@@ -35,7 +35,7 @@ impl<'src, Inp: Input<'src, Token = Token>, Token: PartialEq + Clone + Debug>
         _context: &mut ParserContext,
         _error_handler: &mut impl ErrorHandler,
         input: &mut InputStream<'src, Inp>,
-    ) -> Result<Option<Self::Output>, FurthestFailError> {
+    ) -> Result<Option<Self::Output>, MatcherRunError> {
         let start = input.get_pos();
         if let Some(token) = input.next()
             && token == self.token
@@ -61,7 +61,7 @@ impl<'src, Inp: Input<'src, Token = char>> super::internal::ParserImpl<'src, Inp
         _context: &mut ParserContext,
         _error_handler: &mut impl ErrorHandler,
         input: &mut InputStream<'src, Inp>,
-    ) -> Result<Option<Self::Output>, FurthestFailError> {
+    ) -> Result<Option<Self::Output>, MatcherRunError> {
         let start = input.get_pos();
         if let Some(token) = input.next()
             && token == *self

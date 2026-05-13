@@ -2,7 +2,7 @@
 
 use crate::{
     context::ParserContext,
-    error::{FurthestFailError, error_handler::ErrorHandler},
+    error::{MatcherRunError, error_handler::ErrorHandler},
     input::{Input, InputStream}, parser::ParserCombinator,
 };
 
@@ -64,7 +64,7 @@ where
         _context: &mut ParserContext,
         _error_handler: &mut impl ErrorHandler,
         input: &mut InputStream<'src, Inp>,
-    ) -> Result<Option<Self::Output>, FurthestFailError> {
+    ) -> Result<Option<Self::Output>, MatcherRunError> {
         let start = input.get_pos();
         let Some(token) = input.next() else {
             return Ok(None);

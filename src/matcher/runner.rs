@@ -2,7 +2,7 @@ use std::marker::PhantomData;
 
 use crate::{
     context::ParserContext,
-    error::{FurthestFailError, error_handler::ErrorHandler},
+    error::{MatcherRunError, error_handler::ErrorHandler},
     input::{Input, InputStream},
     matcher::Matcher,
     parser::capture::{BoundResult, MatchResult},
@@ -23,7 +23,7 @@ where
         matcher: &'a Match,
         error_handler: &mut EHandler,
         input: &mut InputStream<'src, Inp>,
-    ) -> Result<bool, FurthestFailError>
+    ) -> Result<bool, MatcherRunError>
     where
         Match: Matcher<'src, Inp, Self::MRes>,
         'src: 'a,
@@ -33,7 +33,7 @@ where
         matcher: &'a Match,
         error_handler: &mut EHandler,
         input: &mut InputStream<'src, Inp>,
-    ) -> Result<bool, FurthestFailError>
+    ) -> Result<bool, MatcherRunError>
     where
         Match: Matcher<'src, Inp, Self::MRes>,
         'src: 'a,
@@ -73,12 +73,13 @@ where
 
     fn get_parser_context(&mut self) -> &mut ParserContext;
 
-    fn apply_results(&mut self, results: Vec<Box<dyn BoundResult<Self::MRes> + 'src>>);
-    fn maybe_get_as_direct_match_runner(
-        &mut self,
-    ) -> Option<&mut DirectMatchRunner<'a, 'src, Inp, Self::MRes>> {
-        None
-    }
+    /// Build a read-only snapshot of captures committed so far and pass it to `f`.
+    fn with_snapshot<R, F>(&self, f: F) -> R
+    where
+        F: FnOnce(<Self::MRes as MatchResult>::Snapshot<'_>) -> R;
+
+    /// `true` when [`ParserContext::is_in_error_recovery`] is set by the global parse driver.
+    fn is_in_error_recovery_mode(&self) -> bool;
 }
 
 pub(crate) struct NoMemoizeBacktrackingRunner<'a, 'src, Inp, MRes> {
@@ -97,17 +98,6 @@ impl<'a, 'src, Inp: Input<'src>, MRes> NoMemoizeBacktrackingRunner<'a, 'src, Inp
     }
 }
 
-impl<'a, 'src, Inp: Input<'src>, MRes> NoMemoizeBacktrackingRunner<'a, 'src, Inp, MRes> {
-    pub(crate) fn get_data(
-        self,
-    ) -> (
-        &'a mut ParserContext,
-        Vec<Box<dyn BoundResult<MRes> + 'src>>,
-    ) {
-        (self.parser_context, self.stack)
-    }
-}
-
 impl<'a, 'src, Inp: Input<'src>, MRes> MatchRunner<'a, 'src, Inp>
     for NoMemoizeBacktrackingRunner<'a, 'src, Inp, MRes>
 where
@@ -120,7 +110,7 @@ where
         matcher: &'a Match,
         error_handler: &mut EHandler,
         input: &mut InputStream<'src, Inp>,
-    ) -> Result<bool, FurthestFailError>
+    ) -> Result<bool, MatcherRunError>
     where
         Match: Matcher<'src, Inp, Self::MRes>,
         'src: 'a,
@@ -150,8 +140,19 @@ where
         self.parser_context
     }
 
-    fn apply_results(&mut self, results: Vec<Box<dyn BoundResult<Self::MRes> + 'src>>) {
-        self.stack.extend(results);
+    fn with_snapshot<R, F>(&self, f: F) -> R
+    where
+        F: FnOnce(MRes::Snapshot<'_>) -> R,
+    {
+        let mut snap = MRes::new_empty_snapshot();
+        for bound in &self.stack {
+            bound.put_ref_in_snapshot(&mut snap);
+        }
+        f(snap)
+    }
+
+    fn is_in_error_recovery_mode(&self) -> bool {
+        self.parser_context.is_in_error_recovery
     }
 }
 
@@ -172,10 +173,6 @@ impl<'a, 'src, Inp: Input<'src>, MRes> DirectMatchRunner<'a, 'src, Inp, MRes> {
             result: MRes::new_empty(),
         }
     }
-
-    pub(crate) fn get_match_result_mut(&mut self) -> &mut MRes {
-        &mut self.result
-    }
 }
 
 impl<'a, 'src, Inp: Input<'src>, MRes> MatchRunner<'a, 'src, Inp>
@@ -190,7 +187,7 @@ where
         matcher: &'a Match,
         error_handler: &mut EHandler,
         input: &mut InputStream<'src, Inp>,
-    ) -> Result<bool, FurthestFailError>
+    ) -> Result<bool, MatcherRunError>
     where
         Match: Matcher<'src, Inp, Self::MRes>,
         'src: 'a,
@@ -211,15 +208,14 @@ where
         self.parser_context
     }
 
-    fn apply_results(&mut self, results: Vec<Box<dyn BoundResult<Self::MRes> + 'src>>) {
-        for result in results {
-            result.put_boxed_in_result(&mut self.result);
-        }
+    fn with_snapshot<R, F>(&self, f: F) -> R
+    where
+        F: FnOnce(MRes::Snapshot<'_>) -> R,
+    {
+        f(self.result.snapshot())
     }
 
-    fn maybe_get_as_direct_match_runner(
-        &mut self,
-    ) -> Option<&mut DirectMatchRunner<'a, 'src, Inp, Self::MRes>> {
-        Some(self)
+    fn is_in_error_recovery_mode(&self) -> bool {
+        self.parser_context.is_in_error_recovery
     }
 }

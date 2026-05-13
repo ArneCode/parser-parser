@@ -2,6 +2,7 @@ pub mod eval;
 pub mod grammar;
 
 use marser::error::{FurthestFailError, ParserError};
+use marser::parser::Parser;
 
 use self::eval::{RuntimeError, Value, run_file};
 use self::grammar::get_mini_language_grammar;
@@ -15,14 +16,15 @@ pub enum RunError {
 pub fn parse_source<'src>(
     source: &'src str,
 ) -> Result<(Vec<FunctionDef<'src>>, Vec<ParserError>), FurthestFailError> {
-    marser::parse(get_mini_language_grammar(), source)
+    let grammar = get_mini_language_grammar();
+    grammar.parse_str(source)
 }
 
 pub fn eval_parsed<'src>(functions: &'src [FunctionDef<'src>]) -> Result<Value, RuntimeError> {
     run_file(functions)
 }
 
-pub fn run_source<'src>(source: &'src str) -> Result<(Value, Vec<ParserError>), RunError> {
+pub fn run_source(source: &str) -> Result<(Value, Vec<ParserError>), RunError> {
     let (functions, errors) = parse_source(source).map_err(RunError::Parse)?;
     if errors.is_empty() {
         let value = run_file(&functions).map_err(RunError::Runtime)?;

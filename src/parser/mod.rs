@@ -9,12 +9,11 @@
 //!
 //! Implementations expose `CAN_FAIL`. When `true`, the parser may return `Ok(None)` on a normal path
 //! (no match at the current position). It does **not** describe whether `Err` with
-//! [`crate::error::FurthestFailError`] is possible.
+//! [`crate::error::MatcherRunError`] is possible on the crate-private [`internal::ParserImpl::parse`] path.
 
 pub mod capture;
 pub mod deferred;
 pub mod erase_types;
-pub(crate) mod fn_parser;
 pub mod memoized;
 pub mod multiple;
 pub mod output_mapper;
@@ -40,19 +39,23 @@ use crate::{
     context::ParserContext,
     error::{
         FurthestFailError,
+        MatcherRunError,
+        ParserError,
         error_handler::{ErrorHandler, ErrorHandlerChoice},
     },
     input::{Input, InputStream},
     matcher::{ErrorContextualizer, ignore_result::IgnoreResult},
     parser::recover_error::ErrorRecoverer as ErrorRecovererInner,
 };
+#[cfg(feature = "parser-trace")]
+use crate::trace::{TraceFormat, TraceSession};
 
 pub(crate) mod internal {
     use std::fmt::{Debug, Display};
 
     use crate::{
         context::ParserContext,
-        error::{FurthestFailError, error_handler::ErrorHandler},
+        error::{MatcherRunError, error_handler::ErrorHandler},
         input::{Input, InputStream},
         parser::ParserCombinator,
     };
@@ -67,7 +70,7 @@ pub(crate) mod internal {
         /// `true` when this parser can return `Ok(None)` on a normal parse path.
         ///
         /// This constant models parse absence and does not indicate whether
-        /// `Err(FurthestFailError)` may be returned.
+        /// `Err(MatcherRunError)` may be returned.
         const CAN_FAIL: bool;
 
         /// Run the parser at `pos` against `context`, reporting secondary issues through `error_handler`.
@@ -76,7 +79,7 @@ pub(crate) mod internal {
             context: &mut ParserContext,
             error_handler: &mut impl ErrorHandler,
             input: &mut InputStream<'src, Inp>,
-        ) -> Result<Option<Self::Output>, FurthestFailError>;
+        ) -> Result<Option<Self::Output>, MatcherRunError>;
 
         fn maybe_label(&self) -> Option<Box<dyn Display>> {
             None
@@ -88,9 +91,166 @@ pub(crate) mod internal {
 ///
 /// Blanket-implemented for every type that implements the crate-private parsing
 /// trait used internally. Use [`recover_with`](Self::recover_with) and
-/// [`memoized`](Self::memoized) for common extensions; the `parse` method is
-/// inherited from that internal trait and drives the actual parse step.
-pub trait Parser<'src, Inp: Input<'src>>: internal::ParserImpl<'src, Inp> {}
+/// [`memoized`](Self::memoized) for common extensions; the three-argument [`internal::ParserImpl::parse`]
+/// method drives the actual parse step.
+///
+/// For parsing a full buffer with the same end-of-input wrapper as [`crate::parse`], use
+/// [`Self::parse_whole_input`] (or [`Self::parse_str`] when `Inp = &'src str`).
+///
+/// With the `parser-trace` feature, traced runs use [`Self::parse_whole_input_with_trace`]
+/// (or [`Self::parse_str_with_trace`] for `&str`).
+pub trait Parser<'src, Inp: Input<'src>>: internal::ParserImpl<'src, Inp>
+where
+    Self: 'src,
+{
+    /// Parse all of `input` with the default whole-input + EOF [`crate::matcher::commit_matcher::commit_on`]
+    /// wrapper (same driver as [`crate::parse`] for `Inp = &'src str`).
+    fn parse_whole_input(&self, input: Inp) -> Result<
+        (
+            <Self as internal::ParserImpl<'src, Inp>>::Output,
+            Vec<ParserError>,
+        ),
+        FurthestFailError,
+    >
+    where
+        Self: Clone,
+        Inp: Clone + 'src,
+    {
+        crate::parse_whole_input_with_default_eof(self, input)
+    }
+
+    /// Like [`Self::parse_whole_input`] for string input (convenience alias).
+    fn parse_str(&self, src: &'src str) -> Result<
+        (
+            <Self as internal::ParserImpl<'src, &'src str>>::Output,
+            Vec<ParserError>,
+        ),
+        FurthestFailError,
+    >
+    where
+        Self: Parser<'src, &'src str> + Clone,
+    {
+        crate::parse_whole_input_with_default_eof(self, src)
+    }
+
+    /// Parse with tracing; same whole-input + EOF wrapper as [`Self::parse_whole_input`].
+    #[cfg(feature = "parser-trace")]
+    fn parse_whole_input_with_trace(
+        &self,
+        input: Inp,
+    ) -> Result<
+        (
+            <Self as internal::ParserImpl<'src, Inp>>::Output,
+            Vec<ParserError>,
+            TraceSession,
+        ),
+        FurthestFailError,
+    >
+    where
+        Self: Clone,
+        Inp: Clone + 'src,
+    {
+        let (result, trace) =
+            crate::parse_whole_input_inner_with_trace(self, input, TraceSession::new());
+        result.map(|(output, errors)| (output, errors, trace))
+    }
+
+    /// Like [`Self::parse_whole_input_with_trace`], reusing an existing [`TraceSession`].
+    #[cfg(feature = "parser-trace")]
+    fn parse_whole_input_with_trace_session(
+        &self,
+        input: Inp,
+        trace_session: TraceSession,
+    ) -> Result<
+        (
+            <Self as internal::ParserImpl<'src, Inp>>::Output,
+            Vec<ParserError>,
+            TraceSession,
+        ),
+        FurthestFailError,
+    >
+    where
+        Self: Clone,
+        Inp: Clone + 'src,
+    {
+        let (result, trace) =
+            crate::parse_whole_input_inner_with_trace(self, input, trace_session);
+        result.map(|(output, errors)| (output, errors, trace))
+    }
+
+    /// Convenience alias for [`Self::parse_whole_input_with_trace`] on string input.
+    #[cfg(feature = "parser-trace")]
+    fn parse_str_with_trace(
+        &self,
+        src: &'src str,
+    ) -> Result<
+        (
+            <Self as internal::ParserImpl<'src, &'src str>>::Output,
+            Vec<ParserError>,
+            TraceSession,
+        ),
+        FurthestFailError,
+    >
+    where
+        Self: Parser<'src, &'src str> + Clone,
+    {
+        self.parse_whole_input_with_trace(src)
+    }
+
+    /// Traced parse and write the session to `trace_path` (no source snapshot; spans are positions in `input`).
+    #[cfg(feature = "parser-trace")]
+    fn parse_whole_input_with_trace_to_file(
+        &self,
+        input: Inp,
+        trace_path: impl AsRef<std::path::Path>,
+        format: TraceFormat,
+    ) -> Result<
+        (
+            <Self as internal::ParserImpl<'src, Inp>>::Output,
+            Vec<ParserError>,
+        ),
+        crate::ParseWithTraceToFileError,
+    >
+    where
+        Self: Clone,
+        Inp: Clone + 'src,
+    {
+        let (result, trace) =
+            crate::parse_whole_input_inner_with_trace(self, input, TraceSession::new());
+        crate::write_trace_to_file(&trace, trace_path, format)?;
+        match result {
+            Ok((output, errors)) => Ok((output, errors)),
+            Err(parse_err) => Err(crate::ParseWithTraceToFileError::Parse(parse_err)),
+        }
+    }
+
+    /// Like [`Self::parse_whole_input_with_trace_to_file`], and records `src` as trace source text.
+    #[cfg(feature = "parser-trace")]
+    fn parse_str_with_trace_to_file(
+        &self,
+        src: &'src str,
+        trace_path: impl AsRef<std::path::Path>,
+        format: TraceFormat,
+    ) -> Result<
+        (
+            <Self as internal::ParserImpl<'src, &'src str>>::Output,
+            Vec<ParserError>,
+        ),
+        crate::ParseWithTraceToFileError,
+    >
+    where
+        Self: Parser<'src, &'src str> + Clone,
+    {
+        let (result, mut trace) =
+            crate::parse_whole_input_inner_with_trace(self, src, TraceSession::new());
+        trace.set_source_text(src);
+        crate::write_trace_to_file(&trace, trace_path, format)?;
+        match result {
+            Ok((output, errors)) => Ok((output, errors)),
+            Err(parse_err) => Err(crate::ParseWithTraceToFileError::Parse(parse_err)),
+        }
+    }
+}
 
 pub trait ParserCombinator {
     /// Memoize parse results keyed by input position (output type must be `'static`).
@@ -157,11 +317,11 @@ pub trait ParserCombinator {
     ///
     /// This is useful when parser combinator types become very large and you
     /// want a stable, uniform type at the cost of dynamic dispatch.
-    fn erase_types<'a, 'src, Inp, Out>(self) -> erase_types::Erased<'a, 'src, Inp, Out>
+    fn erase_types<'src, Inp, Out>(self) -> erase_types::Erased<'src, 'src, Inp, Out>
     where
-        Self: Sized + Parser<'src, Inp, Output = Out> + 'a,
-        Inp: Input<'src> + 'a,
-        Out: 'a,
+        Self: Sized + Parser<'src, Inp, Output = Out> + 'src,
+        Inp: Input<'src> + 'src,
+        Out: 'src,
     {
         erase_types::erase(self)
     }
@@ -175,11 +335,11 @@ pub trait ParserCombinator {
     /// This keeps call sites stable while allowing opt-in type erasure from
     /// Cargo features instead of debug/release profile differences.
     #[cfg(feature = "parser-erased")]
-    fn maybe_erase_types<'a, 'src, Inp, Out>(self) -> erase_types::Erased<'a, 'src, Inp, Out>
+    fn maybe_erase_types<'src, Inp, Out>(self) -> erase_types::Erased<'src, 'src, Inp, Out>
     where
-        Self: Sized + Parser<'src, Inp, Output = Out> + 'a,
-        Inp: Input<'src> + 'a,
-        Out: 'a,
+        Self: Sized + Parser<'src, Inp, Output = Out> + 'src,
+        Inp: Input<'src> + 'src,
+        Out: 'src,
     {
         erase_types::erase(self)
     }
@@ -194,7 +354,7 @@ pub trait ParserCombinator {
     }
 }
 
-impl<'src, Inp: Input<'src>, P> Parser<'src, Inp> for P where P: internal::ParserImpl<'src, Inp> {}
+impl<'src, Inp: Input<'src>, P> Parser<'src, Inp> for P where P: internal::ParserImpl<'src, Inp> + 'src {}
 
 pub(crate) trait ParserObjSafe<'src, Inp: Input<'src>, Output>: std::fmt::Debug {
     fn parse(
@@ -202,11 +362,11 @@ pub(crate) trait ParserObjSafe<'src, Inp: Input<'src>, Output>: std::fmt::Debug 
         context: &mut ParserContext,
         error_handler: ErrorHandlerChoice<'_>,
         input: &mut InputStream<'src, Inp>,
-    ) -> Result<Option<Output>, FurthestFailError>;
+    ) -> Result<Option<Output>, MatcherRunError>;
 
     fn maybe_label(&self) -> Option<Box<dyn std::fmt::Display>>;
 
-    fn clone_boxed<'a>(self: &Self) -> Box<dyn ParserObjSafe<'src, Inp, Output> + 'a>
+    fn clone_boxed<'a>(&self) -> Box<dyn ParserObjSafe<'src, Inp, Output> + 'a>
     where
         Self: 'a;
 }
@@ -220,7 +380,7 @@ where
         context: &mut ParserContext,
         error_handler: ErrorHandlerChoice<'_>,
         input: &mut InputStream<'src, Inp>,
-    ) -> Result<Option<Output>, FurthestFailError> {
+    ) -> Result<Option<Output>, MatcherRunError> {
         match error_handler {
             ErrorHandlerChoice::Empty(handler) => self.parse(context, handler, input),
             ErrorHandlerChoice::Multi(handler) => self.parse(context, handler, input),
@@ -231,7 +391,7 @@ where
         <Self as internal::ParserImpl<'src, Inp>>::maybe_label(self)
     }
 
-    fn clone_boxed<'a>(self: &Self) -> Box<dyn ParserObjSafe<'src, Inp, Output> + 'a>
+    fn clone_boxed<'a>(&self) -> Box<dyn ParserObjSafe<'src, Inp, Output> + 'a>
     where
         Self: 'a,
     {
@@ -254,7 +414,7 @@ where
         context: &mut ParserContext,
         error_handler: &mut impl ErrorHandler,
         input: &mut InputStream<'src, Inp>,
-    ) -> Result<Option<Self::Output>, FurthestFailError> {
+    ) -> Result<Option<Self::Output>, MatcherRunError> {
         (**self).parse(context, error_handler, input)
     }
 
@@ -276,7 +436,7 @@ where
         context: &mut ParserContext,
         error_handler: &mut impl ErrorHandler,
         input: &mut InputStream<'src, Inp>,
-    ) -> Result<Option<Self::Output>, FurthestFailError> {
+    ) -> Result<Option<Self::Output>, MatcherRunError> {
         (**self).parse(context, error_handler, input)
     }
 
@@ -298,7 +458,7 @@ where
         context: &mut ParserContext,
         error_handler: &mut impl ErrorHandler,
         input: &mut InputStream<'src, Inp>,
-    ) -> Result<Option<Self::Output>, FurthestFailError> {
+    ) -> Result<Option<Self::Output>, MatcherRunError> {
         (**self).parse(context, error_handler, input)
     }
 

@@ -5,7 +5,7 @@ use std::sync::atomic::AtomicUsize;
 
 use crate::{
     context::ParserContext,
-    error::error_handler::ErrorHandler,
+    error::{MatcherRunError, error_handler::ErrorHandler},
     input::{Input, InputStream},
     parser::{Parser, ParserCombinator},
 };
@@ -67,34 +67,35 @@ where
         context: &mut ParserContext,
         error_handler: &mut impl ErrorHandler,
         input: &mut InputStream<'src, Inp>,
-    ) -> Result<Option<Self::Output>, crate::error::FurthestFailError> {
+    ) -> Result<Option<Self::Output>, crate::error::MatcherRunError> {
         let start_pos = input.get_pos();
         match self.happy.parse(context, error_handler, input) {
             Err(e) => {
-                input.set_pos(start_pos.clone());
-                // let mut runner = NoMemoizeBacktrackingRunner::new(context);
-                // if runner
-                //     .run_match(&self.recover_matcher, error_handler, input)
-                //     .unwrap_or(false)
-                if let Some(output) = self
-                    .recover_parser
-                    .parse(context, error_handler, input)
-                    .unwrap_or(None)
-                {
-                    // TODO: maybe find a way to avoid registering the same error multiple times.
-                    if !context
-                        .registered_error_set
-                        .contains(&(self.id, start_pos.clone().into()))
-                    {
-                        context.error_sink.push(e.as_parser_error());
-                        context
-                            .registered_error_set
-                            .insert((self.id, start_pos.into()));
-                    }
-
-                    return Ok(Some(output));
+                if matches!(e, MatcherRunError::RetryRerunNeeded) {
+                    input.set_pos(start_pos.clone());
+                    return Err(e);
                 }
-                Err(e)
+                input.set_pos(start_pos.clone());
+                match self.recover_parser.parse(context, error_handler, input) {
+                    Ok(Some(output)) => {
+                        // TODO: maybe find a way to avoid registering the same error multiple times.
+                        if !context
+                            .registered_error_set
+                            .contains(&(self.id, start_pos.clone().into()))
+                        {
+                            if let MatcherRunError::FurthestFail(f) = &e {
+                                context.error_sink.push(f.clone().as_parser_error());
+                                context
+                                    .registered_error_set
+                                    .insert((self.id, start_pos.into()));
+                            }
+                        }
+
+                        Ok(Some(output))
+                    }
+                    Ok(None) => Err(e),
+                    Err(re) => Err(re),
+                }
             }
             Ok(output) => Ok(output),
         }

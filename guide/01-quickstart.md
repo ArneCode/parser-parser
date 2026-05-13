@@ -23,7 +23,7 @@ cargo run --example json -- tests/data/json1.json
 - A `Parser` produces a typed output value when matching succeeds.
 - `capture!` combines matcher patterns and then constructs parser output.
 - Most grammar building blocks (sequence, lookahead, repetition) are matcher-level.
-- The final rule you run with `marser::parse(...)` is a parser.
+- The final rule you run with `parser.parse_str(...)` (or the thin alias `marser::parse(parser, ...)`) is a parser.
 
 If you remember one thing: matchers describe structure, parsers return values.
 
@@ -38,14 +38,14 @@ enum Value {
     Null,
 }
 
-fn grammar<'src>() -> impl Parser<'src, &'src str, Output = Value> {
+fn grammar<'src>() -> impl Parser<'src, &'src str, Output = Value> + Clone {
     capture!(("null") => Value::Null)
 }
 
 fn main() {
     let input = "null";
     let parser = grammar();
-    let (value, errors) = marser::parse(parser, input).unwrap();
+    let (value, errors) = parser.parse_str(input).unwrap();
     assert_eq!(value, Value::Null);
     assert!(errors.is_empty());
 }
@@ -54,7 +54,7 @@ fn main() {
 ## 4) Common mistakes
 
 - **Confusing matcher and parser output**: matcher checks structure; parser returns your enum/AST.
-- **Forgetting full-input parse behavior**: `marser::parse` expects no trailing tokens.
+- **Forgetting full-input parse behavior**: `Parser::parse_str` / `marser::parse` expect no trailing tokens.
 - **Starting too big**: begin with one literal rule, then add alternatives and recursion.
 
 Next: [Core Concepts](crate::guide::core_concepts)

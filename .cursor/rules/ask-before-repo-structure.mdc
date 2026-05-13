@@ -1,0 +1,18 @@
+---
+description: Ask the user before high-impact repo or workspace layout changes
+alwaysApply: true
+---
+
+# Repo structure: ask first
+
+Before **changing how the repository or Cargo workspace is laid out**, stop and ask the user which option they want. Do not pick a layout silently.
+
+Treat these as **high-impact** (always pause and present 1–2 clear options + your recommendation):
+
+- Moving the main crate into a subdirectory (e.g. virtual workspace at root vs package-at-root + workspace).
+- Adding or reshaping workspace members in a way that changes paths (`src/`, `Cargo.toml` location, `readme` paths, CI, docs).
+- Renaming the root package, crate folders, or binary names when not explicitly requested.
+
+**When the user already specified the layout** (e.g. “root `marser` package + workspace” vs “virtual workspace”), implement that without re-asking.
+
+**When implementing**, briefly state the chosen layout in the reply so the user can correct it early.

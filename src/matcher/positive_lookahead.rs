@@ -1,6 +1,7 @@
 //! `&e` — succeeds when `checker` would match, without consuming input (position restored).
 
 use crate::{
+    error::MatcherRunError,
     error::error_handler::ErrorHandler,
     input::{Input, InputStream},
     matcher::{MatchRunner, Matcher},
@@ -44,7 +45,7 @@ where
         runner: &mut Runner,
         error_handler: &mut impl ErrorHandler,
         input: &mut InputStream<'src, Inp>,
-    ) -> Result<bool, crate::error::FurthestFailError>
+    ) -> Result<bool, MatcherRunError>
     where
         Runner: MatchRunner<'a, 'src, Inp, MRes = MRes>,
         'src: 'a,

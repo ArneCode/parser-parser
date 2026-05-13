@@ -3,12 +3,13 @@
 use marser::{
     matcher::{MatcherCombinator, many},
     one_of::one_of,
+    parse_with_trace, parse_with_trace_to_file,
     parser::Parser,
     trace::{NodeTraceStatus, TraceEventKind, TraceFormat, TraceMarkerPhase, WithTrace},
 };
 use std::{fs, time::{SystemTime, UNIX_EPOCH}};
 
-fn tiny_parser<'src>() -> impl Parser<'src, &'src str, Output = &'src str> {
+fn tiny_parser<'src>() -> impl Parser<'src, &'src str, Output = &'src str> + Clone {
     one_of(("ab".to("ab"), "ac".to("ac")))
 }
 
@@ -18,7 +19,7 @@ fn trace_collects_explicit_marker_events() {
         "ab".to("ab").trace_with_label("first arm"),
         "ac".to("ac").trace_with_label("second arm"),
     ));
-    let (_out, _errors, trace) = marser::parse_with_trace(parser, "ac").unwrap();
+    let (_out, _errors, trace) = parse_with_trace(parser.clone(), "ac").unwrap();
     let kinds: Vec<_> = trace
         .events()
         .iter()
@@ -32,7 +33,7 @@ fn trace_collects_explicit_marker_events() {
 
 #[test]
 fn trace_event_ids_are_monotonic() {
-    let (_out, _errors, trace) = marser::parse_with_trace(tiny_parser(), "ab").unwrap();
+    let (_out, _errors, trace) = parse_with_trace(tiny_parser(), "ab").unwrap();
     let mut expected_id = 0u64;
     for event in trace.events() {
         assert_eq!(event.node_id, expected_id);
@@ -43,7 +44,7 @@ fn trace_event_ids_are_monotonic() {
 #[test]
 fn trace_events_include_rule_identity_metadata() {
     let parser = "ab".to("ab").trace_with_label("ok");
-    let (_out, _errors, trace) = marser::parse_with_trace(parser, "ab").unwrap();
+    let (_out, _errors, trace) = parse_with_trace(parser.clone(), "ab").unwrap();
     let with_rule = trace
         .events()
         .iter()
@@ -64,7 +65,7 @@ fn same_rule_reuses_rule_id_within_parse() {
         "ab".to("ab").trace_with_label("same"),
         "ac".to("ac").trace_with_label("same"),
     ));
-    let (_out, _errors, trace) = marser::parse_with_trace(parser, "ac").unwrap();
+    let (_out, _errors, trace) = parse_with_trace(parser.clone(), "ac").unwrap();
     let first_rule_id = trace
         .events()
         .iter()
@@ -80,8 +81,8 @@ fn same_rule_reuses_rule_id_within_parse() {
 
 #[test]
 fn rule_id_sequence_is_deterministic_across_runs() {
-    let (_out, _errors, trace_a) = marser::parse_with_trace(tiny_parser(), "ac").unwrap();
-    let (_out, _errors, trace_b) = marser::parse_with_trace(tiny_parser(), "ac").unwrap();
+    let (_out, _errors, trace_a) = parse_with_trace(tiny_parser(), "ac").unwrap();
+    let (_out, _errors, trace_b) = parse_with_trace(tiny_parser(), "ac").unwrap();
     let seq_a = trace_a
         .events()
         .iter()
@@ -98,7 +99,7 @@ fn rule_id_sequence_is_deterministic_across_runs() {
 #[test]
 fn depth_only_changes_at_capture_boundaries() {
     let parser = many('a').to(()).trace_with_label("many a");
-    let (_out, _errors, trace) = marser::parse_with_trace(parser, "aaa").unwrap();
+    let (_out, _errors, trace) = parse_with_trace(parser.clone(), "aaa").unwrap();
     let starts = trace
         .events()
         .iter()
@@ -119,7 +120,7 @@ fn explicit_trace_markers_are_paired_and_ordered() {
         "ab".to("ab").trace_with_label("first arm"),
         "ac".to("ac").trace_with_label("second arm"),
     ));
-    let (_out, _errors, trace) = marser::parse_with_trace(parser, "ac").unwrap();
+    let (_out, _errors, trace) = parse_with_trace(parser.clone(), "ac").unwrap();
     let explicit = trace
         .events()
         .iter()
@@ -158,7 +159,7 @@ fn explicit_trace_marker_end_reflects_inner_soft_fail() {
             .trace_with_label("no match"),
         "ab".to("ab"),
     ));
-    let (_out, _errors, trace) = marser::parse_with_trace(parser, "ab").unwrap();
+    let (_out, _errors, trace) = parse_with_trace(parser.clone(), "ab").unwrap();
     let end = trace
         .events()
         .iter()
@@ -175,7 +176,7 @@ fn explicit_trace_marker_end_reflects_inner_soft_fail() {
 #[test]
 fn explicit_trace_marker_end_reflects_inner_success() {
     let parser = "ab".to("ab").trace_with_label("ok");
-    let (_out, _errors, trace) = marser::parse_with_trace(parser, "ab").unwrap();
+    let (_out, _errors, trace) = parse_with_trace(parser.clone(), "ab").unwrap();
     let end = trace
         .events()
         .iter()
@@ -192,7 +193,7 @@ fn explicit_trace_marker_end_includes_failure_snapshot_on_soft_fail() {
         "zz".to("zz").trace_with_label("no match"),
         "ab".to("ab"),
     ));
-    let (_out, _errors, trace) = marser::parse_with_trace(parser, "ab").unwrap();
+    let (_out, _errors, trace) = parse_with_trace(parser.clone(), "ab").unwrap();
     let end = trace
         .events()
         .iter()
@@ -218,7 +219,7 @@ fn parse_with_trace_to_file_writes_trace_on_error() {
         .as_nanos();
     let trace_path = std::env::temp_dir().join(format!("marser-trace-error-{nanos}.json"));
 
-    let result = marser::parse_with_trace_to_file(parser, "ac", &trace_path, TraceFormat::Json);
+    let result = parse_with_trace_to_file(parser.clone(), "ac", &trace_path, TraceFormat::Json);
     assert!(result.is_err(), "parse should fail for mismatched input");
 
     let trace_text = fs::read_to_string(&trace_path).expect("trace file should be written");

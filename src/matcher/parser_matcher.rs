@@ -1,7 +1,7 @@
 //! Treat a [`crate::parser::Parser`] as a [`crate::matcher::Matcher`]: succeed only when parse output equals `expected_output`.
 
 use crate::{
-    error::{FurthestFailError, error_handler::ErrorHandler},
+    error::{MatcherRunError, error_handler::ErrorHandler},
     input::{Input, InputStream},
     matcher::MatchRunner,
     parser::{Parser, ParserCombinator},
@@ -50,14 +50,15 @@ where
         runner: &mut Runner,
         error_handler: &mut impl ErrorHandler,
         input: &mut InputStream<'src, Inp>,
-    ) -> Result<bool, FurthestFailError>
+    ) -> Result<bool, MatcherRunError>
     where
         Runner: MatchRunner<'a, 'src, Inp, MRes = MRes>,
         'src: 'a,
     {
-        if let Some(output) =
-            self.parser
-                .parse(runner.get_parser_context(), error_handler, input)?
+        let parsed = self
+            .parser
+            .parse(runner.get_parser_context(), error_handler, input)?;
+        if let Some(output) = parsed
             && output == self.expected_output
         {
             return Ok(true);
