@@ -106,9 +106,9 @@ where
     Inp: Input<'src>,
     MRes: MatchResult,
 {
-    const CAN_MATCH_DIRECTLY: bool = true;
-    const HAS_PROPERTY: bool = false;
-    const CAN_FAIL: bool = true;
+    const CAN_MATCH_DIRECTLY: bool = Inner::CAN_MATCH_DIRECTLY;
+    const HAS_PROPERTY: bool = Inner::HAS_PROPERTY;
+    const CAN_FAIL: bool = Inner::CAN_FAIL;
 
     fn match_with_runner<'a, Runner>(
         &'a self,
