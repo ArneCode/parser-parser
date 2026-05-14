@@ -55,7 +55,7 @@ cargo test -p marser --features parser-erased --test capture_ui
 | File | Purpose |
 |------|---------|
 | `capture_ui.rs` | [`trybuild`](https://docs.rs/trybuild): `capture!` / `bind!` pass + compile-fail cases under `tests/ui/` with golden `.stderr`. |
-| `json_harness.rs` | `examples/json` grammar on small fixtures in `tests/data/json*.json` (valid = no recovery diagnostics; invalid = recovered AST + diagnostics). |
+| `json_harness.rs` | [`examples/json/grammar.rs`](../examples/json/grammar.rs) on small fixtures in `tests/data/json*.json` (valid = no recovery diagnostics; invalid = recovered AST + diagnostics). |
 | `json_suite.rs` | Smoke tests for `TokenParser` + `parse`. |
 | `json_testsuite.rs` | [JSONTestSuite](https://github.com/nst/JSONTestSuite) corpus (`tests/JSONTestSuite/test_parsing/`). **Requires** `json-testsuite` (and `parser-erased`). See below. |
 | `memoized_borrow.rs` | Regression: `Memoized` + `capture!` with outputs that borrow the input. |
@@ -110,6 +110,16 @@ cargo test -p marser --features "parser-erased parser-trace" --test trace_harnes
 - `tests/data/` — small JSON and mini-language (`.ml`) samples used by `json_harness` and `mini_language_harness`.
 - `tests/JSONTestSuite/` — third-party corpus (submodule); parsing vectors live under `test_parsing/`.
 - `tests/ui/` — sources + `.stderr` for `capture_ui` `trybuild` cases.
+
+## Benchmarks (`benches/`)
+
+Criterion bench **`json_parse`** (same grammar as `json_harness` via `examples/json/grammar.rs`):
+
+```bash
+cargo bench --bench json_parse
+```
+
+See the repo `README.md` for Criterion HTML output, optional **gnuplot**, and **flamegraph** / `perf` notes (WSL2 often needs a generic `perf` or `PERF=…`).
 
 ## Workspace crates
 

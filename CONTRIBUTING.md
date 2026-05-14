@@ -52,3 +52,10 @@ Review diffs, commit intentional changes, then re-run **without** `TRYBUILD=over
 - For the full rustdoc experience locally, use `embed-guide` as in the `cargo doc` example in **Feature flags** above.
 
 For more context, see the **For contributors: compile tests (`trybuild`)** section in `README.md`.
+
+## Benchmarks and flamegraphs
+
+- **`cargo bench --bench json_parse`** — Criterion benches for the JSON demo grammar (`benches/json_parse.rs`, fixtures under `tests/data/` and `benches/data/`).
+- **`./scripts/flamegraph-json-parse.sh`** — runs `cargo flamegraph` with a `PERF` hint for Ubuntu/WSL generic `perf` when needed. Requires `cargo install flamegraph` and a working `perf` (WSL: often `linux-tools-generic`; see `README.md`).
+
+Bench profile enables debug symbols via **`[profile.bench] debug = true`** in the crate `Cargo.toml` for readable stacks.

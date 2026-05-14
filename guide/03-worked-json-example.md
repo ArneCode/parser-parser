@@ -14,8 +14,8 @@ The approach is incremental: each section has a full runnable block that contain
 everything from the previous section plus one new concept.
 
 This tutorial intentionally stays **smaller than the repository's production
-example** in `examples/json.rs`. Use this page to learn the grammar shape and
-the `capture!` patterns; use `examples/json.rs` for richer numbers, string
+example** in `examples/json/grammar.rs` (CLI in `examples/json/main.rs`). Use this page to learn the grammar shape and
+the `capture!` patterns; use that example for richer numbers, string
 escapes, recovery, diagnostics, and optional tracing.
 
 ## 1) Start with `null` only
@@ -444,7 +444,7 @@ assert!(errors.is_empty());
 
 If you want to compare this tutorial grammar with a more realistic one:
 
-- `examples/json.rs` adds richer validation, recovery, and optional tracing
+- `examples/json/grammar.rs` adds richer validation, recovery, and optional tracing (run via the `json` example in `examples/json/main.rs`)
 - [Errors and Recovery](crate::guide::errors_and_recovery) explains when to
   commit and recover
 - [Common patterns](crate::guide::common_patterns) collects the reusable recipes

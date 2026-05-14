@@ -28,7 +28,7 @@ Sketch:
 [ optional(elem (, elem)*) ]
 ```
 
-See [Build a Simple JSON Parser](crate::guide::worked_json_example) for arrays/objects, and `examples/json.rs` for recovery-aware commas.
+See [Build a Simple JSON Parser](crate::guide::worked_json_example) for arrays/objects, and `examples/json/grammar.rs` for recovery-aware commas.
 
 ## Distinctive-prefix commits
 
@@ -91,4 +91,4 @@ This page is for quick reminders. When a pattern starts interacting with diagnos
 
 - go to [Errors and Recovery](crate::guide::errors_and_recovery) for committed rules and collected errors
 - go to [Capture and Binds](crate::guide::capture_and_binds) for bind-shape pitfalls
-- go to `examples/json.rs` or `examples/mini_script.rs` for full, runnable grammar layouts
+- go to `examples/json/grammar.rs` or `examples/mini_script.rs` for full, runnable grammar layouts

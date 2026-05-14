@@ -108,7 +108,7 @@ let grammar = recursive(|expr| {
 });
 ```
 
-For recursive JSON-like structures, this is the standard pattern used in `examples/json.rs`.
+For recursive JSON-like structures, this is the standard pattern used in `examples/json/grammar.rs`.
 
 ---
 

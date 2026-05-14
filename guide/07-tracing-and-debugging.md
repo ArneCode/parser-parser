@@ -31,10 +31,10 @@ Open that trace in the TUI viewer:
 cargo run -p marser-trace-viewer -- --trace /tmp/json-trace.json --source tests/data/json1.json
 ```
 
-## Learn by example: `examples/json.rs`
+## Learn by example: `examples/json/grammar.rs`
 
 If you want to get an immediate feel for what tracing looks like in a realistic
-grammar, start with `examples/json.rs`.
+grammar, start with `examples/json/grammar.rs` (build and run the **`json`** example from `examples/json/main.rs` for CLI and `--trace-file`).
 
 Why this example is useful:
 
@@ -46,7 +46,7 @@ Why this example is useful:
 
 Suggested flow:
 
-1. Open `examples/json.rs` and look for `.trace()` placements in the grammar.
+1. Open `examples/json/grammar.rs` and look for `.trace()` placements in the grammar.
 2. Run:
 
 ```bash

@@ -95,7 +95,7 @@ Examples need **`parser-erased`** and **`annotate-snippets`** (see `Cargo.toml` 
 
 | Example | What it shows |
 |--------|----------------|
-| [`examples/json.rs`](examples/json.rs) | Full JSON grammar, recovery, optional `parser-trace` / `--trace-file`. |
+| [`examples/json/`](examples/json/) | JSON demo: [`grammar.rs`](examples/json/grammar.rs) (recovery grammar, shared with tests/benches), [`main.rs`](examples/json/main.rs) (CLI, optional `parser-trace` / `--trace-file`). |
 | [`examples/mini_script.rs`](examples/mini_script.rs) | Small language: statements, precedence, `commit_on` + `recover_with`. |
 | [`examples/mini_language.rs`](examples/mini_language.rs) | Parse file + eval; recovered diagnostics vs fatal error. |
 
@@ -121,6 +121,18 @@ Example diagnostic (terminal; requires **`annotate-snippets`**):
 ![Example parse error for invalid JSON](image-1.png)
 
 With recovery, the same run can still yield a partial AST (details in the JSON example and guide).
+
+## Benchmarks and profiling
+
+**Criterion** (`json_parse` bench) parses fixed fixtures (small `tests/data/json0.json` and `benches/data/canada.json` from [simdjson-data](https://github.com/simdjson/simdjson-data)):
+
+```bash
+cargo bench --bench json_parse
+```
+
+HTML output: `target/criterion/report/index.html`. Criterion may print `Gnuplot not found, using plotters backend`; install **`gnuplot`** (`sudo apt install gnuplot` on Debian/Ubuntu) if you want the Gnuplot backend—plotters works without it.
+
+Bench builds use **`[profile.bench] debug = true`** in `Cargo.toml` so tools like **`cargo flamegraph`** get usable symbols. Flamegraph still needs a working **`perf`** on Linux; on WSL2 the kernel-matched `linux-tools-*` package is often missing—try `sudo apt install linux-tools-common linux-tools-generic` and, if needed, `export PERF=/usr/lib/linux-tools/<version>-generic/perf`, or run [`scripts/flamegraph-json-parse.sh`](scripts/flamegraph-json-parse.sh) from this directory.
 
 ## Experimental tracing
 

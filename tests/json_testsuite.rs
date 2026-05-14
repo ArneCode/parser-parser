@@ -1,5 +1,5 @@
-//! [nst/JSONTestSuite](https://github.com/nst/JSONTestSuite) conformance harness for the `examples/json`
-//! grammar (recovery-oriented).
+//! [nst/JSONTestSuite](https://github.com/nst/JSONTestSuite) conformance harness for the JSON grammar in
+//! [`examples/json/grammar.rs`](../examples/json/grammar.rs) (recovery-oriented; shared with the `json` example and benches).
 //!
 //! **Requires** the `json-testsuite` Cargo feature (and `parser-erased` for the JSON example):
 //!
@@ -20,7 +20,7 @@
 //! ladders) so the default matrix stays fast and stable; treat those as manual stress checks.
 
 #![cfg(feature = "json-testsuite")]
-#![allow(dead_code, unused_imports)] // `examples/json.rs` is pulled in only for parsing, not serialization helpers
+#![allow(dead_code, unused_imports)] // `examples/json/grammar.rs` is pulled in only for parsing, not serialization helpers
 
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -28,7 +28,7 @@ use std::thread;
 
 use marser::parser::Parser;
 
-#[path = "../examples/json.rs"]
+#[path = "../examples/json/grammar.rs"]
 mod json_example;
 
 const SUITE_REL: &str = "tests/JSONTestSuite/test_parsing";

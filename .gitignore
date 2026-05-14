@@ -1,4 +1,7 @@
 /target
 
+# perf record / cargo flamegraph
+perf.data
+
 # Local Cursor rules and other scratch .mdc files (not versioned)
 *.mdc

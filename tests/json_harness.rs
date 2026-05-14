@@ -3,7 +3,7 @@ use std::path::Path;
 
 use marser::parser::Parser;
 
-#[path = "../examples/json.rs"]
+#[path = "../examples/json/grammar.rs"]
 mod json_example;
 
 fn read_fixture(path: &str) -> String {

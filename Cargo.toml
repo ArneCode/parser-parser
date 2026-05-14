@@ -32,6 +32,10 @@ exclude = [
     "marser-trace-viewer/**",
 ]
 
+# Readable stacks in `cargo flamegraph --bench …` / perf (line-level is still limited without LTO off).
+[profile.bench]
+debug = true
+
 [features]
 default = []
 # Terminal diagnostics via annotate-snippets (`ParserError::eprint`, etc.).
@@ -53,7 +57,13 @@ serde = { version = "1", features = ["derive"], optional = true }
 serde_json = { version = "1", optional = true }
 
 [dev-dependencies]
+criterion = "0.5"
 trybuild = "1.0.105"
+
+[[bench]]
+name = "json_parse"
+harness = false
+path = "benches/json_parse.rs"
 
 [[example]]
 name = "json"
