@@ -61,9 +61,15 @@ where
         let idx = error_handler.register_start(old_pos.clone().into());
         let old_stack_len = self.get_parser_context().error_stack.len();
         let result = self.run_match_inner(matcher, error_handler, input);
-        error_handler.register_watermark(input.get_pos().into());
+        if error_handler.is_real() {
+            error_handler.register_watermark(input.get_pos().into());
+        }
         let result = if let Err(err) = result {
-            error_handler.register_failure(matcher.maybe_label(), idx);
+            if error_handler.is_real() {
+                error_handler.register_failure(matcher.maybe_label(), idx);
+            } else {
+                error_handler.register_failure(None::<&'static str>, idx);
+            }
             // move back error stack to the previous state
             self.get_parser_context()
                 .error_stack
@@ -74,7 +80,11 @@ where
         };
         if !result {
             input.set_pos(old_pos.clone());
-            error_handler.register_failure(matcher.maybe_label(), idx);
+            if error_handler.is_real() {
+                error_handler.register_failure(matcher.maybe_label(), idx);
+            } else {
+                error_handler.register_failure(None::<&'static str>, idx);
+            }
             // move back error stack to the previous state
             self.get_parser_context()
                 .error_stack
