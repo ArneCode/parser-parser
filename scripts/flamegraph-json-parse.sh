@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Run cargo flamegraph for the json_parse bench. On WSL, kernel-specific linux-tools-* packages
+# Run cargo flamegraph for the profile_json_parse binary (bounded wall time; same fixtures as the
+# json_parse Criterion bench). On WSL, kernel-specific linux-tools-* packages
 # are often missing; Ubuntu's generic perf may still work — this script picks one if PERF is unset.
 set -euo pipefail
 
@@ -23,4 +24,4 @@ if [[ -z "${PERF:-}" ]] && ! command -v perf >/dev/null 2>&1; then
   exit 1
 fi
 
-exec cargo flamegraph --bench json_parse "$@"
+exec cargo flamegraph --profile bench --bin profile_json_parse "$@"

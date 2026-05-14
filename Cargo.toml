@@ -10,6 +10,7 @@ members = [
 name = "marser"
 version = "0.1.0"
 edition = "2024"
+autobenches = false # explicit `[[bench]]` only; `benches/json_parse_shared.rs` is not a crate root
 authors = ["Arne de Borman"]
 description = "Parser combinator toolkit with matcher-level backtracking and rich error reporting."
 license = "MIT"
@@ -65,6 +66,10 @@ name = "json_parse"
 harness = false
 path = "benches/json_parse.rs"
 
+[[bin]]
+name = "profile_json_parse"
+path = "src/bin/profile_json_parse.rs"
+
 [[example]]
 name = "json"
 required-features = ["annotate-snippets", "parser-erased"]
@@ -76,3 +81,7 @@ required-features = ["annotate-snippets", "parser-erased"]
 [[example]]
 name = "mini_script"
 required-features = ["annotate-snippets", "parser-erased"]
+
+[profile.samply]
+inherits = "release"
+debug = true

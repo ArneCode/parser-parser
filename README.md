@@ -132,7 +132,14 @@ cargo bench --bench json_parse
 
 HTML output: `target/criterion/report/index.html`. Criterion may print `Gnuplot not found, using plotters backend`; install **`gnuplot`** (`sudo apt install gnuplot` on Debian/Ubuntu) if you want the Gnuplot backend—plotters works without it.
 
-Bench builds use **`[profile.bench] debug = true`** in `Cargo.toml` so tools like **`cargo flamegraph`** get usable symbols. Flamegraph still needs a working **`perf`** on Linux; on WSL2 the kernel-matched `linux-tools-*` package is often missing—try `sudo apt install linux-tools-common linux-tools-generic` and, if needed, `export PERF=/usr/lib/linux-tools/<version>-generic/perf`, or run [`scripts/flamegraph-json-parse.sh`](scripts/flamegraph-json-parse.sh) from this directory.
+Bench builds use **`[profile.bench] debug = true`** in `Cargo.toml` so tools like **`cargo flamegraph`** get usable symbols. For a **short** profiling run (without waiting for Criterion’s full measurement schedule), use the **`profile_json_parse`** binary (defaults: `canada` fixture, 5 seconds of parsing):
+
+```bash
+cargo flamegraph --profile bench --bin profile_json_parse
+# optional: cargo flamegraph --profile bench --bin profile_json_parse -- json0 3
+```
+
+Flamegraph still needs a working **`perf`** on Linux; on WSL2 the kernel-matched `linux-tools-*` package is often missing—try `sudo apt install linux-tools-common linux-tools-generic` and, if needed, `export PERF=/usr/lib/linux-tools/<version>-generic/perf`, or run [`scripts/flamegraph-json-parse.sh`](scripts/flamegraph-json-parse.sh) from this directory.
 
 ## Experimental tracing
 

@@ -1,30 +1,22 @@
-use std::path::Path;
 use std::time::Duration;
 
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use marser::parser::Parser;
 
-#[path = "../examples/json/grammar.rs"]
-#[allow(dead_code)]
-mod json_grammar;
+#[path = "json_parse_shared.rs"]
+mod shared;
 
-fn bench_fixture(c: &mut Criterion, label: &'static str, path: &Path) {
-    let src = std::fs::read_to_string(path)
-        .unwrap_or_else(|e| panic!("read {}: {e}", path.display()));
-    let parser = json_grammar::get_json_grammar();
+use shared::{assert_parse_clean, get_json_grammar, load_src, Fixture};
 
-    let (value, errors) = parser
-        .parse_str(src.as_str())
-        .unwrap_or_else(|_| panic!("{label}: hard parse error"));
-    assert!(
-        errors.is_empty(),
-        "{label}: expected no recovery diagnostics, got {} diagnostic(s)",
-        errors.len()
-    );
-    black_box(value);
+fn bench_fixture(c: &mut Criterion, fixture: Fixture) {
+    let label = fixture.label();
+    let src = load_src(fixture);
+    let parser = get_json_grammar();
+
+    assert_parse_clean(label, &parser, src.as_str());
 
     let mut group = c.benchmark_group(label);
-    if label == "parse_canada" {
+    if fixture == Fixture::Canada {
         // Default is ~100 samples in ~5s; full-file parse is hundreds of ms per iter.
         group
             .measurement_time(Duration::from_secs(20))
@@ -40,17 +32,8 @@ fn bench_fixture(c: &mut Criterion, label: &'static str, path: &Path) {
 }
 
 fn parse_fixtures(c: &mut Criterion) {
-    let root = Path::new(env!("CARGO_MANIFEST_DIR"));
-    bench_fixture(
-        c,
-        "parse_json0",
-        &root.join("tests/data/json0.json"),
-    );
-    bench_fixture(
-        c,
-        "parse_canada",
-        &root.join("benches/data/canada.json"),
-    );
+    bench_fixture(c, Fixture::Json0);
+    bench_fixture(c, Fixture::Canada);
 }
 
 criterion_group!(benches, parse_fixtures);

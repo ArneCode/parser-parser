@@ -2,6 +2,9 @@
 
 # perf record / cargo flamegraph
 perf.data
+flamegraph.svg
+perf.data.old
+profile.json.gz
 
 # Local Cursor rules and other scratch .mdc files (not versioned)
 *.mdc
