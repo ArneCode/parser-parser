@@ -22,7 +22,7 @@ rust-version = "1.85"
 
 # docs.rs: build with tracing + erased so public API behind features is documented.
 [package.metadata.docs.rs]
-features = ["parser-erased", "parser-trace", "annotate-snippets"]
+features = ["parser-erased", "parser-trace", "annotate-snippets", "embed-guide"]
 
 exclude = [
     "target/**",
@@ -42,6 +42,8 @@ parser-erased = []
 parser-trace = ["dep:serde", "dep:serde_json", "dep:marser-trace-schema"]
 # Enable JSONTestSuite integration tests (`tests/json_testsuite.rs`).
 json-testsuite = []
+# Embed long-form guide markdown into rustdoc (`marser::guide::*`). Off by default for faster `cargo build`.
+embed-guide = []
 
 [dependencies]
 annotate-snippets = { version = "0.12.15", optional = true }

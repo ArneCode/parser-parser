@@ -81,6 +81,7 @@ Suggested next reads:
 | **`parser-erased`** | Use this when parser types become unwieldy; it enables `ParserCombinator::maybe_erase_types` and is used by this repo's examples. |
 | **`annotate-snippets`** | Enables `ParserError::eprint`, `write`, and terminal-friendly diagnostics. **Examples in this repo require it.** |
 | **`parser-trace`** | Structured parse tracing and trace files; companion crates are experimental (see below). |
+| **`embed-guide`** | Embeds the long-form `marser::guide::*` chapters and the README into rustdoc. **Off by default** for faster `cargo build`; enabled on docs.rs. Use `cargo doc -p marser --features embed-guide` locally for the full book. |
 
 **Compatibility:** Releases follow semver for the **documented public API**. Everyday composition (`capture!`, matchers, errors) is intended to stay stable across minors; **tracing** and trace crates may evolve faster. Macro **expansion** details are not a stability guarantee — use macros as APIs, not generated internals.
 

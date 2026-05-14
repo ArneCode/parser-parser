@@ -1,4 +1,10 @@
-#![doc = include_str!("../README.md")]
+#![cfg_attr(feature = "embed-guide", doc = include_str!("../README.md"))]
+#![cfg_attr(
+    not(feature = "embed-guide"),
+    doc = r"Parser combinator toolkit with matcher-level backtracking and rich error reporting.
+
+The full crate introduction is in `README.md` at the repository root. For book-style chapters in rustdoc (`marser::guide`), build docs with **`--features embed-guide`** (this matches the docs.rs build)."
+)]
 #![cfg_attr(docsrs, feature(doc_auto_cfg))]
 #![deny(missing_docs)]
 // `Parser` and `Matcher` are sealed via `pub(crate)` supertraits (`ParserImpl`,
@@ -14,7 +20,19 @@ extern crate self as marser;
 pub(crate) mod context;
 pub(crate) mod memo_store;
 pub mod error;
+#[cfg(feature = "embed-guide")]
+#[path = "guide_embed.rs"]
 pub mod guide;
+#[cfg(not(feature = "embed-guide"))]
+pub mod guide {
+    //! Long-form guide chapters (`overview`, `quickstart`, error recovery, …) are embedded only
+    //! when the **`embed-guide`** Cargo feature is enabled — for example
+    //! `cargo doc -p marser --features embed-guide --open` — matching the **docs.rs** build.
+    //!
+    //! The markdown sources live in the [`guide/` directory in the repository](https://github.com/ArneCode/marser/tree/main/guide).
+    //!
+    //! Published API docs: <https://docs.rs/marser/latest/marser/guide/index.html>
+}
 pub mod input;
 pub mod label;
 pub mod matcher;

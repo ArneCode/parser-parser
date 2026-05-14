@@ -81,6 +81,10 @@ Use the bind form that matches the boundary you want:
 
 Large `one_of` / nested `capture!` types compile to deep generic trees. When inference or compile time hurts, call `.maybe_erase_types()` on heavy parsers (requires Cargo feature **`parser-erased`**). Repository examples use this on some JSON sub-rules.
 
+**Compile time vs runtime:** erasure uses dynamic dispatch and can shrink type-checking and codegen cost for huge grammars. If you only need erasure for developer builds, use `erase_types()` under `#[cfg(debug_assertions)]` and keep concrete types in release (as in `parse-rosetta-rs`’s `marser-app`), or add a **`fast-compile`** (or similar) Cargo feature on your grammar crate that enables erasure in release when you are not benchmarking.
+
+**Measuring:** use `cargo build -p your_crate --timings` for a crate-level breakdown; on nightly, `cargo llvm-lines --release -p your_crate` shows monomorphization hotspots.
+
 ## When to stop reading recipes
 
 This page is for quick reminders. When a pattern starts interacting with diagnostics, recovery, or tracing:
