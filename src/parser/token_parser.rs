@@ -59,6 +59,7 @@ where
     type Output = Out;
     const CAN_FAIL: bool = true;
 
+    #[inline]
     fn parse(
         &self,
         _context: &mut ParserContext<'src>,

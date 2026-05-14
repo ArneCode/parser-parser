@@ -96,6 +96,7 @@ where
     type Output = Out;
     const CAN_FAIL: bool = Match::CAN_FAIL;
 
+    #[inline]
     fn parse(
         &self,
         context: &mut ParserContext<'src>,

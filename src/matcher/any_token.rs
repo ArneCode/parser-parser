@@ -20,6 +20,7 @@ where
     const HAS_PROPERTY: bool = false;
     const CAN_FAIL: bool = true;
 
+    #[inline]
     fn match_with_runner<'a, Runner>(
         &'a self,
         _runner: &mut Runner,

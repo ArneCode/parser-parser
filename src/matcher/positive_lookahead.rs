@@ -40,6 +40,7 @@ where
     const HAS_PROPERTY: bool = false;
     const CAN_FAIL: bool = Check::CAN_FAIL;
 
+    #[inline]
     fn match_with_runner<'a, Runner>(
         &'a self,
         runner: &mut Runner,

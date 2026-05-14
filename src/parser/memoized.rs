@@ -42,6 +42,7 @@ where
     type Output = Rc<POut>;
     const CAN_FAIL: bool = P::CAN_FAIL;
 
+    #[inline]
     fn parse(
         &self,
         context: &mut ParserContext<'src>,

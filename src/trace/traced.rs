@@ -80,6 +80,7 @@ where
     const HAS_PROPERTY: bool = I::HAS_PROPERTY;
     const CAN_FAIL: bool = I::CAN_FAIL;
 
+    #[inline]
     fn match_with_runner<'a, Runner>(
         &'a self,
         runner: &mut Runner,
@@ -139,6 +140,7 @@ where
         matched
     }
 
+    #[inline]
     fn maybe_label(&self) -> Option<Box<dyn Display>> {
         self.inner.maybe_label()
     }
@@ -151,6 +153,7 @@ where
     type Output = I::Output;
     const CAN_FAIL: bool = I::CAN_FAIL;
 
+    #[inline]
     fn parse(
         &self,
         context: &mut ParserContext<'src>,
@@ -205,6 +208,7 @@ where
         parsed
     }
 
+    #[inline]
     fn maybe_label(&self) -> Option<Box<dyn Display>> {
         self.inner.maybe_label()
     }

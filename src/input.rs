@@ -31,10 +31,12 @@ impl<'src> Input<'src> for &'src str {
     type Token = char;
     type Pos = usize;
 
+    #[inline]
     fn start_pos(&self) -> Self::Pos {
         0
     }
 
+    #[inline]
     fn read_token(&mut self, pos: &mut Self::Pos) -> Option<Self::Token> {
         let mut chars = self[*pos..].chars();
         let token = chars.next()?;
@@ -55,10 +57,12 @@ impl<'src, T> Input<'src> for &'src [T] {
     type Token = &'src T;
     type Pos = usize;
 
+    #[inline]
     fn start_pos(&self) -> Self::Pos {
         0
     }
 
+    #[inline]
     fn read_token(&mut self, pos: &mut Self::Pos) -> Option<Self::Token> {
         if *pos < self.len() {
             let token = &self[*pos];
@@ -85,23 +89,28 @@ pub(crate) struct InputStream<'src, I: Input<'src>> {
 }
 
 impl<'src, I: Input<'src>> InputStream<'src, I> {
+    #[inline]
     pub(crate) fn new(input: I) -> Self {
         let pos = input.start_pos();
         Self { input, pos }
     }
 
+    #[inline]
     pub(crate) fn next(&mut self) -> Option<I::Token> {
         self.input.read_token(&mut self.pos)
     }
 
+    #[inline]
     pub(crate) fn get_pos(&self) -> I::Pos {
         self.pos.clone()
     }
 
+    #[inline]
     pub(crate) fn set_pos(&mut self, pos: I::Pos) {
         self.pos = pos;
     }
 
+    #[inline]
     pub(crate) fn slice(&self, range: Range<I::Pos>) -> I::Slice
     where
         I: SliceableInput<'src>,

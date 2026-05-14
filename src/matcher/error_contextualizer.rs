@@ -51,6 +51,7 @@ where
     const HAS_PROPERTY: bool = Happy::HAS_PROPERTY;
     const CAN_FAIL: bool = Happy::CAN_FAIL;
 
+    #[inline]
     fn match_with_runner<'a, Runner>(
         &'a self,
         runner: &mut Runner,
@@ -96,6 +97,7 @@ where
     type Output = Happy::Output;
     const CAN_FAIL: bool = Happy::CAN_FAIL;
 
+    #[inline]
     fn parse(
         &self,
         context: &mut ParserContext<'src>,

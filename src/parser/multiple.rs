@@ -46,6 +46,7 @@ where
     type Output = NodeOut;
     const CAN_FAIL: bool = Pars::CAN_FAIL;
 
+    #[inline]
     fn parse(
         &self,
         context: &mut ParserContext<'src>,

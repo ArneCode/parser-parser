@@ -30,6 +30,7 @@ impl<'src, Inp: Input<'src, Token = Token>, Token: PartialEq + Clone + Debug>
 {
     type Output = Token;
     const CAN_FAIL: bool = true;
+    #[inline]
     fn parse(
         &self,
         _context: &mut ParserContext<'src>,
@@ -56,6 +57,7 @@ impl<'src, Inp: Input<'src, Token = char>> super::internal::ParserImpl<'src, Inp
     type Output = char;
     const CAN_FAIL: bool = true;
 
+    #[inline]
     fn parse(
         &self,
         _context: &mut ParserContext<'src>,

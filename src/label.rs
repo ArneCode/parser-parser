@@ -44,6 +44,7 @@ where
     const HAS_PROPERTY: bool = I::HAS_PROPERTY;
     const CAN_FAIL: bool = I::CAN_FAIL;
 
+    #[inline]
     fn match_with_runner<'a, Runner>(
         &'a self,
         runner: &mut Runner,
@@ -70,6 +71,7 @@ where
     type Output = I::Output;
     const CAN_FAIL: bool = I::CAN_FAIL;
 
+    #[inline]
     fn parse(
         &self,
         context: &mut ParserContext<'src>,

@@ -100,6 +100,7 @@ where
     type Output = Output;
     const CAN_FAIL: bool = true;
 
+    #[inline]
     fn parse(
         &self,
         context: &mut ParserContext<'src>,
@@ -126,6 +127,7 @@ where
     type Output = Output;
     const CAN_FAIL: bool = true;
 
+    #[inline]
     fn parse(
         &self,
         context: &mut ParserContext<'src>,

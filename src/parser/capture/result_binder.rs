@@ -56,6 +56,7 @@ where
     const HAS_PROPERTY: bool = true;
     const CAN_FAIL: bool = Pars::CAN_FAIL;
 
+    #[inline]
     fn match_with_runner<'a, Runner>(
         &'a self,
         runner: &mut Runner,

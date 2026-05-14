@@ -62,6 +62,7 @@ where
     type Output = HappyParser::Output;
     const CAN_FAIL: bool = HappyParser::CAN_FAIL;
 
+    #[inline]
     fn parse(
         &self,
         context: &mut ParserContext<'src>,

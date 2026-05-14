@@ -27,6 +27,7 @@ pub(crate) trait ErrorHandler {
     fn register_success(&mut self, idx: Self::Indexer);
     fn register_watermark(&mut self, pos: usize);
     fn to_choice(&mut self) -> ErrorHandlerChoice<'_>;
+    #[inline]
     fn is_real(&self) -> bool {
         Self::IS_REAL
     }
@@ -38,6 +39,7 @@ impl ErrorHandler for EmptyErrorHandler {
     type Indexer = ();
     const IS_REAL: bool = false;
 
+    #[inline(always)]
     fn new(_start_pos: usize) -> Self
     where
         Self: Sized,
@@ -45,10 +47,15 @@ impl ErrorHandler for EmptyErrorHandler {
         Self {}
     }
 
+    #[inline(always)]
     fn register_start(&mut self, _pos: usize) -> Self::Indexer {}
+    #[inline(always)]
     fn register_failure<L: Display>(&mut self, _label: Option<L>, _idx: Self::Indexer) {}
+    #[inline(always)]
     fn register_success(&mut self, _idx: Self::Indexer) {}
+    #[inline(always)]
     fn register_watermark(&mut self, _pos: usize) {}
+    #[inline(always)]
     fn to_choice(&mut self) -> ErrorHandlerChoice<'_> {
         ErrorHandlerChoice::Empty(self)
     }
@@ -68,6 +75,7 @@ pub(crate) struct MultiErrorHandlerIndex {
     creation_time: usize,
 }
 impl MultiErrorHandler {
+    #[inline]
     fn pop_slice_stack(&mut self, idx: &MultiErrorHandlerIndex) {
         if self.slice_stack.len() != idx.slice_idx + 1 {
             panic!(
@@ -87,6 +95,7 @@ impl ErrorHandler for MultiErrorHandler {
     type Indexer = MultiErrorHandlerIndex;
     const IS_REAL: bool = true;
 
+    #[inline]
     fn new(start_pos: usize) -> Self {
         Self {
             best_failure_slice: (0, 0),
@@ -96,6 +105,7 @@ impl ErrorHandler for MultiErrorHandler {
         }
     }
 
+    #[inline]
     fn register_start(&mut self, pos: usize) -> Self::Indexer {
         self.slice_stack.push((pos, pos));
         self.time += 1;
@@ -105,12 +115,14 @@ impl ErrorHandler for MultiErrorHandler {
         }
     }
 
+    #[inline]
     fn register_watermark(&mut self, pos: usize) {
         if let Some(slice) = self.slice_stack.last_mut() {
             slice.1 = slice.1.max(pos);
         }
     }
 
+    #[inline]
     fn register_success(&mut self, idx: Self::Indexer) {
         self.pop_slice_stack(&idx);
     }
@@ -149,6 +161,7 @@ impl ErrorHandler for MultiErrorHandler {
         // Now this error is at least as interesting as the best failure, so register it.
         self.expected_labels.push((label.unwrap().to_string(), idx.creation_time));
     }
+    #[inline]
     fn to_choice(&mut self) -> ErrorHandlerChoice<'_> {
         ErrorHandlerChoice::Multi(self)
     }

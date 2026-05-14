@@ -114,6 +114,7 @@ pub(crate) mod internal {
             Runner: MatchRunner<'a, 'src, Inp, MRes = MRes>,
             'src: 'a;
 
+        #[inline]
         fn maybe_label(&self) -> Option<Box<dyn Display>> {
             None
         }
@@ -214,6 +215,7 @@ where
     const HAS_PROPERTY: bool = Inner::HAS_PROPERTY;
     const CAN_FAIL: bool = Inner::CAN_FAIL;
 
+    #[inline]
     fn match_with_runner<'a, Runner>(
         &'a self,
         runner: &mut Runner,
@@ -227,6 +229,7 @@ where
         (**self).match_with_runner(runner, error_handler, input)
     }
 
+    #[inline]
     fn maybe_label(&self) -> Option<Box<dyn std::fmt::Display>> {
         (**self).maybe_label()
     }
@@ -242,6 +245,7 @@ where
     const HAS_PROPERTY: bool = Inner::HAS_PROPERTY;
     const CAN_FAIL: bool = Inner::CAN_FAIL;
 
+    #[inline]
     fn match_with_runner<'a, Runner>(
         &'a self,
         runner: &mut Runner,
@@ -255,6 +259,7 @@ where
         self.deref().match_with_runner(runner, error_handler, input)
     }
 
+    #[inline]
     fn maybe_label(&self) -> Option<Box<dyn std::fmt::Display>> {
         self.deref().maybe_label()
     }
@@ -270,6 +275,7 @@ where
     const HAS_PROPERTY: bool = Inner::HAS_PROPERTY;
     const CAN_FAIL: bool = Inner::CAN_FAIL;
 
+    #[inline]
     fn match_with_runner<'a, Runner>(
         &'a self,
         runner: &mut Runner,
@@ -283,6 +289,7 @@ where
         (**self).match_with_runner(runner, error_handler, input)
     }
 
+    #[inline]
     fn maybe_label(&self) -> Option<Box<dyn std::fmt::Display>> {
         (**self).maybe_label()
     }
@@ -295,6 +302,7 @@ impl<'src, Inp: Input<'src>, MRes> internal::MatcherImpl<'src, Inp, MRes> for ()
     const HAS_PROPERTY: bool = false;
     const CAN_FAIL: bool = false;
 
+    #[inline(always)]
     fn match_with_runner<'a, Runner>(
         &'a self,
         _runner: &mut Runner,

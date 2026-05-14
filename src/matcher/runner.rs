@@ -45,6 +45,7 @@ where
         Match: Matcher<'src, Inp, Self::MRes>,
         'src: 'a,
         Self: Sized;
+    #[inline]
     fn run_match<Match, EHandler: ErrorHandler>(
         &mut self,
         matcher: &'a Match,
@@ -106,6 +107,7 @@ pub(crate) struct NoMemoizeBacktrackingRunner<'a, 'src, Inp, MRes> {
 }
 
 impl<'a, 'src, Inp: Input<'src>, MRes> NoMemoizeBacktrackingRunner<'a, 'src, Inp, MRes> {
+    #[inline]
     pub(crate) fn new(parser_context: &'a mut ParserContext<'src>) -> Self {
         Self {
             parser_context,
@@ -122,6 +124,7 @@ where
 {
     type MRes = MRes;
 
+    #[inline]
     fn run_match_inner<Match, EHandler: ErrorHandler>(
         &mut self,
         matcher: &'a Match,
@@ -141,10 +144,12 @@ where
         Ok(result)
     }
 
+    #[inline]
     fn register_result<Res: BoundResult<Self::MRes> + 'src>(&mut self, result: Res) {
         self.stack.push(Box::new(result));
     }
 
+    #[inline]
     fn get_match_result(self) -> Self::MRes {
         let mut mres = Self::MRes::new_empty();
         for res in self.stack.into_iter() {
@@ -153,10 +158,12 @@ where
         mres
     }
 
+    #[inline]
     fn get_parser_context(&mut self) -> &mut ParserContext<'src> {
         self.parser_context
     }
 
+    #[inline]
     fn with_snapshot<R, F>(&self, f: F) -> R
     where
         F: FnOnce(MRes::Snapshot<'_>) -> R,
@@ -168,6 +175,7 @@ where
         f(snap)
     }
 
+    #[inline]
     fn is_in_error_recovery_mode(&self) -> bool {
         self.parser_context.is_in_error_recovery
     }
@@ -180,6 +188,7 @@ pub(crate) struct DirectMatchRunner<'a, 'src, Inp, MRes> {
 }
 
 impl<'a, 'src, Inp: Input<'src>, MRes> DirectMatchRunner<'a, 'src, Inp, MRes> {
+    #[inline]
     pub(crate) fn new(parser_context: &'a mut ParserContext<'src>) -> Self
     where
         MRes: MatchResult,
@@ -199,6 +208,7 @@ where
 {
     type MRes = MRes;
 
+    #[inline]
     fn run_match_inner<Match, EHandler: ErrorHandler>(
         &mut self,
         matcher: &'a Match,
@@ -213,18 +223,22 @@ where
         matcher.match_with_runner(self, error_handler, input)
     }
 
+    #[inline]
     fn register_result<Res: BoundResult<Self::MRes> + 'src>(&mut self, result: Res) {
         result.put_in_result(&mut self.result);
     }
 
+    #[inline]
     fn get_match_result(self) -> Self::MRes {
         self.result
     }
 
+    #[inline]
     fn get_parser_context(&mut self) -> &mut ParserContext<'src> {
         self.parser_context
     }
 
+    #[inline]
     fn with_snapshot<R, F>(&self, f: F) -> R
     where
         F: FnOnce(MRes::Snapshot<'_>) -> R,
@@ -232,6 +246,7 @@ where
         f(self.result.snapshot())
     }
 
+    #[inline]
     fn is_in_error_recovery_mode(&self) -> bool {
         self.parser_context.is_in_error_recovery
     }

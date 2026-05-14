@@ -31,6 +31,7 @@ impl<'src, Inp: Input<'src, Token = char>, MRes> super::internal::MatcherImpl<'s
     const HAS_PROPERTY: bool = false;
     const CAN_FAIL: bool = true;
 
+    #[inline]
     fn match_with_runner<'a, Runner>(
         &'a self,
         _runner: &mut Runner,
@@ -64,6 +65,7 @@ impl<'src, Inp: Input<'src, Token = char>, MRes> super::internal::MatcherImpl<'s
     const HAS_PROPERTY: bool = false;
     const CAN_FAIL: bool = true;
 
+    #[inline]
     fn match_with_runner<'a, Runner>(
         &'a self,
         _runner: &mut Runner,
@@ -95,6 +97,7 @@ impl<'src, Inp: Input<'src, Token = char>, MRes> super::internal::MatcherImpl<'s
     const HAS_PROPERTY: bool = false;
     const CAN_FAIL: bool = true;
 
+    #[inline]
     fn match_with_runner<'a, Runner>(
         &'a self,
         _runner: &mut Runner,

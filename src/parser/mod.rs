@@ -103,6 +103,7 @@ pub(crate) mod internal {
             input: &mut InputStream<'src, Inp>,
         ) -> Result<Option<Self::Output>, MatcherRunError>;
 
+        #[inline]
         fn maybe_label(&self) -> Option<Box<dyn Display>> {
             None
         }
@@ -413,6 +414,7 @@ impl<'src, Inp: Input<'src>, Output, P> ParserObjSafe<'src, Inp, Output> for P
 where
     P: internal::ParserImpl<'src, Inp, Output = Output>,
 {
+    #[inline]
     fn parse(
         &self,
         context: &mut ParserContext<'src>,
@@ -447,6 +449,7 @@ where
     type Output = <Inner as internal::ParserImpl<'src, Inp>>::Output;
     const CAN_FAIL: bool = Inner::CAN_FAIL;
 
+    #[inline]
     fn parse(
         &self,
         context: &mut ParserContext<'src>,
@@ -456,6 +459,7 @@ where
         (**self).parse(context, error_handler, input)
     }
 
+    #[inline]
     fn maybe_label(&self) -> Option<Box<dyn std::fmt::Display>> {
         (**self).maybe_label()
     }
@@ -469,6 +473,7 @@ where
     type Output = <Inner as internal::ParserImpl<'src, Inp>>::Output;
     const CAN_FAIL: bool = Inner::CAN_FAIL;
 
+    #[inline]
     fn parse(
         &self,
         context: &mut ParserContext<'src>,
@@ -478,6 +483,7 @@ where
         (**self).parse(context, error_handler, input)
     }
 
+    #[inline]
     fn maybe_label(&self) -> Option<Box<dyn std::fmt::Display>> {
         (**self).maybe_label()
     }
@@ -491,6 +497,7 @@ where
     type Output = <Inner as internal::ParserImpl<'src, Inp>>::Output;
     const CAN_FAIL: bool = Inner::CAN_FAIL;
 
+    #[inline]
     fn parse(
         &self,
         context: &mut ParserContext<'src>,
@@ -500,6 +507,7 @@ where
         (**self).parse(context, error_handler, input)
     }
 
+    #[inline]
     fn maybe_label(&self) -> Option<Box<dyn std::fmt::Display>> {
         (**self).maybe_label()
     }

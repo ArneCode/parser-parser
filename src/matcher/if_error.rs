@@ -48,6 +48,7 @@ where
     const HAS_PROPERTY: bool = false;
     const CAN_FAIL: bool = true;
 
+    #[inline]
     fn match_with_runner<'a, Runner>(
         &'a self,
         runner: &mut Runner,
@@ -64,6 +65,7 @@ where
         self.inner.match_with_runner(runner, error_handler, input)
     }
 
+    #[inline]
     fn maybe_label(&self) -> Option<Box<dyn Display>> {
         self.inner.maybe_label()
     }
@@ -78,6 +80,7 @@ where
     const HAS_PROPERTY: bool = false;
     const CAN_FAIL: bool = true;
 
+    #[inline]
     fn match_with_runner<'a, Runner>(
         &'a self,
         runner: &mut Runner,
@@ -94,6 +97,7 @@ where
         self.inner.match_with_runner(runner, error_handler, input)
     }
 
+    #[inline]
     fn maybe_label(&self) -> Option<Box<dyn Display>> {
         self.inner.maybe_label()
     }
@@ -107,6 +111,7 @@ where
     type Output = <Inner as crate::parser::internal::ParserImpl<'src, Inp>>::Output;
     const CAN_FAIL: bool = true;
 
+    #[inline]
     fn parse(
         &self,
         context: &mut crate::context::ParserContext<'src>,
@@ -119,6 +124,7 @@ where
         self.inner.parse(context, error_handler, input)
     }
 
+    #[inline]
     fn maybe_label(&self) -> Option<Box<dyn Display>> {
         self.inner.maybe_label()
     }

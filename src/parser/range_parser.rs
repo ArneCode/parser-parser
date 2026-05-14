@@ -39,6 +39,7 @@ where
     type Output = Token;
     const CAN_FAIL: bool = true;
 
+    #[inline]
     fn parse(
         &self,
         _context: &mut ParserContext<'src>,
@@ -69,6 +70,7 @@ where
     type Output = Token;
     const CAN_FAIL: bool = true;
 
+    #[inline]
     fn parse(
         &self,
         _context: &mut ParserContext<'src>,
@@ -99,6 +101,7 @@ where
     type Output = Token;
     const CAN_FAIL: bool = true;
 
+    #[inline]
     fn parse(
         &self,
         _context: &mut ParserContext<'src>,
@@ -130,6 +133,7 @@ where
     const HAS_PROPERTY: bool = false;
     const CAN_FAIL: bool = true;
 
+    #[inline]
     fn match_with_runner<'a, Runner>(
         &'a self,
         _runner: &mut Runner,
@@ -167,6 +171,7 @@ where
     const HAS_PROPERTY: bool = false;
     const CAN_FAIL: bool = true;
 
+    #[inline]
     fn match_with_runner<'a, Runner>(
         &'a self,
         _runner: &mut Runner,

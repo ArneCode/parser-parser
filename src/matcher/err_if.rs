@@ -50,6 +50,7 @@ where
     const HAS_PROPERTY: bool = Inner::HAS_PROPERTY;
     const CAN_FAIL: bool = true;
 
+    #[inline]
     fn match_with_runner<'a, Runner>(
         &'a self,
         runner: &mut Runner,
@@ -118,6 +119,7 @@ where
     const HAS_PROPERTY: bool = Inner::HAS_PROPERTY;
     const CAN_FAIL: bool = Inner::CAN_FAIL;
 
+    #[inline]
     fn match_with_runner<'a, Runner>(
         &'a self,
         runner: &mut Runner,

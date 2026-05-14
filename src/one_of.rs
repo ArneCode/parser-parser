@@ -51,6 +51,7 @@ macro_rules! impl_one_of_tuples {
             const HAS_PROPERTY: bool = $head::HAS_PROPERTY  $(|| $tail::HAS_PROPERTY)*;
             const CAN_FAIL: bool = $head::CAN_FAIL  $(&& $tail::CAN_FAIL)*;
 
+            #[inline]
             fn match_with_runner<'a, Runner>(&'a self, runner: &mut Runner, error_handler: &mut impl ErrorHandler, input: &mut InputStream<'src, Inp>) -> Result<bool, MatcherRunError>
             where
                 Runner: MatchRunner<'a, 'src, Inp, MRes = MRes>,
@@ -78,6 +79,7 @@ macro_rules! impl_one_of_tuples {
         {
             type Output = Output;
             const CAN_FAIL: bool = $head::CAN_FAIL  $(&& $tail::CAN_FAIL)*;
+            #[inline]
             fn parse(&self, context: &mut ParserContext<'src>, error_handler: &mut impl ErrorHandler, input: &mut InputStream<'src, Inp>) -> Result<Option<Output>, MatcherRunError> {
 
                 #[allow(non_snake_case)]

@@ -53,6 +53,7 @@ where
 {
     type Output = Out;
     const CAN_FAIL: bool = true; // conservative; see note below
+    #[inline]
     fn parse(
         &self,
         context: &mut ParserContext<'src>,
