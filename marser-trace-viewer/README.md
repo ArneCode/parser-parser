@@ -1,5 +1,9 @@
 # marser-trace-viewer
 
+**Experimental:** UI, CLI, and replay behavior may change between releases without
+the same stability guarantees as the core `marser` library. Pin versions and read
+release notes when upgrading.
+
 Terminal UI for inspecting parser traces (JSON / JSONL). This crate depends on
 `marser-trace-schema` and does not depend on `marser`.
 
@@ -48,7 +52,7 @@ This keeps replay deterministic and aligned with grammar-level trace points.
 Generate a trace from the JSON example:
 
 ```bash
-cargo run -p marser --features "parser-erased parser-trace" --example json -- tests/data/json1.json --trace-file /tmp/json-trace.json
+cargo run -p marser --features "parser-erased annotate-snippets parser-trace" --example json -- tests/data/json1.json --trace-file /tmp/json-trace.json
 ```
 
 Open it in the viewer:

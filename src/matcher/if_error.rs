@@ -1,14 +1,18 @@
+//! Matchers and parsers that only participate while real error handling is active.
+
 use std::fmt::Display;
 
 use crate::error::MatcherRunError;
 use crate::matcher::internal::MatcherImpl;
 
 #[derive(Debug, Clone)]
+/// Wrapper that runs `inner` only during real error collection; otherwise it succeeds immediately.
 pub struct IfError<Inner> {
     inner: Inner,
 }
 
 #[derive(Debug, Clone)]
+/// Wrapper that runs `inner` only during real error collection; otherwise it fails immediately.
 pub struct IfErrorElseFail<Inner> {
     inner: Inner,
 }
@@ -22,12 +26,14 @@ impl<Inner> crate::parser::ParserCombinator for IfErrorElseFail<Inner> where
 }
 
 impl<Inner> IfError<Inner> {
+    /// Wrap `inner`.
     pub fn new(inner: Inner) -> Self {
         Self { inner }
     }
 }
 
 impl<Inner> IfErrorElseFail<Inner> {
+    /// Wrap `inner`.
     pub fn new(inner: Inner) -> Self {
         Self { inner }
     }
@@ -119,6 +125,7 @@ where
 }
 
 #[cfg_attr(feature = "parser-trace", track_caller)]
+/// Run `inner` only when a real error handler is active; otherwise succeed without consuming input.
 pub fn if_error<Inner>(inner: Inner) -> IfError<Inner>
 where
     Inner: super::MatcherCombinator,
@@ -127,6 +134,7 @@ where
 }
 
 #[cfg_attr(feature = "parser-trace", track_caller)]
+/// Run `inner` only when a real error handler is active; otherwise fail without consuming input.
 pub fn if_error_else_fail<Inner>(inner: Inner) -> IfErrorElseFail<Inner> {
     IfErrorElseFail::new(inner)
 }

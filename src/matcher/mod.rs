@@ -1,5 +1,18 @@
-//! Matchers: predicates and grammar fragments used inside [`crate::parser::capture::Capture`]
+//! Matchers: grammar fragments used inside [`crate::parser::capture::Capture`] (via [`crate::capture`])
 //! and related runners.
+//!
+//! # For users
+//!
+//! - Matchers describe **structure**: sequences (`(a, b)`), [`crate::one_of::one_of`], repetition
+//!   ([`multiple::many`], [`one_or_more()`], [`optional()`]), lookahead ([`positive_lookahead()`],
+//!   [`negative_lookahead()`]), and [`commit_on()`] for committed sub-rules.
+//! - They are composed with parsers through [`crate::capture`]; see [`crate::guide::capture_and_binds`].
+//! - Extend matchers with [`MatcherCombinator`] (`with_label`, `try_insert_if_missing`, `unwanted`, …).
+//!
+//! Concept guides: [`crate::guide::core_concepts`], [`crate::guide::errors_and_recovery`],
+//! [`crate::guide::common_patterns`].
+//!
+//! # Parameters and sealing
 //!
 //! [`Matcher`] is parameterized by `MRes`, the “match result” type that captures
 //! bound values and spans (typically a tuple bucket produced by [`crate::parser::capture::Capture`]).
@@ -19,9 +32,11 @@ pub mod commit_matcher;
 pub mod err_if;
 pub mod error_contextualizer;
 pub mod if_error;
+/// Parser-as-matcher adapters that discard parser output.
 pub mod ignore_result;
 pub mod multiple;
 pub mod negative_lookahead;
+/// Helpers for “match any token except …” patterns.
 pub mod none_of;
 pub mod one_or_more;
 pub mod optional;
@@ -30,6 +45,7 @@ pub mod positive_lookahead;
 pub(crate) mod runner;
 pub mod sequence;
 pub mod string;
+/// Matcher-to-parser adapters that return a fixed output.
 pub mod to_parser;
 pub use any_token::AnyToken;
 pub use commit_matcher::{CommitMatcher, commit_on};
@@ -107,9 +123,14 @@ pub(crate) mod internal {
 /// Facade for matchers over `Token` that read and write match state into `MRes`.
 ///
 /// `MRes` is usually the capture bucket type in [`crate::parser::capture::Capture`].
+/// For how binds populate `MRes`, see [`crate::guide::capture_and_binds`].
+///
 /// Blanket-implemented for all types that implement the crate-private matcher implementation trait.
 pub trait Matcher<'src, Inp: Input<'src>, MRes>: internal::MatcherImpl<'src, Inp, MRes> {}
 
+/// Extension methods for matchers (labels, missing-token diagnostics, furthest-failure enrichment).
+///
+/// See [`crate::guide::errors_and_recovery`] for `try_insert_if_missing`, `unwanted`, and `if_error`.
 pub trait MatcherCombinator {
     /// Wrap this matcher so that on furthest-failure, `error_parser` runs to attach diagnostics.
     #[cfg(feature = "parser-trace")]

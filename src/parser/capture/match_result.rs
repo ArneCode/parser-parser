@@ -16,62 +16,95 @@ use super::property::{
     OptionalSnapProjAt, SingleProperty, SingleSnapProj, SingleSnapProjAt,
 };
 
+/// Storage bucket for required single-value captures (`bind!(..., name)`).
 pub trait MatchResultSingle {
+    /// Borrowed snapshot type used by diagnostic factories and `use_binds!`.
     type Snapshot<'a>
     where
         Self: 'a;
+    /// Property tuple used to write values into this bucket.
     type Properties;
+    /// Output tuple consumed by the enclosing `Capture` constructor.
     type Output;
+    /// Create an empty bucket.
     fn new() -> Self;
+    /// Create property accessors for this bucket.
     fn new_properties() -> Self::Properties;
+    /// Convert a filled bucket into constructor output.
     fn to_output(self) -> Self::Output;
+    /// Remove the captures represented by `self` from `result`.
     fn subtract_from_result(&self, result: &mut Self);
+    /// Borrow this bucket as a snapshot.
     fn snapshot(&self) -> Self::Snapshot<'_>;
+    /// Create an empty snapshot with the same layout as [`Self::snapshot`].
     fn new_empty_snapshot<'a>() -> Self::Snapshot<'a>
     where
         Self: 'a;
 }
 
+/// Storage bucket for repeated captures (`bind!(..., *name)`).
 pub trait MatchResultMultiple {
+    /// Borrowed snapshot type used by diagnostic factories and `use_binds!`.
     type Snapshot<'a>
     where
         Self: 'a;
+    /// Property tuple used to write values into this bucket.
     type Properties;
+    /// Create an empty bucket.
     fn new() -> Self;
+    /// Create property accessors for this bucket.
     fn new_properties() -> Self::Properties;
+    /// Remove the captures represented by `self` from `result`.
     fn subtract_from_result(&self, result: &mut Self);
+    /// Borrow this bucket as a snapshot.
     fn snapshot(&self) -> Self::Snapshot<'_>;
+    /// Create an empty snapshot with the same layout as [`Self::snapshot`].
     fn new_empty_snapshot<'a>() -> Self::Snapshot<'a>
     where
         Self: 'a;
 }
 
+/// Storage bucket for optional captures (`bind!(..., ?name)`).
 pub trait MatchResultOptional {
+    /// Borrowed snapshot type used by diagnostic factories and `use_binds!`.
     type Snapshot<'a>
     where
         Self: 'a;
+    /// Property tuple used to write values into this bucket.
     type Properties;
+    /// Create an empty bucket.
     fn new() -> Self;
+    /// Create property accessors for this bucket.
     fn new_properties() -> Self::Properties;
+    /// Remove the captures represented by `self` from `result`.
     fn subtract_from_result(&self, result: &mut Self);
+    /// Borrow this bucket as a snapshot.
     fn snapshot(&self) -> Self::Snapshot<'_>;
+    /// Create an empty snapshot with the same layout as [`Self::snapshot`].
     fn new_empty_snapshot<'a>() -> Self::Snapshot<'a>
     where
         Self: 'a;
 }
 
+/// Aggregate capture storage used by [`super::Capture`].
 pub trait MatchResult {
+    /// Borrowed snapshot type used by inline error factories and `use_binds!`.
     type Snapshot<'a>
     where
         Self: 'a;
+    /// Bucket for required single captures.
     type Single: MatchResultSingle;
+    /// Bucket for repeated captures.
     type Multiple: MatchResultMultiple;
+    /// Bucket for optional captures.
     type Optional: MatchResultOptional;
+    /// Build the aggregate from its three buckets.
     fn new(
         match_result_single: Self::Single,
         match_result_multiple: Self::Multiple,
         match_result_optional: Self::Optional,
     ) -> Self;
+    /// Create a fully empty aggregate.
     fn new_empty() -> Self
     where
         Self: Sized,
@@ -82,10 +115,15 @@ pub trait MatchResult {
             Self::Optional::new(),
         )
     }
+    /// Borrow the required single bucket mutably.
     fn single(&mut self) -> &mut Self::Single;
+    /// Borrow the repeated bucket mutably.
     fn multiple(&mut self) -> &mut Self::Multiple;
+    /// Borrow the optional bucket mutably.
     fn optional(&mut self) -> &mut Self::Optional;
+    /// Borrow the whole aggregate as a snapshot.
     fn snapshot(&self) -> Self::Snapshot<'_>;
+    /// Remove the captures represented by `self` from `result`.
     fn subtract_from_result(&self, result: &mut Self);
 
     /// Empty snapshot (all slots unset / empty vectors) for replaying bound captures.

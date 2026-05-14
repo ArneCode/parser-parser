@@ -1,4 +1,7 @@
 //! Types and serde I/O for marser parser trace logs (JSON / JSONL).
+//!
+//! **Experimental:** APIs and serialized trace formats may change between releases;
+//! see the crate README on GitHub for the current stability note.
 
 mod event;
 mod io;

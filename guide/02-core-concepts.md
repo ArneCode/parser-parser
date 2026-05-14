@@ -58,3 +58,5 @@ These are core building blocks for lists, whitespace, and token groups.
 - `add_error_info(...)` enriches furthest-failure diagnostics
 - `recover_with(...)` can produce fallback output and continue
 - helpers like `unwanted(...)` and `try_insert_if_missing(...)` are useful for user-facing errors
+
+Next: [Errors and Recovery](crate::guide::errors_and_recovery) · [Common patterns](crate::guide::common_patterns)

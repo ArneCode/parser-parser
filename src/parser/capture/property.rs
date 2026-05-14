@@ -118,7 +118,9 @@ pub struct BindDebugInfo {
     pub property_name: &'static str,
     /// File where the bind was created.
     pub file: &'static str,
+    /// 1-based source line of the bind site.
     pub line: u32,
+    /// 1-based source column of the bind site.
     pub column: u32,
 }
 

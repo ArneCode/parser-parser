@@ -7,6 +7,7 @@ use crate::{
     parser::{Parser, ParserCombinator},
 };
 
+/// Parser wrapper returned by [`crate::parser::ParserCombinator::map_output`].
 #[derive(Clone)]
 pub struct OutputMapper<Parser, MapFn> {
     parser: Parser,
@@ -25,6 +26,7 @@ where
 }
 
 impl<Parser, MapFn> OutputMapper<Parser, MapFn> {
+    /// Wrap `parser` and map each successful output with `map_fn`.
     pub fn new(parser: Parser, map_fn: MapFn) -> Self {
         Self { parser, map_fn }
     }

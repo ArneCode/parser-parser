@@ -34,7 +34,7 @@ where
 }
 
 impl<HappyParser, RecoveryParser> ErrorRecoverer<HappyParser, RecoveryParser> {
-    /// See [`crate::parser::Parser::recover_with`].
+    /// See [`crate::parser::ParserCombinator::recover_with`].
     pub fn new(happy: HappyParser, recover_parser: RecoveryParser) -> Self {
         Self {
             happy,

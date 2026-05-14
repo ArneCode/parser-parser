@@ -39,6 +39,7 @@ impl<Pars, Prop, Inp> ResultBinder<Pars, Prop, Inp> {
     }
 }
 
+/// Convenience constructor for [`ResultBinder`].
 pub fn bind_result<Pars, Prop, Inp>(parser: Pars, property: Prop) -> ResultBinder<Pars, Prop, Inp> {
     ResultBinder::new(parser, property)
 }

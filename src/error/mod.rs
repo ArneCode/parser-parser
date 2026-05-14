@@ -1,14 +1,30 @@
-//! User-facing parse errors and pretty-printing via [annotate-snippets](https://docs.rs/annotate-snippets).
+//! Parse errors and diagnostics.
+//!
+//! # Types
+//!
+//! - [`FurthestFailError`]: expected-token style failure at a span (top-level `Err` from whole-input
+//!   parse, or embedded in [`ParserError::FurthestFail`] when recovered).
+//! - [`ParserError`]: user-facing issues collected during a parse (`FurthestFail` or [`InlineError`]).
+//! - [`MatcherRunError`]: internal runner signal (`FurthestFail` or `RetryRerunNeeded`); library users
+//!   usually see the mapped [`FurthestFailError`] instead.
+//!
+//! # Rendering
+//!
+//! With the **`annotate-snippets`** feature, use [`ParserError::eprint`] / [`FurthestFailError::eprint`]
+//! for terminal output.
+//!
+//! # Guides
+//!
+//! See [`crate::guide::errors_and_recovery`] for soft vs hard failure, [`commit_on`](crate::matcher::commit_on),
+//! recovery (`recover_with`), and inline diagnostics.
 
 mod inline_error;
+#[cfg(feature = "annotate-snippets")]
+mod render_annotate;
+
 pub use inline_error::{
     AnnotationKind, BuildInlineError, ClosureBuild, DiagnosticAnnotation, InlineError,
     MatchDiagCtx, MissingSyntax, SnapshotFactory, UnwantedSyntax, ctx_factory,
-};
-
-use annotate_snippets::{
-    AnnotationKind as SnippetAnnotationKind, Level as SnippetLevel, Renderer as SnippetRenderer,
-    Snippet,
 };
 
 pub(crate) mod error_handler;
@@ -32,42 +48,45 @@ impl ParserError {
         }
     }
 
-    fn main_message(&self, source_text: &str) -> String {
-        match self {
-            ParserError::FurthestFail(error) => error.main_message(source_text),
-            ParserError::Inline(error) => error.message.clone(),
-        }
-    }
-
-    /// Print this error to stderr (annotate-snippets).
+    #[cfg(feature = "annotate-snippets")]
+    /// Print this error to stderr (requires **`annotate-snippets`** feature).
     pub fn eprint(&self, source_id: &str, source_text: &str) {
         let mut out = String::new();
         self.render_into(&mut out, source_id, source_text);
         eprint!("{}", out);
     }
 
-    /// Write this error to `sink` (annotate-snippets).
+    #[cfg(feature = "annotate-snippets")]
+    /// Write this error to `sink` (requires **`annotate-snippets`** feature).
     pub fn write(&self, source_id: &str, source_text: &str, mut sink: impl std::io::Write) {
         let mut out = String::new();
         self.render_into(&mut out, source_id, source_text);
         sink.write_all(out.as_bytes()).unwrap();
     }
 
+    #[cfg(feature = "annotate-snippets")]
     fn render_into(&self, out: &mut String, source_id: &str, source_text: &str) {
-        Self::render_slice_into(std::slice::from_ref(self), out, source_id, source_text);
+        render_annotate::render_errors_slice_into(
+            std::slice::from_ref(self),
+            out,
+            source_id,
+            source_text,
+        );
     }
 
-    /// Print all errors to stderr (annotate-snippets).
+    #[cfg(feature = "annotate-snippets")]
+    /// Print all errors to stderr (requires **`annotate-snippets`** feature).
     pub fn eprint_many(errors: &[ParserError], source_id: &str, source_text: &str) {
         if errors.is_empty() {
             return;
         }
         let mut out = String::new();
-        Self::render_slice_into(errors, &mut out, source_id, source_text);
+        render_annotate::render_errors_slice_into(errors, &mut out, source_id, source_text);
         eprint!("{}", out);
     }
 
-    /// Write all errors to `sink` (annotate-snippets).
+    #[cfg(feature = "annotate-snippets")]
+    /// Write all errors to `sink` (requires **`annotate-snippets`** feature).
     pub fn write_many(
         errors: &[ParserError],
         source_id: &str,
@@ -78,98 +97,8 @@ impl ParserError {
             return;
         }
         let mut out = String::new();
-        Self::render_slice_into(errors, &mut out, source_id, source_text);
+        render_annotate::render_errors_slice_into(errors, &mut out, source_id, source_text);
         sink.write_all(out.as_bytes()).unwrap();
-    }
-
-    fn render_slice_into(errors: &[ParserError], out: &mut String, source_id: &str, source_text: &str) {
-        let mut snippet = Snippet::source(source_text).path(source_id).line_start(1);
-        let mut notes = Vec::new();
-        let mut help = Vec::new();
-
-        for (idx, error) in errors.iter().enumerate() {
-            let label = error.main_message(source_text);
-            match error {
-                ParserError::FurthestFail(ff) => {
-                    let span = Self::normalized_span(ff.span, source_text.len());
-                    let kind = if idx == 0 {
-                        SnippetAnnotationKind::Primary
-                    } else {
-                        SnippetAnnotationKind::Context
-                    };
-                    snippet = snippet.annotation(kind.span(span).label(label));
-                    for ann in &ff.annotations {
-                        let s = Self::normalized_span(ann.span, source_text.len());
-                        snippet = snippet.annotation(
-                            annotation_kind_to_snippet(ann.kind)
-                                .span(s)
-                                .label(ann.message.clone()),
-                        );
-                    }
-                    notes.extend(ff.notes.iter().cloned());
-                    help.extend(ff.helps.iter().cloned());
-                }
-                ParserError::Inline(ie) => {
-                    let span = Self::normalized_span(ie.reporting_span(), source_text.len());
-                    let kind = if idx == 0 {
-                        SnippetAnnotationKind::Primary
-                    } else {
-                        SnippetAnnotationKind::Context
-                    };
-                    snippet = snippet.annotation(kind.span(span).label(label));
-                    for ann in &ie.annotations {
-                        let s = Self::normalized_span(ann.span, source_text.len());
-                        snippet = snippet.annotation(
-                            annotation_kind_to_snippet(ann.kind)
-                                .span(s)
-                                .label(ann.message.clone()),
-                        );
-                    }
-                    notes.extend(ie.notes.iter().cloned());
-                    help.extend(ie.helps.iter().cloned());
-                }
-            }
-        }
-
-        let mut group = SnippetLevel::ERROR
-            .primary_title("Parse Errors")
-            .element(snippet);
-
-        for note in notes {
-            group = group.element(SnippetLevel::NOTE.message(note));
-        }
-        for help_line in help {
-            group = group.element(SnippetLevel::HELP.message(help_line));
-        }
-        let report = [group];
-
-        let rendered = SnippetRenderer::styled().render(&report).to_string();
-        out.push_str(&rendered);
-        if !rendered.ends_with('\n') {
-            out.push('\n');
-        }
-    }
-
-    fn normalized_span(span: (usize, usize), source_len: usize) -> std::ops::Range<usize> {
-        let mut start = span.0.min(source_len);
-        let mut end = span.1.min(source_len);
-
-        if end > source_len {
-            end = source_len;
-        }
-
-        if start == source_len && source_len > 0 {
-            start = source_len - 1;
-        }
-
-        start..end
-    }
-}
-
-fn annotation_kind_to_snippet(kind: AnnotationKind) -> SnippetAnnotationKind {
-    match kind {
-        AnnotationKind::Primary => SnippetAnnotationKind::Primary,
-        AnnotationKind::Secondary | AnnotationKind::Context => SnippetAnnotationKind::Context,
     }
 }
 
@@ -179,8 +108,11 @@ pub struct FurthestFailError {
     pub span: (usize, usize),
     /// Human-readable “expected …” fragments (joined in the rendered message).
     pub expected: Vec<String>,
+    /// Extra labeled spans that provide context for the failure.
     pub annotations: Vec<DiagnosticAnnotation>,
+    /// Additional explanatory notes shown with the diagnostic.
     pub notes: Vec<String>,
+    /// Suggested fixes or next steps shown with the diagnostic.
     pub helps: Vec<String>,
 }
 
@@ -190,36 +122,43 @@ impl FurthestFailError {
         ParserError::FurthestFail(self)
     }
 
+    /// Return a copy of this error with `span` replaced.
     pub fn with_span(mut self, span: (usize, usize)) -> Self {
         self.span = span;
         self
     }
 
+    /// Replace the primary span in place.
     pub fn set_span(&mut self, span: (usize, usize)) -> &mut Self {
         self.span = span;
         self
     }
 
+    /// Return a copy of this error with an additional note.
     pub fn with_note(mut self, note: impl Into<String>) -> Self {
         self.notes.push(note.into());
         self
     }
 
+    /// Add a note in place.
     pub fn add_note(&mut self, note: impl Into<String>) -> &mut Self {
         self.notes.push(note.into());
         self
     }
 
+    /// Return a copy of this error with an additional help message.
     pub fn with_help(mut self, help: impl Into<String>) -> Self {
         self.helps.push(help.into());
         self
     }
 
+    /// Add a help message in place.
     pub fn add_help(&mut self, help: impl Into<String>) -> &mut Self {
         self.helps.push(help.into());
         self
     }
 
+    /// Return a copy of this error with an additional annotation.
     pub fn with_annotation(
         mut self,
         span: (usize, usize),
@@ -234,6 +173,7 @@ impl FurthestFailError {
         self
     }
 
+    /// Add an annotation in place.
     pub fn add_annotation(
         &mut self,
         span: (usize, usize),
@@ -248,16 +188,19 @@ impl FurthestFailError {
         self
     }
 
-    /// Print to stderr (annotate-snippets).
+    #[cfg(feature = "annotate-snippets")]
+    /// Print to stderr (requires **`annotate-snippets`** feature).
     pub fn eprint(&self, source_id: &str, source_text: &str) {
         ParserError::FurthestFail(self.clone()).eprint(source_id, source_text);
     }
 
-    /// Write to `sink` (annotate-snippets).
+    #[cfg(feature = "annotate-snippets")]
+    /// Write to `sink` (requires **`annotate-snippets`** feature).
     pub fn write(&self, source_id: &str, source_text: &str, sink: impl std::io::Write) {
         ParserError::FurthestFail(self.clone()).write(source_id, source_text, sink);
     }
 
+    #[cfg(feature = "annotate-snippets")]
     pub(crate) fn main_message(&self, source_text: &str) -> String {
         let found = source_text
             .get(self.span.0..self.span.1)
@@ -325,7 +268,7 @@ impl std::fmt::Debug for FurthestFailError {
     }
 }
 
-/// Hard failure or control signal from [`crate::matcher::MatchRunner::run_match`] and matcher composition.
+/// Hard failure or control signal from the matcher runner (`MatchRunner::run_match`, crate-private) and matcher composition.
 #[derive(Debug)]
 pub enum MatcherRunError {
     /// Furthest-failure with full diagnostic payload.

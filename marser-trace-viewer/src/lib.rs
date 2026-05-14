@@ -1,4 +1,7 @@
 //! TUI and replay helpers for marser trace logs.
+//!
+//! **Experimental:** UI and replay APIs may change between releases; see the crate
+//! README on GitHub for the current stability note.
 
 mod app;
 mod marker_index;

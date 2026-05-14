@@ -1,20 +1,28 @@
 # Tracing and Debugging
 
+**Experimental:** Tracing APIs, on-disk trace formats, and the companion crates
+`marser-trace-schema` and `marser-trace-viewer` are still evolving. Expect format
+and API changes between releases; pin versions and read release notes when you
+upgrade.
+
 `marser` can emit structured parser runtime events when built with the
-`parser-trace` feature.
+`parser-trace` feature (see also the README sections *Cargo features* and
+*Experimental tracing*).
+
+Use tracing when the grammar is *almost* right but you need to see **which branch ran, where backtracking happened, and where committed parsing stopped being recoverable**. For ordinary syntax errors, start with [Errors and Recovery](crate::guide::errors_and_recovery); reach for tracing when static reading of the grammar is no longer enough.
 
 ## Quickstart
 
 Run the JSON example with tracing enabled:
 
 ```bash
-cargo run -p marser --features "parser-erased parser-trace" --example json -- tests/data/json1.json
+cargo run -p marser --features "parser-erased annotate-snippets parser-trace" --example json -- tests/data/json1.json
 ```
 
 Write a trace file from the same example:
 
 ```bash
-cargo run -p marser --features "parser-erased parser-trace" --example json -- tests/data/json1.json --trace-file /tmp/json-trace.json
+cargo run -p marser --features "parser-erased annotate-snippets parser-trace" --example json -- tests/data/json1.json --trace-file /tmp/json-trace.json
 ```
 
 Open that trace in the TUI viewer:
@@ -42,7 +50,7 @@ Suggested flow:
 2. Run:
 
 ```bash
-cargo run -p marser --features "parser-erased parser-trace" --example json -- tests/data/json1.json --trace-file /tmp/json-trace.json
+cargo run -p marser --features "parser-erased annotate-snippets parser-trace" --example json -- tests/data/json1.json --trace-file /tmp/json-trace.json
 ```
 
 3. Replay:

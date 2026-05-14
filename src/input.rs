@@ -1,14 +1,29 @@
+//! Input abstractions for parsers and matchers.
+//!
+//! `marser` works over any source that can yield tokens one-by-one via [`Input`].
+//! Built-in implementations cover `&str` (token = `char`) and `&[T]`
+//! (token = `&T`). [`SliceableInput`] adds the ability to recover the exact
+//! consumed slice, which powers helpers like `bind_slice!`.
+
 use std::ops::Range;
 
+/// Stream-like source that parsers and matchers can read from.
 pub trait Input<'src> {
+    /// Token type yielded by this input.
     type Token: 'src;
+    /// Position type used to mark offsets and spans.
     type Pos: Clone + Into<usize> + 'src;
+    /// Starting position for a fresh parse.
     fn start_pos(&self) -> Self::Pos;
+    /// Read one token at `pos`, advancing it on success.
     fn read_token(&mut self, pos: &mut Self::Pos) -> Option<Self::Token>;
 }
 
+/// [`Input`] that can also return a slice for a consumed range.
 pub trait SliceableInput<'src>: Input<'src> {
+    /// Borrowed slice type returned for matched ranges.
     type Slice: 'src;
+    /// Return the input slice covering `range`.
     fn slice(&self, range: Range<Self::Pos>) -> Self::Slice;
 }
 

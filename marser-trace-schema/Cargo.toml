@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2024"
 description = "JSON trace event schema and serde I/O for marser parser traces."
 license = "MIT"
-repository = "https://github.com/ArneCode/parser-parser"
+repository = "https://github.com/ArneCode/marser"
 readme = "README.md"
 rust-version = "1.85"
 

@@ -1,4 +1,6 @@
 #![doc = include_str!("../README.md")]
+#![cfg_attr(docsrs, feature(doc_auto_cfg))]
+#![deny(missing_docs)]
 // `Parser` and `Matcher` are sealed via `pub(crate)` supertraits (`ParserImpl`,
 // `MatcherImpl`) whose method signatures intentionally reference crate-private
 // runtime types (`ParserContext`, `ErrorHandler`, `MatchRunner`). The
@@ -42,8 +44,7 @@ use crate::{
     parser::{Parser, internal::ParserImpl},
 };
 
-/// Parse all of `src` with the same driver as [`Parser::parse_str`](parser::Parser::parse_str)
-/// / [`Parser::parse_whole_input`](parser::Parser::parse_whole_input).
+/// Parse all of `src` with the same driver as [`Parser::parse_str`] / [`Parser::parse_whole_input`].
 ///
 /// Prefer `parser.parse_str(src)` or `parser.parse_whole_input(src)`; this function remains for backward compatibility.
 ///
@@ -179,6 +180,9 @@ where
 }
 
 #[cfg(feature = "parser-trace")]
+/// Parse `src` and return the trace session alongside the normal parse result.
+///
+/// This uses the same whole-input + EOF wrapper as [`parse`] / [`parser::Parser::parse_str`].
 pub fn parse_with_trace<'src, Pars, Out: 'src>(
     parser: Pars,
     src: &'src str,
@@ -191,6 +195,7 @@ where
 }
 
 #[cfg(feature = "parser-trace")]
+/// Like [`parse_with_trace`], but reuses an existing [`TraceSession`].
 pub fn parse_with_trace_session<'src, Pars, Out: 'src>(
     parser: Pars,
     src: &'src str,
@@ -206,8 +211,11 @@ where
 
 #[cfg(feature = "parser-trace")]
 #[derive(Debug)]
+/// Error returned by [`parse_with_trace_to_file`].
 pub enum ParseWithTraceToFileError {
+    /// Parsing failed with a hard error.
     Parse(FurthestFailError),
+    /// Writing the trace file failed.
     Io(io::Error),
 }
 
@@ -240,6 +248,10 @@ pub(crate) fn write_trace_to_file(
 }
 
 #[cfg(feature = "parser-trace")]
+/// Parse `src`, write the trace to `trace_path`, and return the normal parse result.
+///
+/// The written trace includes the original source text so viewer tooling can
+/// show spans against the source.
 pub fn parse_with_trace_to_file<'src, Pars, Out: 'src>(
     parser: Pars,
     src: &'src str,

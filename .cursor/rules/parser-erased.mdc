@@ -1,15 +1,17 @@
 ---
-description: Always build with parser-erased in marser
+description: Always build marser with parser-erased (and annotate-snippets for examples)
 alwaysApply: true
 ---
 
 # Cargo performance default (marser)
 
-When running Cargo commands in this repository (e.g. `cargo check`, `cargo run`, `cargo test`), always include `--features parser-erased` unless the user explicitly asks not to.
+When running Cargo commands in this repository (e.g. `cargo check`, `cargo run`, `cargo test`), always include **`--features parser-erased`** unless the user explicitly asks not to.
+
+When running **`cargo run` / `cargo build` with `--example`**, include **`annotate-snippets`** as well (examples require it for `ParserError::eprint` and related APIs).
 
 Examples:
 ```bash
 cargo check --features parser-erased -q
-cargo run --features parser-erased -q --example mini_language -- <script.ml>
+cargo run --features "parser-erased annotate-snippets" -q --example mini_language -- <script.ml>
 cargo test --features parser-erased -q
 ```

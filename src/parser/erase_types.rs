@@ -5,6 +5,10 @@ use crate::input::{Input, InputStream};
 use crate::parser::internal::ParserImpl;
 use crate::parser::{Parser, ParserCombinator, ParserObjSafe};
 
+/// Parser whose concrete type has been erased behind a boxed trait object.
+///
+/// This is produced by [`erase`] or [`crate::parser::ParserCombinator::erase_types`]
+/// when large parser types become difficult to name or store directly.
 pub struct Erased<'a, 'src, Inp, Out>
 where
     Inp: Input<'src> + 'a,

@@ -6,7 +6,8 @@ This chapter is a compact map of the parser and matcher building blocks in
 If you are still learning how `capture!`, `bind!`, `bind_span!`, and
 `bind_slice!` work, read [Capture and Binds](crate::guide::capture_and_binds)
 first. This page is meant as a reference once you know the basic grammar-writing
-model.
+model. For recipe-style snippets (whitespace, lists, recursion), see
+[Common patterns](crate::guide::common_patterns).
 
 ## Parser vs matcher
 

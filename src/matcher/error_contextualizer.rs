@@ -2,7 +2,7 @@
 //!
 //! On [`crate::error::MatcherRunError::FurthestFail`], this combinator runs `error_parser` at the failure cursor to obtain a
 //! callback that mutates the error. [`crate::error::MatcherRunError::RetryRerunNeeded`] is forwarded unchanged so the outer
-//! capture retry path can rewind and rerun with a recovery [`crate::matcher::NoMemoizeBacktrackingRunner`]
+//! capture retry path can rewind and rerun with a recovery **non-memoizing backtracking runner**
 //! without nested `error_parser` work.
 
 use std::fmt::Display;
@@ -30,7 +30,7 @@ impl<Happy, Pars> ParserCombinator for ErrorContextualizer<Happy, Pars> where Ha
 {}
 
 impl<Matcher, Pars> ErrorContextualizer<Matcher, Pars> {
-    /// See [`crate::matcher::Matcher::add_error_info`].
+    /// See [`crate::matcher::MatcherCombinator::add_error_info`].
     pub fn new(happy: Matcher, error_parser: Pars) -> Self {
         Self {
             happy,

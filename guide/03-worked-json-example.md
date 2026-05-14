@@ -1,40 +1,45 @@
 # Build a Simple JSON Parser
 
-This page shows how to build your own JSON parser with `marser`.
-It is intentionally simpler than production JSON: it supports
+This page shows how to build a small JSON parser with `marser`.
+It intentionally supports only a useful subset:
 
 - `null`
-- booleans (`true`/`false`)
-- integers (no exponent handling)
-- strings without escape sequences
+- booleans (`true` / `false`)
+- integers (including a leading `-`, but no fraction or exponent)
+- quoted strings without escape sequences
 - arrays
 - objects
 
 The approach is incremental: each section has a full runnable block that contains
 everything from the previous section plus one new concept.
 
+This tutorial intentionally stays **smaller than the repository's production
+example** in `examples/json.rs`. Use this page to learn the grammar shape and
+the `capture!` patterns; use `examples/json.rs` for richer numbers, string
+escapes, recovery, diagnostics, and optional tracing.
+
 ## 1) Start with `null` only
 
-Before parsing complex JSON, we establish the basic shape:
+Before parsing nested JSON, establish the basic shape:
 
-- define one AST enum we can keep extending
-- parse a single valid JSON literal (`null`)
-- include whitespace handling early so later rules are easier to compose
+- define an AST enum we can keep extending
+- parse one valid JSON literal
+- handle surrounding whitespace from the start
 
-Why start this way: it gives a known-good baseline where parser output, error
-collection, and whitespace handling are all visible in one tiny example.
+We do **not** need recursion yet. Keeping the first version non-recursive makes
+the value flow easier to see.
 
 Mini idea (illustrative only):
 
-```rust,ignore
-// "token parser" idea:
-// optional whitespace + "null" + optional whitespace => JsonValue::Null
+```text
+// optional whitespace + "null" + optional whitespace
 ```
 
 ```rust
-use marser::one_of::one_of;
-use marser::parser::{Parser, deferred::recursive};
 use marser::capture;
+use marser::matcher::multiple::many;
+use marser::one_of::one_of;
+use marser::parser::Parser;
 use std::rc::Rc;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -48,39 +53,55 @@ pub enum JsonValue {
 }
 
 fn json<'src>() -> impl Parser<'src, &'src str, Output = JsonValue> + Clone {
-    recursive(|_value| {
-        let ws = Rc::new(marser::matcher::multiple::many(one_of((' ', '\n', '\r', '\t'))));
-        capture!((ws.clone(), "null", ws.clone()) => JsonValue::Null)
-    })
+    let ws = Rc::new(many(one_of((' ', '\n', '\r', '\t'))));
+    let null = capture!("null" => JsonValue::Null);
+
+    capture!((
+        ws.clone(),
+        bind!(null, value),
+        ws.clone()
+    ) => value)
 }
 
-let (value, errors) = json().parse_str("null").unwrap();
+let (value, errors) = json().parse_str("  null\t").unwrap();
 assert_eq!(value, JsonValue::Null);
 assert!(errors.is_empty());
 ```
 
+This first version already shows a helpful pattern: keep `ws` as a reusable
+matcher, then wrap the real value parser with it.
+
 ## 2) Grow it: add booleans, numbers, and strings
 
-Now we add scalar values. The key design decisions are:
+Now add scalar values. The key ideas are:
 
-- **ordered alternatives** with `one_of((...))`: try string, number, boolean, null
-- **string re-use**: parse raw string first, then map it to `JsonValue::String`
-- **typed slices** in `bind_slice!`: keeping `&'src str` avoids inference trouble
+- **ordered alternatives** with `one_of((...))`
+- **`bind_slice!` for numbers** so the matched text can be parsed directly
+- **a small raw-string parser** that we map into `JsonValue::String`
 
-Why this order helps: scalar rules are independent and easy to debug before we
-introduce recursion for arrays/objects.
+Two details matter here:
+
+1. The number parser captures the **entire** matched number slice, so `-12`
+   stays `-12` instead of accidentally becoming `12`.
+2. The string rule is still intentionally small: it accepts any non-quote,
+   non-backslash, non-control character, but it does **not** implement escape
+   sequences yet.
 
 Mini idea (illustrative only):
 
-```rust,ignore
-// number shape in this tutorial:
-// optional('-') + one_or_more('0'..='9')
+```text
+// scalar = string | number | boolean | null
 ```
 
 ```rust
-use marser::one_of::one_of;
-use marser::parser::{Parser, ParserCombinator, deferred::recursive};
 use marser::capture;
+use marser::matcher::{multiple::many, one_or_more::one_or_more, optional::optional};
+use marser::one_of::one_of;
+use marser::parser::{
+    Parser,
+    ParserCombinator,
+    token_parser::token_parser,
+};
 use std::rc::Rc;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -94,40 +115,49 @@ pub enum JsonValue {
 }
 
 fn json<'src>() -> impl Parser<'src, &'src str, Output = JsonValue> + Clone {
-    recursive(|_value| {
-        let ws = Rc::new(marser::matcher::multiple::many(one_of((' ', '\n', '\r', '\t'))));
-        let null = capture!(("null", ws.clone()) => JsonValue::Null);
-        let t = capture!(("true", ws.clone()) => JsonValue::Bool(true));
-        let f = capture!(("false", ws.clone()) => JsonValue::Bool(false));
-        let boolean = one_of((t, f));
+    let ws = Rc::new(many(one_of((' ', '\n', '\r', '\t'))));
 
-        let number = capture!((
-            marser::matcher::optional::optional('-'),
-            bind_slice!(marser::matcher::one_or_more::one_or_more('0'..='9'), n as &'src str),
-            ws.clone()
-        ) => JsonValue::Number(n.parse().unwrap()));
+    let null = capture!("null" => JsonValue::Null);
+    let t = capture!("true" => JsonValue::Bool(true));
+    let f = capture!("false" => JsonValue::Bool(false));
+    let boolean = one_of((t, f));
 
-        let str_char = one_of(('a'..='z', 'A'..='Z', '0'..='9', ' ', '_', '-'));
-        let raw_string = Rc::new(capture!((
-            '"',
-            bind_slice!(marser::matcher::multiple::many(str_char), s as &'src str),
-            '"',
-            ws.clone()
-        ) => s.to_string()));
-        let string = raw_string.map_output(JsonValue::String);
+    let number = capture!(
+        bind_slice!((optional('-'), one_or_more('0'..='9')), n as &'src str)
+            => JsonValue::Number(n.parse().unwrap())
+    );
 
-        capture!((
-            ws.clone(),
-            bind!(one_of((string, number, boolean, null)), out),
-            ws.clone()
-        ) => out)
-    })
+    let string_char = Rc::new(token_parser(
+        |c: &char| *c != '"' && *c != '\\' && !c.is_control(),
+        |c| *c,
+    ));
+    let raw_string = Rc::new(capture!((
+        '"',
+        many(bind!(string_char.clone(), *chars)),
+        '"'
+    ) => chars.into_iter().collect::<String>()));
+    let string = raw_string.clone().map_output(JsonValue::String);
+
+    let scalar = one_of((string, number, boolean, null));
+
+    capture!((
+        ws.clone(),
+        bind!(scalar, value),
+        ws.clone()
+    ) => value)
 }
 
-let (value, errors) = json().parse_str(" 123 ").unwrap();
-assert_eq!(value, JsonValue::Number(123));
+let (value, errors) = json().parse_str(" -123 ").unwrap();
+assert_eq!(value, JsonValue::Number(-123));
+assert!(errors.is_empty());
+
+let (value, errors) = json().parse_str(r#""hello world""#).unwrap();
+assert_eq!(value, JsonValue::String("hello world".to_string()));
 assert!(errors.is_empty());
 ```
+
+At this point the parser can handle standalone scalar JSON values, but not
+nested structures.
 
 ## 3) Grow it again: add arrays and objects
 
@@ -135,22 +165,29 @@ This is where recursion matters:
 
 - arrays contain `value` elements
 - object values are also `value`
-- therefore `json()` must be defined with `recursive(...)`
+- therefore the full parser must be defined with `recursive(...)`
 
-The object rule is built from a small `key_value` parser so we do not duplicate
-`"key": value` logic inside the list machinery.
+This section also introduces **repeated binds** such as `*items` and
+`*entries`. Inside `capture!`, each successful `bind!(..., *items)` appends one
+more element to a `Vec<_>`.
 
 Mini idea (illustrative only):
 
-```rust,ignore
-// object shape:
-// '{' [ key_value (',' key_value)* ] '}'
+```text
+// array  = '[' [ value (',' value)* ] ']'
+// object = '{' [ string ':' value (',' string ':' value)* ] '}'
 ```
 
 ```rust
-use marser::one_of::one_of;
-use marser::parser::{Parser, ParserCombinator, deferred::recursive};
 use marser::capture;
+use marser::matcher::{multiple::many, one_or_more::one_or_more, optional::optional};
+use marser::one_of::one_of;
+use marser::parser::{
+    deferred::recursive,
+    token_parser::token_parser,
+    Parser,
+    ParserCombinator,
+};
 use std::rc::Rc;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -165,29 +202,32 @@ pub enum JsonValue {
 
 fn json<'src>() -> impl Parser<'src, &'src str, Output = JsonValue> + Clone {
     recursive(|value| {
-        let ws = Rc::new(marser::matcher::multiple::many(one_of((' ', '\n', '\r', '\t'))));
-        let null = capture!(("null", ws.clone()) => JsonValue::Null);
-        let t = capture!(("true", ws.clone()) => JsonValue::Bool(true));
-        let f = capture!(("false", ws.clone()) => JsonValue::Bool(false));
+        let ws = Rc::new(many(one_of((' ', '\n', '\r', '\t'))));
+
+        let null = capture!("null" => JsonValue::Null);
+        let t = capture!("true" => JsonValue::Bool(true));
+        let f = capture!("false" => JsonValue::Bool(false));
         let boolean = one_of((t, f));
 
-        let number = capture!((
-            marser::matcher::optional::optional('-'),
-            bind_slice!(marser::matcher::one_or_more::one_or_more('0'..='9'), n as &'src str),
-            ws.clone()
-        ) => JsonValue::Number(n.parse().unwrap()));
+        let number = capture!(
+            bind_slice!((optional('-'), one_or_more('0'..='9')), n as &'src str)
+                => JsonValue::Number(n.parse().unwrap())
+        );
 
-        let str_char = one_of(('a'..='z', 'A'..='Z', '0'..='9', ' ', '_', '-'));
+        let string_char = Rc::new(token_parser(
+            |c: &char| *c != '"' && *c != '\\' && !c.is_control(),
+            |c| *c,
+        ));
         let raw_string = Rc::new(capture!((
             '"',
-            bind_slice!(marser::matcher::multiple::many(str_char), s as &'src str),
-            '"',
-            ws.clone()
-        ) => s.to_string()));
+            many(bind!(string_char.clone(), *chars)),
+            '"'
+        ) => chars.into_iter().collect::<String>()));
         let string = raw_string.clone().map_output(JsonValue::String);
 
         let key_value = Rc::new(capture!((
             bind!(raw_string.clone(), key),
+            ws.clone(),
             ':',
             ws.clone(),
             bind!(value.clone(), val)
@@ -196,55 +236,218 @@ fn json<'src>() -> impl Parser<'src, &'src str, Output = JsonValue> + Clone {
         let array = capture!((
             '[',
             ws.clone(),
-            marser::matcher::optional::optional((
+            optional((
                 bind!(value.clone(), *items),
-                marser::matcher::multiple::many((
+                many((
                     ',',
                     ws.clone(),
                     bind!(value.clone(), *items)
                 ))
             )),
-            ']',
-            ws.clone()
+            ']'
         ) => JsonValue::Array(items));
 
         let object = capture!((
             '{',
             ws.clone(),
-            marser::matcher::optional::optional((
+            optional((
                 bind!(key_value.clone(), *entries),
-                marser::matcher::multiple::many((
+                many((
                     ',',
                     ws.clone(),
                     bind!(key_value.clone(), *entries)
                 ))
             )),
-            '}',
-            ws.clone()
+            '}'
         ) => JsonValue::Object(entries));
+
+        let value_core = one_of((object, array, string, number, boolean, null));
 
         capture!((
             ws.clone(),
-            bind!(one_of((object, array, string, number, boolean, null)), out),
+            bind!(value_core, out),
             ws.clone()
         ) => out)
     })
 }
 
-let src = r#"{"ok": true, "items": [1, 2, 3]}"#;
+let src = r#"{"ok": true, "items": [1, -2, 3], "msg": "hello"}"#;
 let (value, errors) = json().parse_str(src).unwrap();
+
 assert!(errors.is_empty());
-assert!(matches!(value, JsonValue::Object(_)));
+assert_eq!(
+    value,
+    JsonValue::Object(vec![
+        ("ok".to_string(), JsonValue::Bool(true)),
+        (
+            "items".to_string(),
+            JsonValue::Array(vec![
+                JsonValue::Number(1),
+                JsonValue::Number(-2),
+                JsonValue::Number(3),
+            ]),
+        ),
+        ("msg".to_string(), JsonValue::String("hello".to_string())),
+    ])
+);
 ```
 
-At this point, you have a complete, recursive JSON parser with a small grammar.
-The string rule is intentionally simple and does not handle escapes.
+At this point, you have a complete recursive JSON parser for a small but useful
+subset of JSON.
 
-## 4) What to improve next
+## 4) Complete parser block
+
+The block below is the full tutorial result in one place. It is kept as a
+single runnable example so it can be exercised by `cargo test`.
+
+```rust
+use marser::capture;
+use marser::matcher::{multiple::many, one_or_more::one_or_more, optional::optional};
+use marser::one_of::one_of;
+use marser::parser::{
+    deferred::recursive,
+    token_parser::token_parser,
+    Parser,
+    ParserCombinator,
+};
+use std::rc::Rc;
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum JsonValue {
+    Null,
+    Bool(bool),
+    Number(i64),
+    String(String),
+    Array(Vec<JsonValue>),
+    Object(Vec<(String, JsonValue)>),
+}
+
+fn json<'src>() -> impl Parser<'src, &'src str, Output = JsonValue> + Clone {
+    recursive(|value| {
+        let ws = Rc::new(many(one_of((' ', '\n', '\r', '\t'))));
+
+        let null = capture!("null" => JsonValue::Null);
+        let t = capture!("true" => JsonValue::Bool(true));
+        let f = capture!("false" => JsonValue::Bool(false));
+        let boolean = one_of((t, f));
+
+        let number = capture!(
+            bind_slice!((optional('-'), one_or_more('0'..='9')), n as &'src str)
+                => JsonValue::Number(n.parse().unwrap())
+        );
+
+        let string_char = Rc::new(token_parser(
+            |c: &char| *c != '"' && *c != '\\' && !c.is_control(),
+            |c| *c,
+        ));
+        let raw_string = Rc::new(capture!((
+            '"',
+            many(bind!(string_char.clone(), *chars)),
+            '"'
+        ) => chars.into_iter().collect::<String>()));
+        let string = raw_string.clone().map_output(JsonValue::String);
+
+        let key_value = Rc::new(capture!((
+            bind!(raw_string.clone(), key),
+            ws.clone(),
+            ':',
+            ws.clone(),
+            bind!(value.clone(), val)
+        ) => (key, val)));
+
+        let array = capture!((
+            '[',
+            ws.clone(),
+            optional((
+                bind!(value.clone(), *items),
+                many((
+                    ',',
+                    ws.clone(),
+                    bind!(value.clone(), *items)
+                ))
+            )),
+            ']'
+        ) => JsonValue::Array(items));
+
+        let object = capture!((
+            '{',
+            ws.clone(),
+            optional((
+                bind!(key_value.clone(), *entries),
+                many((
+                    ',',
+                    ws.clone(),
+                    bind!(key_value.clone(), *entries)
+                ))
+            )),
+            '}'
+        ) => JsonValue::Object(entries));
+
+        let value_core = one_of((object, array, string, number, boolean, null));
+
+        capture!((
+            ws.clone(),
+            bind!(value_core, out),
+            ws.clone()
+        ) => out)
+    })
+}
+
+let (value, errors) = json().parse_str("null").unwrap();
+assert_eq!(value, JsonValue::Null);
+assert!(errors.is_empty());
+
+let (value, errors) = json().parse_str(" -42 ").unwrap();
+assert_eq!(value, JsonValue::Number(-42));
+assert!(errors.is_empty());
+
+let (value, errors) = json().parse_str(r#"["a", true, null]"#).unwrap();
+assert_eq!(
+    value,
+    JsonValue::Array(vec![
+        JsonValue::String("a".to_string()),
+        JsonValue::Bool(true),
+        JsonValue::Null,
+    ])
+);
+assert!(errors.is_empty());
+
+let src = r#"{"ok": true, "items": [1, 2, 3], "name": "demo"}"#;
+let (value, errors) = json().parse_str(src).unwrap();
+assert_eq!(
+    value,
+    JsonValue::Object(vec![
+        ("ok".to_string(), JsonValue::Bool(true)),
+        (
+            "items".to_string(),
+            JsonValue::Array(vec![
+                JsonValue::Number(1),
+                JsonValue::Number(2),
+                JsonValue::Number(3),
+            ]),
+        ),
+        ("name".to_string(), JsonValue::String("demo".to_string())),
+    ])
+);
+assert!(errors.is_empty());
+```
+
+## 5) What to improve next
 
 - **Escaped strings**: support `\"`, `\\`, `\n`, and unicode escapes.
-- **Full numbers**: add fractional and exponent forms (`1.2`, `1e3`).
-- **Recovery**: add `recover_with(...)` so malformed sections become fallback nodes.
-- **Diagnostics**: attach richer labels/notes using `add_error_info(...)`.
+- **Full numbers**: add fractional and exponent forms such as `1.2` and `1e3`.
+- **Recovery**: add `recover_with(...)` so malformed sections can still produce
+  fallback nodes.
+- **Diagnostics**: attach richer labels or notes with `add_error_info(...)`.
+- **Commit points**: add `commit_on(...)` around arrays, objects, numbers, or
+  strings when you want better error behavior in larger grammars.
+
+If you want to compare this tutorial grammar with a more realistic one:
+
+- `examples/json.rs` adds richer validation, recovery, and optional tracing
+- [Errors and Recovery](crate::guide::errors_and_recovery) explains when to
+  commit and recover
+- [Common patterns](crate::guide::common_patterns) collects the reusable recipes
+  used here
 
 After this page, continue with [Errors and Recovery](crate::guide::errors_and_recovery).

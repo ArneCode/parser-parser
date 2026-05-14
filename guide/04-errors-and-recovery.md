@@ -97,8 +97,33 @@ real error handler. That second pass collects expected labels and produces a
 `FurthestFailError` if the committed rule still cannot match.
 
 Later sections show how diagnostic-only matchers such as `if_error(...)`,
-`try_insert_if_missing(...)`, and `unwanted(...)` can participate in that second
-pass.
+`try_insert_if_missing(...)`, `err_if_no_match(...)`, `err_if_matched(...)`, and
+`unwanted(...)` can participate in that second pass.
+
+## Choosing commit points
+
+**Prefer committing** once the input has crossed a boundary that makes the user’s
+intent clear:
+
+- after an opening delimiter the rest of the rule is “inside” that construct
+  (`( … )`, `{ … }`, `[ … ]`)
+- after a **keyword** that starts a distinct statement or declaration (`let`,
+  `if`, …)
+- after a prefix that would be **misleading** to reinterpret as another
+  top-level alternative (for example inside JSON, after `{` you are in an
+  object, not free to “try array” at the same position)
+
+**Avoid committing too early**:
+
+- on tokens shared by many alternatives (bare `+` / `-` before you know unary vs
+  binary)
+- before you have disambiguated constructs that share a prefix (unless you
+  intentionally want the first branch to own diagnostics)
+
+**Effect on diagnostics**: an early commit **narrows** which labels and spans are
+collected for a failure, which usually reads as a clearer error. A **late** or
+missing commit can produce “expected X or Y or Z” at a shallow position when the
+user already typed something that should have pinned a deeper rule.
 
 ## Expected labels and furthest failures
 
@@ -140,6 +165,8 @@ That callback can add notes, help, or extra labels.
 For example, a number parser can add a specific note for leading zeros:
 
 ```rust,ignore
+use marser::error::{AnnotationKind, FurthestFailError};
+
 number.add_error_info(one_of((
     capture!(
         (
@@ -148,8 +175,8 @@ number.add_error_info(one_of((
             '0'..='9'
         )
         => Box::new(move |err: &mut FurthestFailError| {
-            err.add_extra_label(zero, "leading zero", ariadne::Color::Blue);
-            err.add_note("Leading zeros are not allowed in JSON numbers");
+            err.add_annotation(zero, "leading zero", AnnotationKind::Context);
+            err.add_note("Leading zeros are not allowed in JSON numbers".to_string());
         }) as Box<dyn Fn(&mut FurthestFailError)>
     ),
     capture!(
@@ -158,8 +185,8 @@ number.add_error_info(one_of((
             bind_span!('.', dot),
         )
         => Box::new(move |err: &mut FurthestFailError| {
-            err.add_extra_label(dot, "missing integer part", ariadne::Color::Blue);
-            err.add_note("Floating point numbers need an integer part");
+            err.add_annotation(dot, "missing integer part", AnnotationKind::Context);
+            err.add_note("Floating point numbers need an integer part".to_string());
         }) as Box<dyn Fn(&mut FurthestFailError)>
     ),
 )))
@@ -173,7 +200,7 @@ Useful mutations include:
 ```rust,ignore
 err.add_note("Leading zeros are not allowed in JSON numbers");
 err.add_help("Remove the extra zero or quote the value as a string");
-err.add_extra_label(span, "leading zero", ariadne::Color::Blue);
+err.add_annotation(span, "leading zero", AnnotationKind::Context);
 ```
 
 ## Reporting missing syntax
@@ -206,6 +233,38 @@ Use it for delimiters and separators that are obvious from context:
 
 Avoid using it where insertion would be speculative. If several different tokens
 could be correct, an expected-label error is usually clearer.
+
+`try_insert_if_missing(...)` is the convenient wrapper for the more general
+`err_if_no_match(...)`.
+
+## Custom diagnostics on miss: `err_if_no_match`
+
+`matcher.err_if_no_match(factory)` runs the matcher normally. If it does **not**
+match and error handling is active, the factory builds an inline diagnostic and
+the matcher reports success so parsing can continue.
+
+This is the general form behind `try_insert_if_missing(...)`. Use it when a
+plain "missing X" message is not enough and you want to attach richer notes,
+annotations, or context.
+
+Because the factory can inspect earlier captures, it pairs well with
+`use_binds!(|ctx| { ... })` inside `capture!`.
+
+Example shape:
+
+```rust,ignore
+')'.err_if_no_match(use_binds!(|ctx| {
+    InlineError::new("missing closing parenthesis")
+        .with_span(Some(ctx.span()))
+        .with_annotation(open_paren_span.copied().unwrap(), "opened here", AnnotationKind::Context)
+}))
+```
+
+Use `err_if_no_match(...)` when:
+
+- the syntax is still best described as "something was missing"
+- but the built-in `try_insert_if_missing(...)` message would be too generic
+- or you want to point back to already-matched syntax
 
 ## Error-only grammar with `if_error`
 
@@ -293,6 +352,26 @@ here" rather than "something was missing". It pairs well with `if_error(...)`
 because unwanted syntax is often something you only want to scan for after a
 normal committed parse has failed.
 
+`unwanted(...)` is the convenient wrapper for the more general
+`err_if_matched(...)`.
+
+## Custom diagnostics on match: `err_if_matched`
+
+`matcher.err_if_matched(factory)` runs the matcher normally. If it **does**
+match, the factory builds an inline diagnostic for the consumed span while the
+matcher still reports success.
+
+This is useful when you can safely consume syntax but want a message richer than
+the default `unwanted(...)` form. For example, you may want to report an
+unexpected token and attach extra notes explaining what would have been valid in
+that position.
+
+Use `err_if_matched(...)` when:
+
+- the syntax can be consumed safely
+- you want parsing to continue after consuming it
+- and you need more than the plain `unwanted(..., \"message\")` helper gives you
+
 ## Recovering with `recover_with`
 
 `parser.recover_with(recovery_parser)` catches hard failures from `parser`.
@@ -367,11 +446,23 @@ Use `try_insert_if_missing(...)` when:
 - pretending it was present lets parsing continue usefully
 - you want a `MissingError` in the collected errors
 
+Use `err_if_no_match(...)` when:
+
+- missing syntax should produce a custom inline diagnostic
+- the message needs annotations, notes, or prior captured context
+- `try_insert_if_missing(...)` would be too generic
+
 Use `unwanted(...)` when:
 
 - invalid syntax can be consumed safely
 - you want a specific `UnwantedError`
 - continuing after the unwanted syntax gives better output
+
+Use `err_if_matched(...)` when:
+
+- matched syntax should be reported with a custom inline diagnostic
+- you want the matched span plus richer notes or annotations
+- `unwanted(...)` is too narrow
 
 Use `recover_with(...)` when:
 
@@ -389,14 +480,18 @@ Use `recover_with(...)` when:
 - Keep recovery local. One clear recovery strategy per rule is easier to reason
   about than many overlapping strategies.
 - Use `try_insert_if_missing(...)` for obvious delimiters and separators.
+- Use `err_if_no_match(...)` when missing syntax needs custom context.
 - Use `unwanted(...)` for syntax you can consume and report without losing the
   rest of the parse.
+- Use `err_if_matched(...)` when unwanted syntax needs a richer custom message.
 - Add notes and help that explain why input is invalid, not only where it failed.
 
 ## Example command
 
+From a checkout of this repository (the `json` example requires **`parser-erased`** and **`annotate-snippets`**):
+
 ```bash
-cargo run --example json -- tests/data/json1.json
+cargo run -p marser --features "parser-erased annotate-snippets" --example json -- tests/data/json1.json
 ```
 
 This example prints diagnostics and recovered output, demonstrating both strict

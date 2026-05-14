@@ -10,7 +10,7 @@ use crate::{
     parser::{Parser, ParserCombinator, internal::ParserImpl},
 };
 
-/// Wraps `inner` and supplies [`Matcher::maybe_label`] / parse failure registration from `label`.
+/// Wraps `inner` and supplies the matcher implementation’s `maybe_label` hook for parse failure registration from `label`.
 #[derive(Clone, Debug)]
 pub struct Labeled<L, I> {
     label: L,

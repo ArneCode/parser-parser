@@ -1,3 +1,12 @@
+//! Tracing helpers and (with the `parser-trace` feature) re-exports from
+//! [`marser_trace_schema`](https://docs.rs/marser-trace-schema).
+//!
+//! **Experimental:** When `parser-trace` is enabled, trace formats and supporting
+//! crates may evolve; see the project README and [`crate::guide::tracing_and_debugging`].
+//!
+//! [`Traced`] / [`WithTrace`] wrap parsers with explicit `.trace()` markers without
+//! changing parse results.
+
 #[cfg(feature = "parser-trace")]
 pub use marser_trace_schema::*;
 

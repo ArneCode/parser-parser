@@ -4,6 +4,8 @@ use crate::{
     matcher::{MatchRunner, MatcherCombinator},
     parser::{Parser, ParserCombinator},
 };
+
+/// Matcher wrapper that succeeds when `parser` succeeds and discards its output.
 #[derive(Clone, Debug)]
 pub struct IgnoreResult<Parser> {
     parser: Parser,
@@ -12,6 +14,7 @@ pub struct IgnoreResult<Parser> {
 impl<Parser> MatcherCombinator for IgnoreResult<Parser> where Parser: ParserCombinator {}
 
 impl<Parser> IgnoreResult<Parser> {
+    /// Wrap `parser`.
     pub fn new(parser: Parser) -> Self {
         Self { parser }
     }

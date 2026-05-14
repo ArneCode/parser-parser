@@ -55,6 +55,7 @@ impl<I> MatcherCombinator for Traced<I> where I: MatcherCombinator {}
 impl<I> Traced<I> {
     #[cfg(feature = "parser-trace")]
     #[track_caller]
+    /// Wrap `inner` in an explicit trace marker, optionally overriding the displayed label.
     pub fn new(inner: I, label: Option<String>) -> Self {
         let caller = std::panic::Location::caller();
         Self {
@@ -65,6 +66,7 @@ impl<I> Traced<I> {
     }
 
     #[cfg(not(feature = "parser-trace"))]
+    /// Wrap `inner` in an explicit trace marker, optionally overriding the displayed label.
     pub fn new(inner: I, label: Option<String>) -> Self {
         Self { inner, label }
     }
@@ -208,13 +210,16 @@ where
     }
 }
 
+/// Extension methods for adding explicit trace markers to parsers and matchers.
 pub trait WithTrace
 where
     Self: Sized,
 {
     #[cfg_attr(feature = "parser-trace", track_caller)]
+    /// Trace this parser or matcher using its existing label (if any).
     fn trace(self) -> Traced<Self>;
     #[cfg_attr(feature = "parser-trace", track_caller)]
+    /// Trace this parser or matcher with an explicit `label`.
     fn trace_with_label(self, label: impl Into<String>) -> Traced<Self>;
 }
 

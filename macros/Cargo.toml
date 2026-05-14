@@ -2,9 +2,10 @@
 name = "marser_macros"
 version = "0.1.0"
 edition = "2024"
+rust-version = "1.85"
 description = "Procedural macros for the marser parser-combinator library."
 license = "MIT"
-repository = "https://github.com/ArneCode/parser-parser"
+repository = "https://github.com/ArneCode/marser"
 readme = "../README.md"
 documentation = "https://docs.rs/marser_macros"
 

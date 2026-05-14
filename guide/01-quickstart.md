@@ -8,13 +8,15 @@ In your `Cargo.toml`:
 
 ```toml
 [dependencies]
-marser = "0.1.0"
+marser = { version = "0.1.0", features = ["parser-erased", "annotate-snippets"] }
 ```
+
+The **`parser-erased`** and **`annotate-snippets`** features match how this repository runs examples (`maybe_erase_types` and `ParserError::eprint`). You can omit `annotate-snippets` if you do not need the optional [annotate-snippets](https://docs.rs/annotate-snippets) dependency or the `eprint` / `write` helpers.
 
 For local development of this repository, you can run examples directly:
 
 ```bash
-cargo run --example json -- tests/data/json1.json
+cargo run -p marser --features "parser-erased annotate-snippets" --example json -- tests/data/json1.json
 ```
 
 ## 2) Mental model: parser vs matcher
@@ -27,31 +29,51 @@ cargo run --example json -- tests/data/json1.json
 
 If you remember one thing: matchers describe structure, parsers return values.
 
-## 3) First tiny parser
+## 3) First parser: literals and ordered choice
+
+This example shows **ordered choice** (`one_of`) over a few keyword parsers, each built with `capture!`. Every branch returns the same `Value` type, which is the usual pattern for alternatives.
 
 ```rust,ignore
 use marser::capture;
+use marser::one_of::one_of;
 use marser::parser::Parser;
 
 #[derive(Debug, Clone, PartialEq)]
 enum Value {
     Null,
+    Bool(bool),
 }
 
 fn grammar<'src>() -> impl Parser<'src, &'src str, Output = Value> + Clone {
-    capture!(("null") => Value::Null)
+    one_of((
+        capture!(("null") => Value::Null),
+        capture!(("true") => Value::Bool(true)),
+        capture!(("false") => Value::Bool(false)),
+    ))
 }
 
 fn main() {
-    let input = "null";
     let parser = grammar();
-    let (value, errors) = parser.parse_str(input).unwrap();
-    assert_eq!(value, Value::Null);
+    let (value, errors) = parser.parse_str("false").unwrap();
+    assert_eq!(value, Value::Bool(false));
     assert!(errors.is_empty());
 }
 ```
 
-## 4) Common mistakes
+Why this matters when evaluating `marser`: the **grammar reads like a table of alternatives**, and `capture!` stays the bridge from matcher-shaped input to your AST or enum.
+
+## 4) What this example already shows
+
+- **Ordered choice stays local**: every branch in `one_of((...))` produces the same `Value` type, so the grammar reads like a direct list of alternatives.
+- **`capture!` is the value boundary**: the matcher side says what to consume, and the expression after `=>` says what semantic value to build.
+- **Whole-input parse is the default**: `parse_str("false")` succeeds, but `parse_str("false trailing")` fails because `marser` wraps the parser with an EOF check.
+
+If you want the next step after this page, there are two good directions:
+
+- continue to [Core Concepts](crate::guide::core_concepts) if you want the mental model first
+- jump to [Build a Simple JSON Parser](crate::guide::worked_json_example) if you prefer learning from a full grammar
+
+## 5) Common mistakes
 
 - **Confusing matcher and parser output**: matcher checks structure; parser returns your enum/AST.
 - **Forgetting full-input parse behavior**: `Parser::parse_str` / `marser::parse` expect no trailing tokens.

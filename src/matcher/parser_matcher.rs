@@ -24,6 +24,7 @@ impl<Pars, ParserOutput> ParserMatcher<Pars, ParserOutput> {
     }
 }
 
+/// Convenience constructor for [`ParserMatcher`].
 pub fn match_parsed<Pars, ParserOutput>(parser: Pars, expected_output: ParserOutput) -> ParserMatcher<Pars, ParserOutput>
 {
     ParserMatcher::new(parser, expected_output)

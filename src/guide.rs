@@ -8,6 +8,7 @@
 //! - [`worked_json_example`]
 //! - [`errors_and_recovery`]
 //! - [`capture_and_binds`]
+//! - [`common_patterns`]
 //! - [`parser_matcher_reference`]
 //! - [`tracing_and_debugging`]
 
@@ -33,6 +34,10 @@ pub mod errors_and_recovery {
 
 pub mod capture_and_binds {
     #![doc = include_str!("../guide/05-capture-and-binds.md")]
+}
+
+pub mod common_patterns {
+    #![doc = include_str!("../guide/08-common-patterns.md")]
 }
 
 pub mod parser_matcher_reference {

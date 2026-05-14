@@ -1,29 +1,43 @@
-//! Parser combinators: types that implement [`Parser`].
+//! Parsers: typed values produced from input.
 //!
-//! You build parsers by composing the types in this module (and in
-//! [`crate::one_of`]). [`Parser`] is not intended to be implemented outside this
-//! crate: it extends a crate-private implementation trait, so only types
-//! defined here can satisfy the full bound.
+//! # For users
+//!
+//! - Build parsers with [`crate::capture`], [`crate::one_of::one_of`], [`deferred::recursive`], and
+//!   the concrete parser helpers in this module (`token_parser`, ranges, [`Capture`], …).
+//! - Run them with [`Parser::parse_str`] / [`Parser::parse_whole_input`] (same whole-input + EOF
+//!   wrapper as [`crate::parse`]).
+//! - Extend them with [`ParserCombinator`]: [`ParserCombinator::recover_with`],
+//!   [`ParserCombinator::memoized`], [`ParserCombinator::map_output`], [`ParserCombinator::maybe_erase_types`], …
+//!
+//! Concept guides: [`crate::guide::quickstart`], [`crate::guide::capture_and_binds`],
+//! [`crate::guide::errors_and_recovery`], [`crate::guide::common_patterns`].
+//!
+//! # Sealed implementation
+//!
+//! [`Parser`] is not implemented outside this crate: it extends a crate-private supertrait so only
+//! types defined here satisfy the full bound.
 //!
 //! # Runtime invariants
 //!
-//! - [`internal::ParserImpl::parse`] receives [`crate::context::ParserContext<'src>`] and must not
-//!   retain references to it past the call unless owned data is explicitly `'src`-bounded (for
-//!   example memoized [`Rc`] outputs).
+//! - The crate-private `ParserImpl::parse` entry point receives the parse context type
+//!   `ParserContext` (not re-exported at the crate root) and must not retain references to it past
+//!   the call unless owned data is explicitly `'src`-bounded (for example memoized [`Rc`] outputs).
 //! - [`capture::Capture`] is normally constructed via [`crate::capture`]; bind slot layout matches
-//!   [`capture::MatchResult`] tuple indexing described in [`capture::property`].
+//!   [`capture::MatchResult`] tuple indexing described by the [`capture::Property`] helpers.
 //!
 //! ## Associated constants
 //!
 //! Implementations expose `CAN_FAIL`. When `true`, the parser may return `Ok(None)` on a normal path
 //! (no match at the current position). It does **not** describe whether `Err` with
-//! [`crate::error::MatcherRunError`] is possible on the crate-private [`internal::ParserImpl::parse`] path.
+//! [`crate::error::MatcherRunError`] is possible on the crate-private `ParserImpl::parse` path.
 
 pub mod capture;
 pub mod deferred;
+/// Type-erased parser wrapper and helpers.
 pub mod erase_types;
 pub mod memoized;
 pub mod multiple;
+/// Output-mapping parser wrapper.
 pub mod output_mapper;
 pub mod range_parser;
 pub mod recover_error;
@@ -97,10 +111,17 @@ pub(crate) mod internal {
 
 /// Object-safe facade for parsers over a token type `Token`.
 ///
+/// Typical outcomes when used through [`Self::parse_str`] / [`Self::parse_whole_input`]:
+///
+/// - **`Ok((output, errors))`**: parse succeeded; `errors` may still list recovered diagnostics.
+/// - **`Err(FurthestFailError)`**: hard failure (often after a committed [`crate::matcher::commit_on`] rule).
+///
+/// For the full-input driver and recovery semantics, see [`crate::guide::errors_and_recovery`].
+///
 /// Blanket-implemented for every type that implements the crate-private parsing
-/// trait used internally. Use [`recover_with`](Self::recover_with) and
-/// [`memoized`](Self::memoized) for common extensions; the three-argument [`internal::ParserImpl::parse`]
-/// method drives the actual parse step.
+/// trait used internally. Use [`ParserCombinator::recover_with`] and
+/// [`ParserCombinator::memoized`] for common extensions; the three-argument
+/// `ParserImpl::parse` method drives the actual parse step.
 ///
 /// For parsing a full buffer with the same end-of-input wrapper as [`crate::parse`], use
 /// [`Self::parse_whole_input`] (or [`Self::parse_str`] when `Inp = &'src str`).
@@ -260,6 +281,10 @@ where
     }
 }
 
+/// Combinator helpers for parsers defined in this crate (including macro-built [`crate::capture`] parsers).
+///
+/// See [`crate::guide::errors_and_recovery`] for `recover_with` / `add_error_info`, and
+/// [`crate::guide::common_patterns`] for `maybe_erase_types` on large grammars.
 pub trait ParserCombinator {
     /// Memoize parse results keyed by input position (including outputs that borrow the input).
     fn memoized(self) -> memoized::Memoized<Self>
@@ -282,6 +307,7 @@ pub trait ParserCombinator {
 
     #[cfg(feature = "parser-trace")]
     #[track_caller]
+    /// Enrich hard failures from this parser with additional local context.
     fn add_error_info<Pars>(self, error_parser: Pars) -> ErrorContextualizer<Self, Pars>
     where
         Self: Sized,
@@ -290,6 +316,7 @@ pub trait ParserCombinator {
     }
 
     #[cfg(not(feature = "parser-trace"))]
+    /// Enrich hard failures from this parser with additional local context.
     fn add_error_info<Pars>(self, error_parser: Pars) -> ErrorContextualizer<Self, Pars>
     where
         Self: Sized,
@@ -299,6 +326,7 @@ pub trait ParserCombinator {
 
     #[cfg(feature = "parser-trace")]
     #[track_caller]
+    /// Run this parser as a matcher and discard the output.
     fn ignore_result(self) -> IgnoreResult<Self>
     where
         Self: Sized,
@@ -307,6 +335,7 @@ pub trait ParserCombinator {
     }
 
     #[cfg(not(feature = "parser-trace"))]
+    /// Run this parser as a matcher and discard the output.
     fn ignore_result(self) -> IgnoreResult<Self>
     where
         Self: Sized,
@@ -314,6 +343,7 @@ pub trait ParserCombinator {
         IgnoreResult::new(self)
     }
 
+    /// Map each successful parser output with `map_fn`, preserving parse behavior.
     fn map_output<MapFn>(self, map_fn: MapFn) -> output_mapper::OutputMapper<Self, MapFn>
     where
         Self: Sized,

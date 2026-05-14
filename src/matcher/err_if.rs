@@ -1,8 +1,8 @@
 //! Matchers that emit [`crate::error::InlineError`] when an inner pattern matches / does not match.
 //!
-//! [`ErrIfMatchedMatcher`] records diagnostics via [`ParserContext::push_stack_error`]
-//! whenever the inner pattern matches; [`MatchRunner::run_match`](crate::matcher::MatchRunner::run_match)
-//! truncates the stack on failed branches so exploratory matches do not leak stale errors.
+//! [`ErrIfMatchedMatcher`] records diagnostics by pushing onto the parse context’s error stack
+//! (`ParserContext::push_stack_error`, crate-private) whenever the inner pattern matches; the matcher
+//! runner truncates the error stack on failed branches so exploratory matches do not leak stale errors.
 
 use std::fmt;
 
@@ -14,12 +14,16 @@ use crate::{
 };
 
 #[derive(Clone)]
+/// Matcher wrapper that emits a diagnostic when `inner` does not match.
 pub struct ErrIfNoMatchMatcher<Inner, F> {
+    /// Wrapped matcher.
     pub inner: Inner,
+    /// Diagnostic factory used when `inner` does not match.
     pub factory: F,
 }
 
 impl<Inner, F> ErrIfNoMatchMatcher<Inner, F> {
+    /// Wrap `inner` and `factory`.
     pub fn new(inner: Inner, factory: F) -> Self {
         Self { inner, factory }
     }
@@ -78,12 +82,16 @@ where
 }
 
 #[derive(Clone)]
+/// Matcher wrapper that emits a diagnostic when `inner` matches.
 pub struct ErrIfMatchedMatcher<Inner, F> {
+    /// Wrapped matcher.
     pub inner: Inner,
+    /// Diagnostic factory used when `inner` matches.
     pub factory: F,
 }
 
 impl<Inner, F> ErrIfMatchedMatcher<Inner, F> {
+    /// Wrap `inner` and `factory`.
     pub fn new(inner: Inner, factory: F) -> Self {
         Self { inner, factory }
     }
@@ -137,6 +145,7 @@ where
     }
 }
 
+/// Build an [`ErrIfNoMatchMatcher`] from `inner` and `factory`.
 pub fn err_if_no_match<Inner, F>(inner: Inner, factory: F) -> ErrIfNoMatchMatcher<Inner, F>
 where
     Inner: super::MatcherCombinator,
@@ -144,6 +153,7 @@ where
     ErrIfNoMatchMatcher::new(inner, factory)
 }
 
+/// Convenience wrapper for missing-syntax diagnostics built on [`err_if_no_match`].
 pub fn try_insert_if_missing<Inner>(
     inner: Inner,
     message: impl Into<String>,
@@ -154,6 +164,7 @@ where
     ErrIfNoMatchMatcher::new(inner, crate::error::MissingSyntax(message.into()))
 }
 
+/// Build an [`ErrIfMatchedMatcher`] from `inner` and `factory`.
 pub fn err_if_matched<Inner, F>(inner: Inner, factory: F) -> ErrIfMatchedMatcher<Inner, F>
 where
     Inner: super::MatcherCombinator,
@@ -161,6 +172,7 @@ where
     ErrIfMatchedMatcher::new(inner, factory)
 }
 
+/// Convenience wrapper for unwanted-syntax diagnostics built on [`err_if_matched`].
 pub fn unwanted<Inner>(
     inner: Inner,
     message: impl Into<String>,

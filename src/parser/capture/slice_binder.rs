@@ -5,6 +5,7 @@ use crate::{
     parser::{BoundValue, Property, capture::MatchResult},
 };
 
+/// Matcher wrapper that stores the consumed input slice into a capture property.
 #[derive(Clone)]
 pub struct SliceBinder<Match, Prop> {
     pub(super) matcher: Match,
@@ -29,7 +30,7 @@ impl<Match, Prop> SliceBinder<Match, Prop> {
     }
 }
 
-/// Convenience constructor for [`SpanBinder`].
+/// Convenience constructor for [`SliceBinder`].
 pub fn bind_slice<Match, Prop>(matcher: Match, property: Prop) -> SliceBinder<Match, Prop> {
     SliceBinder::new(matcher, property)
 }
