@@ -5,6 +5,8 @@ perf.data
 flamegraph.svg
 perf.data.old
 profile.json.gz
+perf-wsl.data
+perf-wsl.data.old
 
 # Local Cursor rules and other scratch .mdc files (not versioned)
 *.mdc
