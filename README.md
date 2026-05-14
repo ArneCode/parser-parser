@@ -155,6 +155,22 @@ TRYBUILD=overwrite cargo test --features parser-erased --test capture_ui
 
 Review diffs, then re-run without `TRYBUILD=overwrite` until green.
 
+## JSONTestSuite (optional)
+
+The upstream [JSONTestSuite](https://github.com/nst/JSONTestSuite) corpus is wired as a **git submodule** at `tests/JSONTestSuite`. Fetch it with:
+
+```bash
+git submodule update --init tests/JSONTestSuite
+```
+
+The integration test `tests/json_testsuite.rs` is built only with the **`json-testsuite`** feature (together with **`parser-erased`** for the example grammar):
+
+```bash
+cargo test --features "parser-erased json-testsuite" --test json_testsuite
+```
+
+Per-file matrix helpers live under `tests/run_jsonsuite_*.py` (they set `JSONSUITE_FILE` and run `nst_single_file_from_env` in a subprocess).
+
 ## License
 
 This project is licensed under the MIT License.

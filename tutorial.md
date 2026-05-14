@@ -147,12 +147,29 @@ Best practice:
 
 Write focused tests around small parsers (numbers, strings, objects).
 
-### JSONTestSuite (already integrated here)
+### JSONTestSuite (submodule + opt-in Rust tests)
 
-Current repo has helper tests/scripts:
+Initialize the corpus once:
 
-- `cargo test test_standard_suite -- --nocapture`
-- `cargo test test_standard_suite_single_file_from_env -- --nocapture` (with `JSONSUITE_FILE=...`)
+```bash
+git submodule update --init tests/JSONTestSuite
+```
+
+Run the grouped harness (requires `parser-erased` + `json-testsuite`):
+
+```bash
+cargo test --features "parser-erased json-testsuite" --test json_testsuite
+```
+
+Single fixture via env (same as the Python helpers):
+
+```bash
+JSONSUITE_FILE=tests/JSONTestSuite/test_parsing/y_object.json \
+  cargo test --features "parser-erased json-testsuite" --test json_testsuite nst_single_file_from_env -- --nocapture
+```
+
+Helper scripts (each subprocess sets `JSONSUITE_FILE` and invokes `nst_single_file_from_env`):
+
 - `python3 tests/run_jsonsuite_single.py <file> --mode debug|release`
 - `python3 tests/run_jsonsuite_matrix.py --mode both`
 - `python3 tests/find_min_stack.py <files...> --mode release`

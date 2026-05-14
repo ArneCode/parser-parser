@@ -1,6 +1,4 @@
 /target
-/tests/JSONTestSuite
 
-# Local / scratch Cursor rule files (tracked rules live under .cursor/rules/)
+# Local Cursor rules and other scratch .mdc files (not versioned)
 *.mdc
-!.cursor/rules/*.mdc

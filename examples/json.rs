@@ -4,10 +4,12 @@ use std::rc::Rc;
 
 use marser::capture;
 
-#[cfg(feature = "parser-trace")]
+#[cfg(all(feature = "parser-trace", not(test)))]
 use marser::trace::TraceFormat;
+#[cfg(not(test))]
+use marser::error::ParserError;
 use marser::{
-    error::{AnnotationKind, FurthestFailError, ParserError},
+    error::{AnnotationKind, FurthestFailError},
     label::WithLabel,
     trace::WithTrace,
     matcher::{
@@ -37,26 +39,6 @@ pub enum JsonValue<'src> {
 }
 
 impl<'src> JsonValue<'src> {
-    pub fn serialize(&self) -> String {
-        match self {
-            Self::Invalid(slice) => format!("invalid('{slice}')"),
-            Self::Null => "null".to_string(),
-            Self::Boolean(b) => b.to_string(),
-            Self::Number(n) => n.to_string(),
-            Self::String(s) => format!("\"{}\"", s.replace('\\', "\\\\").replace('"', "\\\"")),
-            Self::Array(arr) => {
-                let items: Vec<String> = arr.iter().map(|v| v.serialize()).collect();
-                format!("[{}]", items.join(","))
-            }
-            Self::Object(obj) => {
-                let pairs: Vec<String> = obj
-                    .iter()
-                    .map(|(k, v)| format!("\"{}\":{}", k, v.serialize()))
-                    .collect();
-                format!("{{{}}}", pairs.join(","))
-            }
-        }
-    }
     /// Public method for pretty-printed JSON
     pub fn serialize_pretty(&self) -> String {
         self.serialize_internal(0)

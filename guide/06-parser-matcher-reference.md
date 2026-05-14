@@ -75,11 +75,17 @@ See [Capture and Binds](crate::guide::capture_and_binds) for the full guide.
 `token_parser(check_fn, parse_fn)` reads one token, checks it with `check_fn`, and
 maps it with `parse_fn`. If the check fails, it rewinds and returns `None`.
 
-```rust,ignore
-let digit = token_parser(
-    |c: &char| c.is_ascii_digit(),
-    |c| c.to_digit(10).unwrap(),
-);
+```rust
+use marser::parser::{token_parser, MultipleParser, Parser};
+
+fn digit_parser<'src>() -> impl Parser<'src, &'src str, Output = u32> + Clone {
+    token_parser(
+        |c: &char| c.is_ascii_digit(),
+        |c| c.to_digit(10).unwrap(),
+    )
+}
+
+assert_eq!(digit_parser().parse_str("7").unwrap().0, 7);
 ```
 
 Use this when one token should produce a transformed value.
@@ -234,8 +240,10 @@ Use these for literal syntax.
 Rust ranges also implement `Matcher` for compatible token streams. They consume
 one token when it is inside the range.
 
-```rust,ignore
-one_or_more('0'..='9')
+```rust
+use marser::matcher::one_or_more::one_or_more;
+
+let _digit_run = one_or_more('0'..='9');
 ```
 
 Use ranges for character or token classes.
@@ -359,15 +367,32 @@ Use labels when a grammar name is clearer than a raw literal or range.
 
 Use matcher repetition when you are still describing syntax inside `capture!`:
 
-```rust,ignore
-many((' ', '\n', '\t'))
+```rust
+use marser::matcher::multiple::many;
+
+let _ws = many((' ', '\n', '\t'));
 ```
 
 Use parser repetition when each repeated parse should produce a value that is
 combined outside the matcher layer:
 
-```rust,ignore
-MultipleParser::new(digit, |digits| digits.into_iter().collect::<String>())
+```rust
+use marser::parser::{token_parser, MultipleParser, Parser};
+
+fn decimal_string<'src>() -> impl Parser<'src, &'src str, Output = String> + Clone {
+    let digit = token_parser(
+        |c: &char| c.is_ascii_digit(),
+        |c| c.to_digit(10).unwrap(),
+    );
+    MultipleParser::new(digit, |digits: Vec<u32>| {
+        digits
+            .into_iter()
+            .map(|d| char::from_digit(d, 10).unwrap())
+            .collect::<String>()
+    })
+}
+
+let _ = decimal_string();
 ```
 
 The difference is where values live: matcher repetition binds through capture

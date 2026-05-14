@@ -3,7 +3,8 @@
 
 This script runs each file in tests/JSONTestSuite/test_parsing in an isolated
 cargo test subprocess using the env-driven Rust test:
-  tests::test_standard_suite_single_file_from_env
+  json_testsuite::nst_single_file_from_env
+(with Cargo features parser-erased + json-testsuite).
 """
 # example usage:
 # python3 tests/run_jsonsuite_matrix.py --mode both
@@ -32,7 +33,13 @@ def mode_command(mode: str) -> list[str]:
         return [
             "cargo",
             "test",
-            "test_standard_suite_single_file_from_env",
+            "--features",
+            "parser-erased",
+            "--features",
+            "json-testsuite",
+            "--test",
+            "json_testsuite",
+            "nst_single_file_from_env",
             "--",
             "--nocapture",
         ]
@@ -41,7 +48,13 @@ def mode_command(mode: str) -> list[str]:
             "cargo",
             "test",
             "--release",
-            "test_standard_suite_single_file_from_env",
+            "--features",
+            "parser-erased",
+            "--features",
+            "json-testsuite",
+            "--test",
+            "json_testsuite",
+            "nst_single_file_from_env",
             "--",
             "--nocapture",
         ]

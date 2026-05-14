@@ -118,10 +118,12 @@ Why this matters:
 
 The smallest useful capture binds one parser result and returns it:
 
-```rust,ignore
-capture!(
-    bind!('x', ch) => ch
-)
+```rust
+use marser::capture;
+use marser::parser::Parser;
+
+let p = capture!(bind!('x', ch) => ch);
+assert_eq!(p.parse_str("x").unwrap().0, 'x');
 ```
 
 Here:
@@ -161,16 +163,25 @@ name: Type
 
 Start with a name parser that returns the original source text:
 
-```rust,ignore
-let name = capture!(
-    bind_slice!(
-        (
-            one_of(('a'..='z', 'A'..='Z', '_')),
-            many(one_of(('a'..='z', 'A'..='Z', '0'..='9', '_'))),
-        ),
-        text
-    ) => text
-);
+```rust
+use marser::capture;
+use marser::matcher::multiple::many;
+use marser::one_of::one_of;
+use marser::parser::Parser;
+
+fn name_parser<'src>() -> impl Parser<'src, &'src str, Output = &'src str> + Clone {
+    capture!(
+        bind_slice!(
+            (
+                one_of(('a'..='z', 'A'..='Z', '_')),
+                many(one_of(('a'..='z', 'A'..='Z', '0'..='9', '_'))),
+            ),
+            text
+        ) => text
+    )
+}
+
+assert_eq!(name_parser().parse_str("foo12").unwrap().0, "foo12");
 ```
 
 The matcher recognizes the spelling of a name. `bind_slice!` returns the slice of
@@ -178,7 +189,9 @@ input that was consumed. This avoids allocating a new `String`.
 
 ### Step 2: add a span
 
-If later diagnostics need to point at the name, capture the span too:
+If later diagnostics need to point at the name, capture the span too. Nesting
+`bind_span!` around `bind_slice!` is a common pattern (the `capture!` macro
+rewrites the inner `bind_slice!` for you):
 
 ```rust,ignore
 let name_node = capture!(
@@ -203,12 +216,37 @@ uses spans to add extra diagnostic labels; see
 
 A repeated bind uses `*name` and produces a `Vec<_>`:
 
-```rust,ignore
-let name_list = capture!(
-    (
-        bind!(name.clone(), *names),
-        many((',', bind!(name.clone(), *names))),
-    ) => names
+```rust
+use marser::capture;
+use marser::matcher::multiple::many;
+use marser::one_of::one_of;
+use marser::parser::Parser;
+
+fn name_parser<'src>() -> impl Parser<'src, &'src str, Output = &'src str> + Clone {
+    capture!(
+        bind_slice!(
+            (
+                one_of(('a'..='z', 'A'..='Z', '_')),
+                many(one_of(('a'..='z', 'A'..='Z', '0'..='9', '_'))),
+            ),
+            text
+        ) => text
+    )
+}
+
+fn name_list_parser<'src>() -> impl Parser<'src, &'src str, Output = Vec<&'src str>> + Clone {
+    let name = name_parser();
+    capture!(
+        (
+            bind!(name.clone(), *names),
+            many((',', bind!(name.clone(), *names))),
+        ) => names
+    )
+}
+
+assert_eq!(
+    name_list_parser().parse_str("a,b,c").unwrap().0,
+    vec!["a", "b", "c"]
 );
 ```
 
@@ -218,17 +256,29 @@ Each successful `bind!(name.clone(), *names)` appends one value to `names`.
 
 An optional bind uses `?name` and produces an `Option<_>`:
 
-```rust,ignore
-let declaration = capture!(
-    (
-        bind!(name.clone(), name),
-        optional((':', bind!(name.clone(), ?ty))),
-    ) => Declaration { name, ty }
-);
+```rust
+use marser::capture;
+use marser::matcher::optional::optional;
+use marser::parser::{token_parser, Parser};
+
+fn annotated_digit<'src>() -> impl Parser<'src, &'src str, Output = (u32, Option<u32>)> + Clone {
+    let digit = token_parser(
+        |c: &char| c.is_ascii_digit(),
+        |c| c.to_digit(10).unwrap(),
+    );
+    capture!((
+        bind!(digit.clone(), lhs),
+        optional((':', bind!(digit.clone(), ?rhs))),
+    ) => (lhs, rhs))
+}
+
+assert_eq!(annotated_digit().parse_str("1:2").unwrap().0, (1, Some(2)));
+assert_eq!(annotated_digit().parse_str("3").unwrap().0, (3, None));
 ```
 
-If the annotation is present, `ty` is `Some(...)`. If it is absent, `ty` is
-`None`.
+The earlier steps used slices for names; here a tiny digit grammar keeps the
+optional-bind idea obvious: if the `':'` branch is present, `rhs` is `Some(...)`.
+If it is absent, `rhs` is `None`.
 
 ## The three bind macros
 
@@ -252,10 +302,15 @@ node, a normalized number, an enum variant, or any other semantic value.
 
 `bind_span!(matcher, span)` runs a matcher and stores only the consumed span:
 
-```rust,ignore
-capture!(
-    bind_span!('@', at_sign) => at_sign
-)
+```rust
+use marser::capture;
+use marser::parser::Parser;
+
+fn at_sign_span<'src>() -> impl Parser<'src, &'src str, Output = (usize, usize)> + Clone {
+    capture!(bind_span!('@', at_sign) => at_sign)
+}
+
+assert_eq!(at_sign_span().parse_str("@").unwrap().0, (0, 1));
 ```
 
 Use it when diagnostics or later AST nodes need a source location, but not the
@@ -266,10 +321,16 @@ matched text.
 `bind_slice!(matcher, text)` runs a matcher and stores the input slice covered by
 that matcher:
 
-```rust,ignore
-capture!(
-    bind_slice!(one_or_more('0'..='9'), digits) => digits
-)
+```rust
+use marser::capture;
+use marser::matcher::one_or_more::one_or_more;
+use marser::parser::Parser;
+
+fn digits_slice<'src>() -> impl Parser<'src, &'src str, Output = &'src str> + Clone {
+    capture!(bind_slice!(one_or_more('0'..='9'), digits) => digits)
+}
+
+assert_eq!(digits_slice().parse_str("4096").unwrap().0, "4096");
 ```
 
 Use it when exact source spelling matters: identifiers, number literals, invalid
@@ -335,13 +396,24 @@ The remaining mistakes to watch for are the ones where the syntax is valid but t
 
 Good repeated bind:
 
-```rust,ignore
-capture!(
-    many(bind!(digit, *digits)) => digits
-)
+```rust
+use marser::capture;
+use marser::matcher::multiple::many;
+use marser::parser::{token_parser, Parser};
+
+fn many_digits<'src>() -> impl Parser<'src, &'src str, Output = Vec<u32>> + Clone {
+    let digit = token_parser(
+        |c: &char| c.is_ascii_digit(),
+        |c| c.to_digit(10).unwrap(),
+    );
+    capture!(many(bind!(digit, *digits)) => digits)
+}
+
+let _ = many_digits();
 ```
 
-Bad repeated bind:
+Bad repeated bind (shape mismatch: `many` can run the bind multiple times, but
+the target is a single value, not `*digits`):
 
 ```rust,ignore
 capture!(
@@ -354,13 +426,25 @@ the bind many times while the target only has room for one value.
 
 Good optional bind:
 
-```rust,ignore
-capture!(
-    optional(bind!(sign_parser, ?sign)) => sign
-)
+```rust
+use marser::capture;
+use marser::matcher::optional::optional;
+use marser::parser::{token_parser, Parser};
+
+fn optional_sign<'src>() -> impl Parser<'src, &'src str, Output = Option<char>> + Clone {
+    let sign_parser = token_parser(
+        |c: &char| *c == '+' || *c == '-',
+        |c| *c,
+    );
+    capture!(optional(bind!(sign_parser, ?sign)) => sign)
+}
+
+assert_eq!(optional_sign().parse_str("-").unwrap().0, Some('-'));
+assert_eq!(optional_sign().parse_str("").unwrap().0, None);
 ```
 
-Bad optional bind:
+Bad optional bind (shape mismatch: `optional` may skip the bind, but `sign` is
+not optional):
 
 ```rust,ignore
 capture!(
@@ -424,11 +508,36 @@ bind!(parser, ?value, ?span)
 
 Use this when you need both parsed meaning and source location:
 
-```rust,ignore
-capture!(
-    bind!(identifier_parser, ident, ident_span)
-        => IdentNode { ident, span: ident_span }
-)
+```rust
+use marser::capture;
+use marser::parser::{token_parser, Parser};
+
+#[derive(Debug, PartialEq)]
+struct IdentNode {
+    ident: char,
+    span: (usize, usize),
+}
+
+fn ident_with_span<'src>() -> impl Parser<'src, &'src str, Output = IdentNode> + Clone {
+    let identifier_parser = token_parser(
+        |c: &char| c.is_ascii_lowercase(),
+        |c| *c,
+    );
+    capture!(
+        bind!(identifier_parser, ident, ident_span) => IdentNode {
+            ident,
+            span: ident_span,
+        }
+    )
+}
+
+assert_eq!(
+    ident_with_span().parse_str("x").unwrap().0,
+    IdentNode {
+        ident: 'x',
+        span: (0, 1),
+    }
+);
 ```
 
 Keep the value and span shapes the same unless you have a specific reason not to.
@@ -517,34 +626,57 @@ often need original text, not normalized values.
 
 Example:
 
-```rust,ignore
-capture!(
-    bind_slice!(
-        (
-            optional('-'),
-            one_or_more('0'..='9'),
-            optional(('.', one_or_more('0'..='9'))),
-        ),
-        number_text
-    ) => NumberLiteral::Raw(number_text)
-)
+```rust
+use marser::capture;
+use marser::matcher::{multiple::many, one_or_more::one_or_more, optional::optional};
+use marser::parser::Parser;
+
+enum NumberLiteral<'a> {
+    Raw(&'a str),
+}
+
+fn raw_number<'src>() -> impl Parser<'src, &'src str, Output = NumberLiteral<'src>> + Clone {
+    capture!(
+        bind_slice!(
+            (
+                optional('-'),
+                one_or_more('0'..='9'),
+                optional(('.', one_or_more('0'..='9'))),
+            ),
+            number_text
+        ) => NumberLiteral::Raw(number_text)
+    )
+}
+
+assert!(matches!(
+    raw_number().parse_str("-12.34").unwrap().0,
+    NumberLiteral::Raw("-12.34")
+));
 ```
 
 The trade-off is lifetime coupling. The output borrows from the input, so it
 cannot outlive the source text. If you need owned data, convert the slice at the
 boundary where ownership is required:
 
-```rust,ignore
-capture!(
-    bind_slice!(identifier_matcher, text) => text.to_owned()
-)
+```rust
+use marser::capture;
+use marser::matcher::multiple::many;
+use marser::one_of::one_of;
+use marser::parser::Parser;
+
+fn ident_to_string<'src>() -> impl Parser<'src, &'src str, Output = String> + Clone {
+    let identifier_matcher = many(one_of(('a'..='z', 'A'..='Z', '0'..='9', '_')));
+    capture!(bind_slice!(identifier_matcher, text) => String::from(text))
+}
+
+assert_eq!(ident_to_string().parse_str("abc").unwrap().0, "abc");
 ```
 
 ## Bind form matrix
 
 Use this as a compact reference:
 
-```text
+```rust,ignore
 bind!(parser, value)
   captures: parser output
   result:   value: T

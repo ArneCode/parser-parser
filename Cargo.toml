@@ -40,6 +40,8 @@ annotate-snippets = ["dep:annotate-snippets"]
 parser-erased = []
 # Enable parser event tracing APIs and instrumentation.
 parser-trace = ["dep:serde", "dep:serde_json", "dep:marser-trace-schema"]
+# Enable JSONTestSuite integration tests (`tests/json_testsuite.rs`).
+json-testsuite = []
 
 [dependencies]
 annotate-snippets = { version = "0.12.15", optional = true }

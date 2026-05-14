@@ -33,7 +33,7 @@ If you remember one thing: matchers describe structure, parsers return values.
 
 This example shows **ordered choice** (`one_of`) over a few keyword parsers, each built with `capture!`. Every branch returns the same `Value` type, which is the usual pattern for alternatives.
 
-```rust,ignore
+```rust
 use marser::capture;
 use marser::one_of::one_of;
 use marser::parser::Parser;

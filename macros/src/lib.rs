@@ -746,7 +746,7 @@ impl VisitMut for BindMacroExpander {
 ///
 /// # Syntax
 ///
-/// ```ignore
+/// ```rust,ignore
 /// capture!( <grammar> => <result> )
 /// ```
 ///

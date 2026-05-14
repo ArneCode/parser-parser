@@ -6,13 +6,14 @@ Short recipes experienced users often look for when sketching a grammar.
 
 Treat runs of ignorable tokens as a **matcher** you clone into sequences:
 
-```rust,ignore
+```rust
 use std::rc::Rc;
 use marser::matcher::multiple::many;
 use marser::one_of::one_of;
 
 let ws = Rc::new(many(one_of((' ', '\t', '\n', '\r'))));
 // use ws.clone() before/after tokens where flexibility helps
+# let _ = ws;
 ```
 
 Keep whitespace **out** of token parsers when you want keywords to match exactly at boundaries; pull `ws` into the surrounding rule instead.
@@ -41,14 +42,18 @@ Avoid committing on tokens that several constructs still share. The goal is: **b
 
 ## Recursive rules
 
-Use `recursive` whenever a rule refers to itself (JSON `value`, expressions, blocks):
+Use `recursive` whenever a rule refers to itself (JSON `value`, expressions, blocks).
+Annotating the `DeferredWeak` input (here for `&str` parsers) is enough for type
+inference; a real grammar would clone that handle into nested rules instead of
+ignoring it:
 
-```rust,ignore
-use marser::parser::deferred::recursive;
+```rust
+use marser::capture;
+use marser::matcher::{any_token::AnyToken, negative_lookahead::negative_lookahead};
+use marser::parser::{recursive, DeferredWeak, Parser};
 
-let value = recursive(|value| {
-    // build parsers that clone `value` for nested uses
-    todo!()
+let _value = recursive(|_weak: DeferredWeak<'_, '_, &str, ()>| {
+    capture!(negative_lookahead(AnyToken) => ())
 });
 ```
 

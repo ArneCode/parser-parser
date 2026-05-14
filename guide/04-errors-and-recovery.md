@@ -218,10 +218,12 @@ follow-up errors.
 
 Examples:
 
-```rust,ignore
-')'.try_insert_if_missing("missing closing ')'")
-';'.try_insert_if_missing("missing semicolon")
-','.try_insert_if_missing("missing comma")
+```rust
+use marser::matcher::MatcherCombinator;
+
+let _close_paren = ')'.try_insert_if_missing("missing closing ')'");
+let _semi = ';'.try_insert_if_missing("missing semicolon");
+let _comma = ','.try_insert_if_missing("missing comma");
 ```
 
 Use it for delimiters and separators that are obvious from context:
