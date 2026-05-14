@@ -22,6 +22,7 @@ pub use traced::{Traced, WithTrace};
 
 #[cfg(feature = "parser-trace")]
 impl From<&crate::error::FurthestFailError> for TraceMarkerFailureSnapshot {
+    #[inline]
     fn from(e: &crate::error::FurthestFailError) -> Self {
         Self {
             span_start: e.span.0,
@@ -34,6 +35,7 @@ impl From<&crate::error::FurthestFailError> for TraceMarkerFailureSnapshot {
 
 #[cfg(feature = "parser-trace")]
 impl From<&crate::error::MatcherRunError> for TraceMarkerFailureSnapshot {
+    #[inline]
     fn from(e: &crate::error::MatcherRunError) -> Self {
         match e {
             crate::error::MatcherRunError::FurthestFail(f) => Self::from(f),

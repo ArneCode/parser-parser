@@ -25,6 +25,7 @@ pub(crate) struct TraceState {
 }
 
 impl<'src> ParserContext<'src> {
+    #[inline]
     pub fn attach_trace_session(&mut self, session: TraceSession) {
         self.trace = Some(TraceState {
             session,
@@ -35,10 +36,12 @@ impl<'src> ParserContext<'src> {
         });
     }
 
+    #[inline]
     pub fn take_trace_session(&mut self) -> Option<TraceSession> {
         self.trace.take().map(|t| t.session)
     }
 
+    #[inline]
     pub fn next_trace_marker_id(&mut self) -> u64 {
         let trace = self.trace.get_or_insert_with(|| TraceState {
             session: TraceSession::new(),

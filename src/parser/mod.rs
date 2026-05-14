@@ -430,6 +430,7 @@ where
         }
     }
 
+    #[inline]
     fn maybe_label(&self) -> Option<Box<dyn std::fmt::Display>> {
         <Self as internal::ParserImpl<'src, Inp>>::maybe_label(self)
     }

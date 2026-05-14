@@ -114,6 +114,7 @@ where
         }
     }
 
+    #[inline]
     fn maybe_label(&self) -> Option<Box<dyn std::fmt::Display>> {
         self.parser.get().and_then(|p| p.maybe_label())
     }
@@ -145,6 +146,7 @@ where
         }
     }
 
+    #[inline]
     fn maybe_label(&self) -> Option<Box<dyn std::fmt::Display>> {
         let cell = self.parser.upgrade()?;
         cell.get()?.maybe_label()

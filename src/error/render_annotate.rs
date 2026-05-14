@@ -8,6 +8,7 @@ use annotate_snippets::{
 
 use super::{AnnotationKind, ParserError};
 
+#[inline]
 pub(super) fn render_errors_slice_into(
     errors: &[ParserError],
     out: &mut String,
@@ -84,6 +85,7 @@ pub(super) fn render_errors_slice_into(
     }
 }
 
+#[inline]
 fn normalized_span(span: (usize, usize), source_len: usize) -> std::ops::Range<usize> {
     let mut start = span.0.min(source_len);
     let mut end = span.1.min(source_len);
@@ -99,6 +101,7 @@ fn normalized_span(span: (usize, usize), source_len: usize) -> std::ops::Range<u
     start..end
 }
 
+#[inline]
 fn annotation_kind_to_snippet(kind: AnnotationKind) -> SnippetAnnotationKind {
     match kind {
         AnnotationKind::Primary => SnippetAnnotationKind::Primary,

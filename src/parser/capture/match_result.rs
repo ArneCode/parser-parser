@@ -105,6 +105,7 @@ pub trait MatchResult {
         match_result_optional: Self::Optional,
     ) -> Self;
     /// Create a fully empty aggregate.
+    #[inline]
     fn new_empty() -> Self
     where
         Self: Sized,
@@ -171,6 +172,7 @@ where
     type Multiple = MResMultiple;
     type Optional = MResOptional;
 
+    #[inline]
     fn new(
         match_result_single: MResSingle,
         match_result_multiple: MResMultiple,
@@ -183,28 +185,34 @@ where
         )
     }
 
+    #[inline]
     fn single(&mut self) -> &mut MResSingle {
         &mut self.0
     }
 
+    #[inline]
     fn multiple(&mut self) -> &mut MResMultiple {
         &mut self.1
     }
 
+    #[inline]
     fn optional(&mut self) -> &mut MResOptional {
         &mut self.2
     }
 
+    #[inline]
     fn snapshot(&self) -> Self::Snapshot<'_> {
         (self.0.snapshot(), self.1.snapshot(), self.2.snapshot())
     }
 
+    #[inline]
     fn subtract_from_result(&self, result: &mut Self) {
         self.0.subtract_from_result(result.single());
         self.1.subtract_from_result(result.multiple());
         self.2.subtract_from_result(result.optional());
     }
 
+    #[inline]
     fn project_single_snapshot_mut<'a, 'd>(
         snap: &'a mut Self::Snapshot<'d>,
     ) -> &'a mut MResSingle::Snapshot<'d>
@@ -214,6 +222,7 @@ where
         &mut snap.0
     }
 
+    #[inline]
     fn project_multiple_snapshot_mut<'a, 'd>(
         snap: &'a mut Self::Snapshot<'d>,
     ) -> &'a mut MResMultiple::Snapshot<'d>
@@ -223,6 +232,7 @@ where
         &mut snap.1
     }
 
+    #[inline]
     fn project_optional_snapshot_mut<'a, 'd>(
         snap: &'a mut Self::Snapshot<'d>,
     ) -> &'a mut MResOptional::Snapshot<'d>
@@ -232,6 +242,7 @@ where
         &mut snap.2
     }
 
+    #[inline]
     fn new_empty_snapshot<'a>() -> Self::Snapshot<'a>
     where
         Self: 'a,
@@ -251,11 +262,17 @@ impl MatchResultSingle for () {
         Self: 'a;
     type Properties = ();
     type Output = ();
+    #[inline]
     fn new() -> Self {}
+    #[inline]
     fn new_properties() -> Self::Properties {}
+    #[inline]
     fn to_output(self) -> Self::Output {}
+    #[inline]
     fn subtract_from_result(&self, _result: &mut Self) {}
+    #[inline]
     fn snapshot(&self) -> Self::Snapshot<'_> {}
+    #[inline]
     fn new_empty_snapshot<'a>() -> Self::Snapshot<'a>
     where
         Self: 'a,
@@ -270,10 +287,15 @@ impl MatchResultMultiple for () {
     where
         Self: 'a;
     type Properties = ();
+    #[inline]
     fn new() -> Self {}
+    #[inline]
     fn new_properties() -> Self::Properties {}
+    #[inline]
     fn subtract_from_result(&self, _result: &mut Self) {}
+    #[inline]
     fn snapshot(&self) -> Self::Snapshot<'_> {}
+    #[inline]
     fn new_empty_snapshot<'a>() -> Self::Snapshot<'a>
     where
         Self: 'a,
@@ -288,10 +310,15 @@ impl MatchResultOptional for () {
     where
         Self: 'a;
     type Properties = ();
+    #[inline]
     fn new() -> Self {}
+    #[inline]
     fn new_properties() -> Self::Properties {}
+    #[inline]
     fn subtract_from_result(&self, _result: &mut Self) {}
+    #[inline]
     fn snapshot(&self) -> Self::Snapshot<'_> {}
+    #[inline]
     fn new_empty_snapshot<'a>() -> Self::Snapshot<'a>
     where
         Self: 'a,
@@ -300,6 +327,7 @@ impl MatchResultOptional for () {
     }
 }
 
+#[inline]
 fn unwrap_single<T>(option: Option<T>) -> T {
     option.expect("Expected single match result to be set, but it was not")
 }
@@ -329,6 +357,7 @@ macro_rules! __impl_snap_projs_recurse {
         [($Thead:ident, $idxhead:tt) $(, ($Trest:ident, $idxrest:tt))*]
     ) => {
         impl<$($Tall),+> SingleSnapProj<$bucket_single, $Thead> for SingleSnapProjAt<$idxhead> {
+            #[inline]
             fn project<'a, 'd>(
                 &self,
                 snap: &'a mut <$bucket_single as MatchResultSingle>::Snapshot<'d>,
@@ -340,6 +369,7 @@ macro_rules! __impl_snap_projs_recurse {
             }
         }
         impl<$($Tall),+> MultipleSnapProj<$bucket_multiple, $Thead> for MultipleSnapProjAt<$idxhead> {
+            #[inline]
             fn project<'a, 'd>(
                 &self,
                 snap: &'a mut <$bucket_multiple as MatchResultMultiple>::Snapshot<'d>,
@@ -351,6 +381,7 @@ macro_rules! __impl_snap_projs_recurse {
             }
         }
         impl<$($Tall),+> OptionalSnapProj<$bucket_optional, $Thead> for OptionalSnapProjAt<$idxhead> {
+            #[inline]
             fn project<'a, 'd>(
                 &self,
                 snap: &'a mut <$bucket_optional as MatchResultOptional>::Snapshot<'d>,
@@ -388,10 +419,12 @@ macro_rules! impl_match_results_for_tuple {
             );
             type Output = ($($T,)+);
 
+            #[inline]
             fn new() -> Self {
                 ($( { let _: std::marker::PhantomData<$T>; None },)+ )
             }
 
+            #[inline]
             fn new_properties() -> Self::Properties {
                 ($(
                     SingleProperty::new(
@@ -402,12 +435,14 @@ macro_rules! impl_match_results_for_tuple {
                 )+)
             }
 
+            #[inline]
             fn to_output(self) -> Self::Output {
                 #[allow(non_snake_case)]
                 let ($( $T, )+) = self;
                 ($(unwrap_single($T),)+)
             }
 
+            #[inline]
             fn subtract_from_result(&self, result: &mut Self) {
                 // check if the result is set, then remove it if it is
                 $(if self.$idx.is_some() {
@@ -416,10 +451,12 @@ macro_rules! impl_match_results_for_tuple {
 
             }
 
+            #[inline]
             fn snapshot(&self) -> Self::Snapshot<'_> {
                 ($(self.$idx.as_ref(),)+)
             }
 
+            #[inline]
             fn new_empty_snapshot<'a>() -> Self::Snapshot<'a>
             where
                 Self: 'a,
@@ -440,10 +477,12 @@ macro_rules! impl_match_results_for_tuple {
                 >,)+
             );
 
+            #[inline]
             fn new() -> Self {
                 ($( { let _: std::marker::PhantomData<$T>; Vec::new() },)+ )
             }
 
+            #[inline]
             fn new_properties() -> Self::Properties {
                 ($(
                     MultipleProperty::new(
@@ -454,6 +493,7 @@ macro_rules! impl_match_results_for_tuple {
                 )+)
             }
 
+            #[inline]
             fn subtract_from_result(&self, result: &mut Self) {
                 $(
                     {
@@ -464,10 +504,12 @@ macro_rules! impl_match_results_for_tuple {
                 )+;
             }
 
+            #[inline]
             fn snapshot(&self) -> Self::Snapshot<'_> {
                 ($(self.$idx.iter().collect::<Vec<&$T>>(),)+)
             }
 
+            #[inline]
             fn new_empty_snapshot<'a>() -> Self::Snapshot<'a>
             where
                 Self: 'a,
@@ -489,10 +531,12 @@ macro_rules! impl_match_results_for_tuple {
                 >,)+
             );
 
+            #[inline]
             fn new() -> Self {
                 ($( { let _: std::marker::PhantomData<$T>; None },)+ )
             }
 
+            #[inline]
             fn new_properties() -> Self::Properties {
                 ($(
                     OptionalProperty::new(
@@ -503,16 +547,19 @@ macro_rules! impl_match_results_for_tuple {
                 )+)
             }
 
+            #[inline]
             fn subtract_from_result(&self, result: &mut Self) {
                 $(if self.$idx.is_some() {
                     result.$idx = None;
                 })+;
             }
 
+            #[inline]
             fn snapshot(&self) -> Self::Snapshot<'_> {
                 ($(self.$idx.as_ref(),)+)
             }
 
+            #[inline]
             fn new_empty_snapshot<'a>() -> Self::Snapshot<'a>
             where
                 Self: 'a,

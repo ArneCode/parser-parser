@@ -68,6 +68,7 @@ use crate::{
 ///
 /// On success returns the parsed output and any collected [`error::ParserError`] values.
 /// On hard failure returns [`error::FurthestFailError`].
+#[inline]
 pub fn parse<'src, Pars, Out: 'src>(
     parser: Pars,
     src: &'src str,
@@ -83,6 +84,7 @@ where
 /// and parse once more.
 ///
 /// Works for any [`Input`](crate::input::Input) (for example `&str` or `&[T]`).
+#[inline]
 pub(crate) fn parse_whole_input_with_default_eof<'src, Pars, Inp, Out>(
     parser: &Pars,
     input: Inp,

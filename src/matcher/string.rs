@@ -50,6 +50,7 @@ impl<'src, Inp: Input<'src, Token = char>, MRes> super::internal::MatcherImpl<'s
         Ok(true)
     }
 
+    #[inline]
     fn maybe_label(&self) -> Option<Box<dyn std::fmt::Display>> {
         Some(Box::new(self.expected.iter().collect::<String>()))
     }
@@ -84,6 +85,7 @@ impl<'src, Inp: Input<'src, Token = char>, MRes> super::internal::MatcherImpl<'s
         Ok(true)
     }
 
+    #[inline]
     fn maybe_label(&self) -> Option<Box<dyn std::fmt::Display>> {
         Some(Box::new(self.to_string()))
     }
@@ -113,6 +115,7 @@ impl<'src, Inp: Input<'src, Token = char>, MRes> super::internal::MatcherImpl<'s
         }
         Ok(false)
     }
+    #[inline]
     fn maybe_label(&self) -> Option<Box<dyn std::fmt::Display>> {
         Some(Box::new(*self))
     }

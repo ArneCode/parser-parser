@@ -41,6 +41,7 @@ pub struct InlineError {
 
 impl InlineError {
     /// Create a new diagnostic with `message` and no span.
+    #[inline]
     pub fn new(message: impl Into<String>) -> Self {
         Self {
             message: message.into(),
@@ -52,11 +53,13 @@ impl InlineError {
     }
 
     /// Create a new diagnostic anchored at `span`.
+    #[inline]
     pub fn at(span: (usize, usize), message: impl Into<String>) -> Self {
         Self::new(message).with_span(Some(span))
     }
 
     /// Span used when reporting (falls back to `(0, 0)` if unset).
+    #[inline]
     pub fn reporting_span(&self) -> (usize, usize) {
         self.span.unwrap_or((0, 0))
     }
@@ -174,11 +177,13 @@ pub struct MatchDiagCtx {
 
 impl MatchDiagCtx {
     /// Return `(start, end)`.
+    #[inline]
     pub fn span(&self) -> (usize, usize) {
         (self.start, self.end)
     }
 
     /// Build a zero-width context at `pos`.
+    #[inline]
     pub fn insertion_point(pos: usize) -> Self {
         Self {
             start: pos,
@@ -205,6 +210,7 @@ pub trait BuildInlineError<MRes: MatchResult>: Clone {
 }
 
 /// Type-enforcing identity helper for plain `|ctx| …` factories.
+#[inline]
 pub fn ctx_factory<F>(f: F) -> F
 where
     F: Fn(MatchDiagCtx) -> InlineError + Clone,
@@ -217,6 +223,7 @@ where
 pub struct MissingSyntax(pub String);
 
 impl<MRes: MatchResult> BuildInlineError<MRes> for MissingSyntax {
+    #[inline]
     fn build_inline_error<'snap>(
         &self,
         ctx: MatchDiagCtx,
@@ -234,6 +241,7 @@ impl<MRes: MatchResult> BuildInlineError<MRes> for MissingSyntax {
 pub struct UnwantedSyntax(pub String);
 
 impl<MRes: MatchResult> BuildInlineError<MRes> for UnwantedSyntax {
+    #[inline]
     fn build_inline_error<'snap>(
         &self,
         ctx: MatchDiagCtx,
@@ -260,6 +268,7 @@ impl<MRes: MatchResult, F> BuildInlineError<MRes> for ClosureBuild<F>
 where
     F: Fn(MatchDiagCtx) -> InlineError + Clone,
 {
+    #[inline]
     fn build_inline_error<'snap>(
         &self,
         ctx: MatchDiagCtx,
@@ -307,6 +316,7 @@ where
     MRes: MatchResult + 'a,
     F: Fn(&MRes::Snapshot<'a>, MatchDiagCtx) -> InlineError,
 {
+    #[inline]
     fn call(&self, snap: &MRes::Snapshot<'a>, ctx: MatchDiagCtx) -> InlineError {
         self(snap, ctx)
     }
@@ -317,6 +327,7 @@ where
     MRes: MatchResult,
     F: Clone + for<'a> SnapCallable<'a, MRes>,
 {
+    #[inline]
     fn build_inline_error<'snap>(
         &self,
         ctx: MatchDiagCtx,

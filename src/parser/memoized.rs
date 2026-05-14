@@ -86,6 +86,7 @@ where
         }
     }
 
+    #[inline]
     fn maybe_label(&self) -> Option<Box<dyn Display>> {
         self.inner.maybe_label()
     }

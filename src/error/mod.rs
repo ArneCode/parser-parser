@@ -44,6 +44,7 @@ pub enum ParserError {
 
 impl ParserError {
     /// Primary span used for sorting / anchoring in multi-error reports.
+    #[inline]
     pub fn span(&self) -> (usize, usize) {
         match self {
             ParserError::FurthestFail(error) => error.span,
@@ -130,6 +131,7 @@ pub struct FurthestFailError {
 
 impl FurthestFailError {
     /// Wrap as [`ParserError::FurthestFail`].
+    #[inline]
     pub fn as_parser_error(self) -> ParserError {
         ParserError::FurthestFail(self)
     }
@@ -321,6 +323,7 @@ impl From<FurthestFailError> for MatcherRunError {
 
 impl MatcherRunError {
     /// Convert to [`FurthestFailError`] for parser APIs. The marker becomes a minimal error at `span`.
+    #[inline]
     pub fn into_furthest_fail_for_parser(self, span: (usize, usize)) -> FurthestFailError {
         match self {
             MatcherRunError::FurthestFail(f) => f,

@@ -35,6 +35,7 @@ pub struct ParserContext<'src> {
 }
 
 impl<'src> ParserContext<'src> {
+    #[inline]
     pub fn new() -> Self {
         Self {
             memo_store: MemoStore::default(),
@@ -48,12 +49,14 @@ impl<'src> ParserContext<'src> {
         }
     }
 
+    #[inline]
     pub fn get_errors(mut self) -> Vec<ParserError> {
         // return combined errors from error_sink and error_stack
         self.error_sink.extend(self.error_stack);
         self.error_sink
     }
 
+    #[inline]
     pub fn push_stack_error(&mut self, error: ParserError) {
         self.error_stack.push(error);
     }

@@ -57,6 +57,7 @@ where
     {
         runner.run_match(&self.inner, error_handler, input)
     }
+    #[inline]
     fn maybe_label(&self) -> Option<Box<dyn Display>> {
         Some(Box::new(self.label.clone()))
     }
@@ -91,6 +92,7 @@ where
         }
     }
 
+    #[inline]
     fn maybe_label(&self) -> Option<Box<dyn Display>> {
         Some(Box::new(self.label.clone()))
     }
@@ -109,6 +111,7 @@ impl<I> WithLabel for I
 where
     I: Sized,
 {
+    #[inline]
     fn with_label<L>(self, label: L) -> Labeled<L, Self> {
         Labeled::new(label, self)
     }

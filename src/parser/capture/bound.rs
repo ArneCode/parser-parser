@@ -27,6 +27,7 @@ pub struct BoundValue<Value, Prop> {
 }
 
 impl<Value, Prop> BoundValue<Value, Prop> {
+    #[inline]
     pub(super) fn new(value: Value, property: Prop, debug: Option<BindDebugInfo>) -> Self {
         Self {
             value,
@@ -41,18 +42,22 @@ where
     MRes: MatchResult,
     Prop: Property<Value, MRes>,
 {
+    #[inline]
     fn put_in_result(self, result: &mut MRes) {
         self.property.put_in_result(result, self.value, self.debug);
     }
 
+    #[inline]
     fn remove_from_result(&self, result: &mut MRes) {
         self.property.remove_from_result(result, self.debug);
     }
 
+    #[inline]
     fn put_boxed_in_result(self: Box<Self>, result: &mut MRes) {
         (*self).put_in_result(result)
     }
 
+    #[inline]
     fn put_ref_in_snapshot<'a>(&'a self, snapshot: &mut MRes::Snapshot<'a>) {
         self.property.put_ref_in_snapshot(snapshot, &self.value);
     }

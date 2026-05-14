@@ -139,6 +139,7 @@ where
     /// Remove `value` from `result`.
     fn remove_from_result(&self, result: &mut MRes, debug: Option<BindDebugInfo>);
     /// Wrap `value` with this property for deferred insertion into `MRes`.
+    #[inline]
     fn bind_result(&self, value: Value) -> super::bound::BoundValue<Value, Self>
     where
         Self: Sized,
@@ -147,6 +148,7 @@ where
         super::bound::BoundValue::new(value, self.clone(), None)
     }
     /// Like [`bind_result`](Self::bind_result) but attaches [`BindDebugInfo`] for diagnostics.
+    #[inline]
     fn bind_result_with_debug(
         &self,
         value: Value,
@@ -175,6 +177,7 @@ pub struct SingleProperty<FDirect, FSnapshot> {
 
 impl<FDirect, FSnapshot> SingleProperty<FDirect, FSnapshot> {
     /// `setter` selects the `Option` slot inside the “single” capture bucket.
+    #[inline]
     pub fn new(direct_setter: FDirect, snapshot_setter: FSnapshot) -> Self {
         Self {
             direct_setter,
@@ -189,6 +192,7 @@ where
     FDirect: Fn(&mut MRes::Single) -> &mut Option<V>,
     FSnapshot: SingleSnapProj<MRes::Single, V>,
 {
+    #[inline]
     fn put_in_result(&self, result: &mut MRes, value: V, debug: Option<BindDebugInfo>) {
         let property_slot = (self.direct_setter)(result.single());
         if property_slot.is_some() {
@@ -203,6 +207,7 @@ where
         *property_slot = Some(value);
     }
 
+    #[inline]
     fn put_ref_in_snapshot<'a>(&self, snapshot: &mut MRes::Snapshot<'a>, value: &'a V) {
         let bucket = MRes::project_single_snapshot_mut(snapshot);
         let property_slot = self.snapshot_setter.project(bucket);
@@ -212,6 +217,7 @@ where
         *property_slot = Some(value);
     }
 
+    #[inline]
     fn remove_from_result(&self, result: &mut MRes, _debug: Option<BindDebugInfo>) {
         let property_slot = (self.direct_setter)(result.single());
         if property_slot.is_some() {
@@ -235,6 +241,7 @@ pub struct MultipleProperty<FDirect, FSnapshot> {
 
 impl<FDirect, FSnapshot> MultipleProperty<FDirect, FSnapshot> {
     /// `setter` selects the `Vec` field inside the “multiple” capture bucket.
+    #[inline]
     pub fn new(direct_setter: FDirect, snapshot_setter: FSnapshot) -> Self {
         Self {
             direct_setter,
@@ -249,17 +256,20 @@ where
     FDirect: Fn(&mut MRes::Multiple) -> &mut Vec<V>,
     FSnapshot: MultipleSnapProj<MRes::Multiple, V>,
 {
+    #[inline]
     fn put_in_result(&self, result: &mut MRes, value: V, _debug: Option<BindDebugInfo>) {
         let property_slot = (self.direct_setter)(result.multiple());
         property_slot.push(value);
     }
 
+    #[inline]
     fn put_ref_in_snapshot<'a>(&self, snapshot: &mut MRes::Snapshot<'a>, value: &'a V) {
         let bucket = MRes::project_multiple_snapshot_mut(snapshot);
         let property_slot = self.snapshot_setter.project(bucket);
         property_slot.push(value);
     }
 
+    #[inline]
     fn remove_from_result(&self, result: &mut MRes, _debug: Option<BindDebugInfo>) {
         let property_slot = (self.direct_setter)(result.multiple());
         if property_slot.pop().is_none() {
@@ -281,6 +291,7 @@ pub struct OptionalProperty<FDirect, FSnapshot> {
 
 impl<FDirect, FSnapshot> OptionalProperty<FDirect, FSnapshot> {
     /// `setter` selects the `Option` slot inside the “optional” capture bucket.
+    #[inline]
     pub fn new(direct_setter: FDirect, snapshot_setter: FSnapshot) -> Self {
         Self {
             direct_setter,
@@ -295,6 +306,7 @@ where
     FDirect: Fn(&mut MRes::Optional) -> &mut Option<V>,
     FSnapshot: OptionalSnapProj<MRes::Optional, V>,
 {
+    #[inline]
     fn put_in_result(&self, result: &mut MRes, value: V, debug: Option<BindDebugInfo>) {
         let property_slot = (self.direct_setter)(result.optional());
         if property_slot.is_some() {
@@ -309,6 +321,7 @@ where
         *property_slot = Some(value);
     }
 
+    #[inline]
     fn put_ref_in_snapshot<'a>(&self, snapshot: &mut MRes::Snapshot<'a>, value: &'a V) {
         let bucket = MRes::project_optional_snapshot_mut(snapshot);
         let property_slot = self.snapshot_setter.project(bucket);
@@ -318,6 +331,7 @@ where
         *property_slot = Some(value);
     }
 
+    #[inline]
     fn remove_from_result(&self, result: &mut MRes, _debug: Option<BindDebugInfo>) {
         let property_slot = (self.direct_setter)(result.optional());
         if property_slot.is_some() {

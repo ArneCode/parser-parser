@@ -152,6 +152,7 @@ where
         Ok(false)
     }
 
+    #[inline]
     fn maybe_label(&self) -> Option<Box<dyn Display>> {
         Some(Box::new(format!("{}..{}", self.start, self.end)))
     }
@@ -190,6 +191,7 @@ where
         Ok(false)
     }
 
+    #[inline]
     fn maybe_label(&self) -> Option<Box<dyn Display>> {
         Some(Box::new(format!("{}..={}", self.start(), self.end())))
     }

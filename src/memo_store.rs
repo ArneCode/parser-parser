@@ -132,6 +132,7 @@ pub struct MemoStore<'src> {
 
 impl<'src> MemoStore<'src> {
     /// Look up a memo cell without creating a table. Returns `None` if there is no entry yet.
+    #[inline]
     pub fn get_entry<T: 'src>(&self, parser_id: MemoParserId, pos: usize) -> Option<MemoEntry<T>> {
         let erased = self.tables.get(&parser_id)?;
         unsafe { erased.as_ref::<T>() }.get(&pos).cloned()
@@ -143,6 +144,7 @@ impl<'src> MemoStore<'src> {
     ///
     /// Callers must always use the same `T` for a given `parser_id` (enforced by [`crate::parser::memoized::Memoized`];
     /// see [module safety contract](self#safety-contract-why-this-is-sound)).
+    #[inline]
     pub fn table_mut<T: 'src>(&mut self, parser_id: MemoParserId) -> &mut HashMap<usize, MemoEntry<T>> {
         if !self.tables.contains_key(&parser_id) {
             self.tables.insert(parser_id, ErasedMemoTable::new_for::<T>());
