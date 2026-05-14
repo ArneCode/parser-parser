@@ -1,4 +1,5 @@
 use std::path::Path;
+use std::time::Duration;
 
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use marser::parser::Parser;
@@ -22,12 +23,20 @@ fn bench_fixture(c: &mut Criterion, label: &'static str, path: &Path) {
     );
     black_box(value);
 
-    c.bench_function(label, |b| {
+    let mut group = c.benchmark_group(label);
+    if label == "parse_canada" {
+        // Default is ~100 samples in ~5s; full-file parse is hundreds of ms per iter.
+        group
+            .measurement_time(Duration::from_secs(20))
+            .sample_size(50);
+    }
+    group.bench_function("parse", |b| {
         b.iter(|| {
             let out = parser.parse_str(black_box(src.as_str()));
             let _ = black_box(out);
         });
     });
+    group.finish();
 }
 
 fn parse_fixtures(c: &mut Criterion) {
