@@ -10,8 +10,11 @@
 //!
 //! # Rendering
 //!
+//! [`ParserError`], [`FurthestFailError`], and [`InlineError`] implement [`std::fmt::Display`] for plain
+//! text (span positions and messages; no source snippet).
+//!
 //! With the **`annotate-snippets`** feature, use [`ParserError::eprint`] / [`FurthestFailError::eprint`]
-//! for terminal output.
+//! for terminal output with source excerpts.
 //!
 //! # Guides
 //!
@@ -99,6 +102,15 @@ impl ParserError {
         let mut out = String::new();
         render_annotate::render_errors_slice_into(errors, &mut out, source_id, source_text);
         sink.write_all(out.as_bytes()).unwrap();
+    }
+}
+
+impl std::fmt::Display for ParserError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ParserError::FurthestFail(e) => e.fmt(f),
+            ParserError::Inline(e) => e.fmt(f),
+        }
     }
 }
 
@@ -252,7 +264,21 @@ impl std::fmt::Display for FurthestFailError {
                 format!("expected one of {}", sorted.join(", "))
             }
         };
-        write!(f, "{} at {}..{}", expected_msg, self.span.0, self.span.1)
+        write!(f, "{} at {}..{}", expected_msg, self.span.0, self.span.1)?;
+        for ann in &self.annotations {
+            write!(
+                f,
+                "\n  {}..{}: {}",
+                ann.span.0, ann.span.1, ann.message
+            )?;
+        }
+        for note in &self.notes {
+            write!(f, "\nnote: {note}")?;
+        }
+        for help in &self.helps {
+            write!(f, "\nhelp: {help}")?;
+        }
+        Ok(())
     }
 }
 

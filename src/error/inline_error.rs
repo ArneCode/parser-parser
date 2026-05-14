@@ -140,6 +140,29 @@ impl InlineError {
     }
 }
 
+impl fmt::Display for InlineError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.message)?;
+        if let Some((a, b)) = self.span {
+            write!(f, " at {a}..{b}")?;
+        }
+        for ann in &self.annotations {
+            write!(
+                f,
+                "\n  {}..{}: {}",
+                ann.span.0, ann.span.1, ann.message
+            )?;
+        }
+        for note in &self.notes {
+            write!(f, "\nnote: {note}")?;
+        }
+        for help in &self.helps {
+            write!(f, "\nhelp: {help}")?;
+        }
+        Ok(())
+    }
+}
+
 #[derive(Clone, Copy, Debug)]
 /// Span context passed to inline diagnostic factories.
 pub struct MatchDiagCtx {
