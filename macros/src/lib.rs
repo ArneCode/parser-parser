@@ -742,7 +742,7 @@ impl VisitMut for BindMacroExpander {
 // capture! proc-macro
 // ---------------------------------------------------------------------------
 
-/// Build a [`Capture`](https://docs.rs/marser/latest/marser/parser/capture/struct.Capture.html) parser from grammar + result expressions.
+/// Build a parser from grammar + result expressions (via [`Capture`](https://docs.rs/marser/latest/marser/parser/capture/struct.Capture.html), returned as `impl Parser` to limit type size).
 ///
 /// # Syntax
 ///
@@ -879,9 +879,11 @@ pub fn capture(input: TokenStream) -> TokenStream {
     TokenStream::from(quote! {
         {
             #[allow(unused_variables)]
-            #marser_path::parser::capture::Capture::<(#s_ty, #m_ty, #o_ty), _, _>::new(
-                |#s_pat, #m_pat, #o_pat| { #grammar     },
-                |#s_pat, #m_pat, #o_pat| { #result_expr },
+            #marser_path::parser::as_parser(
+                #marser_path::parser::capture::Capture::<(#s_ty, #m_ty, #o_ty), _, _>::new(
+                    |#s_pat, #m_pat, #o_pat| { #grammar     },
+                    |#s_pat, #m_pat, #o_pat| { #result_expr },
+                ),
             )
         }
     })

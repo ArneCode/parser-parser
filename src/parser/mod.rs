@@ -33,6 +33,8 @@
 
 pub mod capture;
 pub mod deferred;
+/// Opaque `impl Parser` wrapper ([`impl_parser::as_parser`]); kept separate from [`capture`].
+pub mod impl_parser;
 /// Type-erased parser wrapper and helpers.
 pub mod erase_types;
 pub mod memoized;
@@ -49,6 +51,7 @@ pub use capture::{
     ResultBinder, SingleProperty, SpanBinder, bind_result, bind_span,
 };
 pub use deferred::{Deferred, DeferredWeak, recursive};
+pub use impl_parser::as_parser;
 pub use memoized::Memoized;
 pub use multiple::MultipleParser;
 pub use range_parser::RangeParser;
