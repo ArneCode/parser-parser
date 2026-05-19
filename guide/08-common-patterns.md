@@ -77,9 +77,9 @@ Use the bind form that matches the boundary you want:
 
 `Parser::parse_str` / `parse_whole_input` use the same driver as `marser::parse`: the grammar is wrapped so **no trailing tokens** remain. Use `negative_lookahead(AnyToken)` patterns inside the library’s default wrapper; for sub-parsers that only parse a fragment, use segment-specific rules instead of the whole-input entrypoint.
 
-## Type size and `maybe_erase_types`
+## Type size and `erase_types`
 
-Large `one_of` / nested `capture!` types compile to deep generic trees. When inference or compile time hurts, call `.maybe_erase_types()` on heavy parsers (requires Cargo feature **`parser-erased`**). Repository examples use this on some JSON sub-rules.
+Large `one_of` / nested `capture!` types compile to deep generic trees. When inference or compile time hurts, call `.erase_types()` on heavy parsers. Repository examples use this on some JSON sub-rules.
 
 **Compile time vs runtime:** erasure uses dynamic dispatch and can shrink type-checking and codegen cost for huge grammars. If you only need erasure for developer builds, use `erase_types()` under `#[cfg(debug_assertions)]` and keep concrete types in release (as in `parse-rosetta-rs`’s `marser-app`), or add a **`fast-compile`** (or similar) Cargo feature on your grammar crate that enables erasure in release when you are not benchmarking.
 

@@ -7,7 +7,7 @@
 //! - Run them with [`Parser::parse_str`] / [`Parser::parse_whole_input`] (same whole-input + EOF
 //!   wrapper as [`crate::parse`]).
 //! - Extend them with [`ParserCombinator`]: [`ParserCombinator::recover_with`],
-//!   [`ParserCombinator::memoized`], [`ParserCombinator::map_output`], [`ParserCombinator::maybe_erase_types`], …
+//!   [`ParserCombinator::memoized`], [`ParserCombinator::map_output`], [`ParserCombinator::erase_types`], …
 //!
 //! Concept guides: [`crate::guide::quickstart`], [`crate::guide::capture_and_binds`],
 //! [`crate::guide::errors_and_recovery`], [`crate::guide::common_patterns`].
@@ -291,7 +291,7 @@ where
 /// Combinator helpers for parsers defined in this crate (including macro-built [`crate::capture`] parsers).
 ///
 /// See [`crate::guide::errors_and_recovery`] for `recover_with` / `add_error_info`, and
-/// [`crate::guide::common_patterns`] for `maybe_erase_types` on large grammars.
+/// [`crate::guide::common_patterns`] for `erase_types` on large grammars.
 pub trait ParserCombinator {
     /// Memoize parse results of type T keyed by input position (including outputs that borrow the input).
     fn memoized<T>(self) -> memoized::Memoized<Self, T>
@@ -369,33 +369,6 @@ pub trait ParserCombinator {
         Out: 'src,
     {
         erase_types::erase(self)
-    }
-
-    /// Conditionally erase parser types based on the `parser-erased` feature.
-    ///
-    /// - With `parser-erased` enabled, this behaves like [`Self::erase_types`]
-    ///   and returns an erased parser.
-    /// - Without the feature, this is a no-op and returns `Self`.
-    ///
-    /// This keeps call sites stable while allowing opt-in type erasure from
-    /// Cargo features instead of debug/release profile differences.
-    #[cfg(feature = "parser-erased")]
-    fn maybe_erase_types<'src, Inp, Out>(self) -> erase_types::Erased<'src, 'src, Inp, Out>
-    where
-        Self: Sized + Parser<'src, Inp, Output = Out> + 'src,
-        Inp: Input<'src> + 'src,
-        Out: 'src,
-    {
-        erase_types::erase(self)
-    }
-
-    /// See the `parser-erased` variant of this method for behavior details.
-    #[cfg(not(feature = "parser-erased"))]
-    fn maybe_erase_types(self) -> Self
-    where
-        Self: Sized,
-    {
-        self
     }
 }
 

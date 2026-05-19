@@ -15,10 +15,10 @@ Add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-marser = { version = "0.1.0", features = ["parser-erased", "annotate-snippets"] }
+marser = { version = "0.1.0", features = ["annotate-snippets"] }
 ```
 
-`parser-erased` and `annotate-snippets` match how this repository runs examples. You can omit `annotate-snippets` if you do not need `ParserError::eprint` / `write`.
+`annotate-snippets` matches how this repository runs examples. You can omit it if you do not need `ParserError::eprint` / `write`.
 
 Then build a small parser. This example parses dice notation like `2d6` into a typed struct:
 
@@ -78,7 +78,6 @@ Suggested next reads:
 | Feature | When you need it |
 |--------|-------------------|
 | *(default)* | Core library only. |
-| **`parser-erased`** | Use this when parser types become unwieldy; it enables `ParserCombinator::maybe_erase_types` and is used by this repo's examples. |
 | **`annotate-snippets`** | Enables `ParserError::eprint`, `write`, and terminal-friendly diagnostics. **Examples in this repo require it.** |
 | **`parser-trace`** | Structured parse tracing and trace files; companion crates are experimental (see below). |
 | **`embed-guide`** | Embeds the long-form `marser::guide::*` chapters and the README into rustdoc. **Off by default** for faster `cargo build`; enabled on docs.rs. Use `cargo doc -p marser --features embed-guide` locally for the full book. |
@@ -91,7 +90,7 @@ Suggested next reads:
 
 ## Examples in this repository
 
-Examples need **`parser-erased`** and **`annotate-snippets`** (see `Cargo.toml` `required-features`).
+Examples need **`annotate-snippets`** (see `Cargo.toml` `required-features`).
 
 | Example | What it shows |
 |--------|----------------|
@@ -102,7 +101,7 @@ Examples need **`parser-erased`** and **`annotate-snippets`** (see `Cargo.toml` 
 Run JSON from a clone:
 
 ```bash
-cargo run -p marser --features "parser-erased annotate-snippets" --example json -- tests/data/json1.json
+cargo run -p marser --features annotate-snippets --example json -- tests/data/json1.json
 ```
 
 ### Error output sample
@@ -164,13 +163,13 @@ Short checklist: [Contributing](https://github.com/ArneCode/marser/blob/main/CON
 The integration test `tests/capture_ui.rs` uses [trybuild](https://docs.rs/trybuild): programs under `tests/ui/` exercise `capture!` / `bind!`. **Pass** cases must build; **compile-fail** cases must match `tests/ui/*.stderr`.
 
 ```bash
-cargo test --features parser-erased --test capture_ui
+cargo test --test capture_ui
 ```
 
 Regenerate golden stderr after a toolchain upgrade or intentional diagnostic changes:
 
 ```bash
-TRYBUILD=overwrite cargo test --features parser-erased --test capture_ui
+TRYBUILD=overwrite cargo test --test capture_ui
 ```
 
 Review diffs, then re-run without `TRYBUILD=overwrite` until green.
@@ -183,10 +182,10 @@ The upstream [JSONTestSuite](https://github.com/nst/JSONTestSuite) corpus is wir
 git submodule update --init tests/JSONTestSuite
 ```
 
-The integration test `tests/json_testsuite.rs` is built only with the **`json-testsuite`** feature (together with **`parser-erased`** for the example grammar):
+The integration test `tests/json_testsuite.rs` is built only with the **`json-testsuite`** feature:
 
 ```bash
-cargo test --features "parser-erased json-testsuite" --test json_testsuite
+cargo test --features json-testsuite --test json_testsuite
 ```
 
 Per-file matrix helpers live under `tests/run_jsonsuite_*.py` (they set `JSONSUITE_FILE` and run `nst_single_file_from_env` in a subprocess).

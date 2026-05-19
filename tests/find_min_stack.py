@@ -3,7 +3,7 @@
 
 Uses binary search against the single-file Rust test:
   json_testsuite::nst_single_file_from_env
-(with Cargo features parser-erased + json-testsuite).
+(with Cargo feature json-testsuite).
 """
 
 # example usage:
@@ -26,8 +26,6 @@ def cargo_command(mode: str) -> list[str]:
             "cargo",
             "test",
             "--features",
-            "parser-erased",
-            "--features",
             "json-testsuite",
             "--test",
             "json_testsuite",
@@ -40,8 +38,6 @@ def cargo_command(mode: str) -> list[str]:
             "cargo",
             "test",
             "--release",
-            "--features",
-            "parser-erased",
             "--features",
             "json-testsuite",
             "--test",

@@ -490,10 +490,10 @@ Use `recover_with(...)` when:
 
 ## Example command
 
-From a checkout of this repository (the `json` example requires **`parser-erased`** and **`annotate-snippets`**):
+From a checkout of this repository (the `json` example requires **`annotate-snippets`**):
 
 ```bash
-cargo run -p marser --features "parser-erased annotate-snippets" --example json -- tests/data/json1.json
+cargo run -p marser --features annotate-snippets --example json -- tests/data/json1.json
 ```
 
 This example prints diagnostics and recovered output, demonstrating both strict

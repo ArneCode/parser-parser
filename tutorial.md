@@ -155,17 +155,17 @@ Initialize the corpus once:
 git submodule update --init tests/JSONTestSuite
 ```
 
-Run the grouped harness (requires `parser-erased` + `json-testsuite`):
+Run the grouped harness (requires `json-testsuite`):
 
 ```bash
-cargo test --features "parser-erased json-testsuite" --test json_testsuite
+cargo test --features json-testsuite --test json_testsuite
 ```
 
 Single fixture via env (same as the Python helpers):
 
 ```bash
 JSONSUITE_FILE=tests/JSONTestSuite/test_parsing/y_object.json \
-  cargo test --features "parser-erased json-testsuite" --test json_testsuite nst_single_file_from_env -- --nocapture
+  cargo test --features json-testsuite --test json_testsuite nst_single_file_from_env -- --nocapture
 ```
 
 Helper scripts (each subprocess sets `JSONSUITE_FILE` and invokes `nst_single_file_from_env`):

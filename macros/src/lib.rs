@@ -544,7 +544,7 @@ fn expand_use_binds_macro(
     // Going through a generic `SnapshotFactory<F>` with an HRTB `Fn(&MRes::Snapshot<'a>, …)` bound
     // is fatal here: the closure literal itself produces a `Fn` impl whose HRTB over `'a` triggers
     // the GAT well-formedness rule `MRes: 'a` universally, which forces `MRes: 'static` (and thus
-    // `'src: 'static`) and breaks any upstream `.maybe_erase_types()`.
+    // `'src: 'static`) and breaks any upstream `.erase_types()`.
     //
     // Implementing the trait directly lets us name the snapshot lifetime explicitly with the
     // bound `where MRes: 'snap`, so the WF check on `MRes::Snapshot<'snap>` is satisfied without

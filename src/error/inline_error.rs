@@ -287,7 +287,7 @@ where
 /// The closure bound goes through the internal `SnapCallable` trait (below) instead of `Fn` directly so that the HRTB
 /// over the snapshot lifetime is **conditional on `MRes: 'a`** rather than universal — without
 /// this indirection the GAT well-formedness rule forces `MRes: 'static`, which transitively
-/// requires `'src: 'static` and breaks any later `.maybe_erase_types()` upstream.
+/// requires `'src: 'static` and breaks any later `.erase_types()` upstream.
 #[derive(Clone)]
 pub struct SnapshotFactory<F>(pub F);
 

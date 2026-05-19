@@ -280,7 +280,7 @@ fn expr<'src>() -> impl Parser<'src, &'src str, Output = Expr<'src>> {
             ),
             primary.clone(),
         ))
-        .maybe_erase_types();
+        .erase_types();
 
         let mul_or_div = capture!(
             (
@@ -308,7 +308,7 @@ fn expr<'src>() -> impl Parser<'src, &'src str, Output = Expr<'src>> {
                 })
             }
         )
-        .maybe_erase_types();
+        .erase_types();
 
         let add_or_sub = capture!(
             (
@@ -338,7 +338,7 @@ fn expr<'src>() -> impl Parser<'src, &'src str, Output = Expr<'src>> {
                 })
             }
         )
-        .maybe_erase_types();
+        .erase_types();
 
         let comparison = capture!(
             (
@@ -372,7 +372,7 @@ fn expr<'src>() -> impl Parser<'src, &'src str, Output = Expr<'src>> {
                 })
             }
         )
-        .maybe_erase_types();
+        .erase_types();
 
         let and_expr = capture!(
             (
@@ -400,7 +400,7 @@ fn expr<'src>() -> impl Parser<'src, &'src str, Output = Expr<'src>> {
                 })
             }
         )
-        .maybe_erase_types();
+        .erase_types();
 
         let or_expr = capture!(
             (
@@ -428,7 +428,7 @@ fn expr<'src>() -> impl Parser<'src, &'src str, Output = Expr<'src>> {
                 })
             }
         )
-        .maybe_erase_types();
+        .erase_types();
 
         one_of((
             if_error_else_fail(capture!((
@@ -441,7 +441,7 @@ fn expr<'src>() -> impl Parser<'src, &'src str, Output = Expr<'src>> {
             or_expr,
         ))
     })
-    .maybe_erase_types()
+    .erase_types()
 }
 
 fn block<'src>() -> impl Parser<'src, &'src str, Output = Block<'src>> {
@@ -470,7 +470,7 @@ fn block<'src>() -> impl Parser<'src, &'src str, Output = Block<'src>> {
                     AnnotationKind::Context,
                 );
             }) as Box<_>),)))
-        .maybe_erase_types();
+        .erase_types();
 
         let assign_stmt = capture!(
             (
@@ -480,7 +480,7 @@ fn block<'src>() -> impl Parser<'src, &'src str, Output = Block<'src>> {
                 bind!(expr(), value),
             ) => Statement::Assign { name, value }
         )
-        .maybe_erase_types();
+        .erase_types();
 
         let if_stmt = capture!(
             commit_on(
@@ -506,7 +506,7 @@ fn block<'src>() -> impl Parser<'src, &'src str, Output = Block<'src>> {
                 else_block,
             }
         )
-        .maybe_erase_types();
+        .erase_types();
 
         let while_stmt = capture!(
             commit_on(
@@ -517,7 +517,7 @@ fn block<'src>() -> impl Parser<'src, &'src str, Output = Block<'src>> {
                 )
             ) => Statement::While { condition, body }
         )
-        .maybe_erase_types();
+        .erase_types();
 
         let return_stmt = capture!(
             (
@@ -525,7 +525,7 @@ fn block<'src>() -> impl Parser<'src, &'src str, Output = Block<'src>> {
                 optional(bind!(expr(), ?value))
             ) => Statement::Return(value)
         )
-        .maybe_erase_types();
+        .erase_types();
 
         let expr_stmt = expr().map_output(Statement::Expr);
 
@@ -541,7 +541,7 @@ fn block<'src>() -> impl Parser<'src, &'src str, Output = Block<'src>> {
                 whitespace(),
             ) => stmt
         )
-        .maybe_erase_types();
+        .erase_types();
 
         let semicolon_stmt = capture!(
             (
@@ -549,7 +549,7 @@ fn block<'src>() -> impl Parser<'src, &'src str, Output = Block<'src>> {
                 whitespace(),
             ) => Statement::Expr(Expr::Invalid(""))
         )
-        .maybe_erase_types();
+        .erase_types();
 
         let statement = one_of((
             if_stmt,
@@ -557,7 +557,7 @@ fn block<'src>() -> impl Parser<'src, &'src str, Output = Block<'src>> {
             semicolon_stmt,
             statements_with_semicolons,
         ))
-        .maybe_erase_types();
+        .erase_types();
 
         capture!(
             commit_on(
@@ -573,9 +573,9 @@ fn block<'src>() -> impl Parser<'src, &'src str, Output = Block<'src>> {
             }
         )
         .with_label("block")
-        .maybe_erase_types()
+        .erase_types()
     })
-    .maybe_erase_types()
+    .erase_types()
 }
 
 fn function_def<'src>() -> impl Parser<'src, &'src str, Output = FunctionDef<'src>> {
@@ -604,7 +604,7 @@ fn function_def<'src>() -> impl Parser<'src, &'src str, Output = FunctionDef<'sr
         ) => FunctionDef { name, params, body }
     )
     .with_label("function definition")
-    .maybe_erase_types()
+    .erase_types()
 }
 
 pub fn get_mini_language_grammar<'src>(
@@ -619,5 +619,5 @@ pub fn get_mini_language_grammar<'src>(
         ) => functions
     )
     .with_label("file")
-    .maybe_erase_types()
+    .erase_types()
 }

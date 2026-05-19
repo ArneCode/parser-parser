@@ -16,13 +16,13 @@ Use tracing when the grammar is *almost* right but you need to see **which branc
 Run the JSON example with tracing enabled:
 
 ```bash
-cargo run -p marser --features "parser-erased annotate-snippets parser-trace" --example json -- tests/data/json1.json
+cargo run -p marser --features "annotate-snippets parser-trace" --example json -- tests/data/json1.json
 ```
 
 Write a trace file from the same example:
 
 ```bash
-cargo run -p marser --features "parser-erased annotate-snippets parser-trace" --example json -- tests/data/json1.json --trace-file /tmp/json-trace.json
+cargo run -p marser --features "annotate-snippets parser-trace" --example json -- tests/data/json1.json --trace-file /tmp/json-trace.json
 ```
 
 Open that trace in the TUI viewer:
@@ -50,7 +50,7 @@ Suggested flow:
 2. Run:
 
 ```bash
-cargo run -p marser --features "parser-erased annotate-snippets parser-trace" --example json -- tests/data/json1.json --trace-file /tmp/json-trace.json
+cargo run -p marser --features "annotate-snippets parser-trace" --example json -- tests/data/json1.json --trace-file /tmp/json-trace.json
 ```
 
 3. Replay:

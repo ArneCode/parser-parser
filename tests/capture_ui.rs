@@ -1,8 +1,8 @@
 //! `trybuild` checks for `capture!` / `bind!` expansion (repeated binds, conflicts, trailing tokens).
 //!
-//! Run: `cargo test --features parser-erased --test capture_ui`  
+//! Run: `cargo test --test capture_ui`  
 //! Regenerate `tests/ui/*.stderr` after rustc diagnostic churn:  
-//! `TRYBUILD=overwrite cargo test --features parser-erased --test capture_ui`  
+//! `TRYBUILD=overwrite cargo test --test capture_ui`  
 //! (See the **Compile tests (`trybuild`)** section in the repo `README.md`.)
 
 #[test]

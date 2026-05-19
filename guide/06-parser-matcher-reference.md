@@ -51,7 +51,6 @@ Every parser gets these extension methods:
 - `ignore_result()` runs the parser as a matcher and discards the output.
 - `map_output(f)` maps successful output to another value.
 - `erase_types()` boxes a parser behind a stable erased type.
-- `maybe_erase_types()` erases only when the `parser-erased` feature is enabled.
 
 ## Parser building blocks
 
@@ -159,9 +158,6 @@ blocks.
 
 `parser.erase_types()` stores the parser behind a boxed trait object. This can
 make large combinator types easier to name at the cost of dynamic dispatch.
-
-`parser.maybe_erase_types()` lets the `parser-erased` Cargo feature decide
-whether erasure happens.
 
 Use it when parser types become too large or unwieldy.
 

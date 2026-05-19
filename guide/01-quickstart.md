@@ -8,15 +8,15 @@ In your `Cargo.toml`:
 
 ```toml
 [dependencies]
-marser = { version = "0.1.0", features = ["parser-erased", "annotate-snippets"] }
+marser = { version = "0.1.0", features = ["annotate-snippets"] }
 ```
 
-The **`parser-erased`** and **`annotate-snippets`** features match how this repository runs examples (`maybe_erase_types` and `ParserError::eprint`). You can omit `annotate-snippets` if you do not need the optional [annotate-snippets](https://docs.rs/annotate-snippets) dependency or the `eprint` / `write` helpers.
+The **`annotate-snippets`** feature matches how this repository runs examples (`ParserError::eprint`). You can omit it if you do not need the optional [annotate-snippets](https://docs.rs/annotate-snippets) dependency or the `eprint` / `write` helpers.
 
 For local development of this repository, you can run examples directly:
 
 ```bash
-cargo run -p marser --features "parser-erased annotate-snippets" --example json -- tests/data/json1.json
+cargo run -p marser --features annotate-snippets --example json -- tests/data/json1.json
 ```
 
 ## 2) Mental model: parser vs matcher

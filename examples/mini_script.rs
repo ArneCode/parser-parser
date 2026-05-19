@@ -428,7 +428,7 @@ fn expression_parser<'src>() -> impl Parser<'src, &'src str, Output = Expr<'src>
         )
         .with_label("expression")
     })
-    .maybe_erase_types()
+    .erase_types()
 }
 
 fn invalid_statement_parser<'src>() -> impl Parser<'src, &'src str, Output = Stmt<'src>> {
@@ -598,7 +598,7 @@ pub fn get_mini_script_grammar<'src>() -> impl Parser<'src, &'src str, Output = 
         ))
         .with_label("statement")
     })
-    .maybe_erase_types();
+    .erase_types();
 
     capture!(
         (
@@ -606,7 +606,7 @@ pub fn get_mini_script_grammar<'src>() -> impl Parser<'src, &'src str, Output = 
             many(bind!(statement, *statements)),
         ) => Program { statements }
     )
-    .maybe_erase_types()
+    .erase_types()
 }
 
 fn print_errors(errors: &[ParserError], source_id: &str, source: &str) {

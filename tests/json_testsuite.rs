@@ -1,10 +1,10 @@
 //! [nst/JSONTestSuite](https://github.com/nst/JSONTestSuite) conformance harness for the JSON grammar in
 //! [`examples/json/grammar.rs`](../examples/json/grammar.rs) (recovery-oriented; shared with the `json` example and benches).
 //!
-//! **Requires** the `json-testsuite` Cargo feature (and `parser-erased` for the JSON example):
+//! **Requires** the `json-testsuite` Cargo feature:
 //!
 //! ```text
-//! cargo test --features "parser-erased json-testsuite" --test json_testsuite
+//! cargo test --features json-testsuite --test json_testsuite
 //! ```
 //!
 //! **Submodule:** `git submodule update --init tests/JSONTestSuite`

@@ -17,7 +17,7 @@ It focuses on two things:
 
 **Trade-offs to be aware of**:
 
-- You compose **Rust types**; very large grammars may need `maybe_erase_types()` (feature `parser-erased`) or factoring to keep types manageable.
+- You compose **Rust types**; very large grammars may need `erase_types()` or factoring to keep types manageable.
 - The model is **combinator + macro** (`capture!`); learning bind shapes (`*`, `?`) matters for correctness.
 - **Tracing** and the `marser-trace-*` crates are younger than the core parsing API; treat them as optional debugging infrastructure.
 
