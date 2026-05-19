@@ -9,11 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-05-19
+
 ### Changed
 
 - docs.rs rustdoc includes scraped code from the `json`, `mini_language`, and `mini_script` examples on relevant API pages (`doc-scrape-examples`).
-
-## [0.1.1] - 2026-05-19
 
 ### Fixed
 
