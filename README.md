@@ -1,13 +1,6 @@
 # marser
 
-`marser` is a parser-combinator library for writing **PEG-style grammars in Rust**. Matchers describe structure, `capture!` turns matched input into typed values, and you can add **commit points**, **recovery**, and **user-facing diagnostics** without giving up readable grammar code.
-
-## Why `marser`
-
-- **Grammar stays close to the language**: ordered choice (`one_of`), repetition, lookahead, and sequencing compose the way you sketch a grammar on paper.
-- **Typed output stays local to the rule**: `capture!` is the point where matcher-shaped grammar becomes your enum or AST node.
-- **You choose when syntax becomes committed**: `commit_on(prefix, rest)` turns “wrong branch” soft failures into hard failures once the input clearly chose a construct.
-- **Recovery is built in**: `recover_with`, `try_insert_if_missing`, `unwanted`, and `if_error` support partial ASTs and editor-style workflows where `Ok((output, errors))` can still carry diagnostics.
+`marser` is a parser-combinator library for writing **PEG-style grammars in Rust**. It focuses on error reporting and recovery while still enabling good performance.
 
 ## Quickstart
 
@@ -75,12 +68,12 @@ Suggested next reads:
 
 ## Cargo features (what to enable)
 
-| Feature | When you need it |
-|--------|-------------------|
-| *(default)* | Core library only. |
-| **`annotate-snippets`** | Enables `ParserError::eprint`, `write`, and terminal-friendly diagnostics. **Examples in this repo require it.** |
-| **`parser-trace`** | Structured parse tracing and trace files; companion crates are experimental (see below). |
-| **`embed-guide`** | Embeds the long-form `marser::guide::*` chapters and the README into rustdoc. **Off by default** for faster `cargo build`; enabled on docs.rs. Use `cargo doc -p marser --features embed-guide` locally for the full book. |
+| Feature                 | When you need it                                                                                                                                                                                                           |
+| ----------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| *(default)*             | Core library only.                                                                                                                                                                                                         |
+| **`annotate-snippets`** | Enables `ParserError::eprint`, `write`, and terminal-friendly diagnostics. **Examples in this repo require it.**                                                                                                           |
+| **`parser-trace`**      | Structured parse tracing and trace files; companion crates are experimental (see below).                                                                                                                                   |
+| **`embed-guide`**       | Embeds the long-form `marser::guide::*` chapters and the README into rustdoc. **Off by default** for faster `cargo build`; enabled on docs.rs. Use `cargo doc -p marser --features embed-guide` locally for the full book. |
 
 **Compatibility:** Releases follow semver for the **documented public API**. Everyday composition (`capture!`, matchers, errors) is intended to stay stable across minors; **tracing** and trace crates may evolve faster. Macro **expansion** details are not a stability guarantee — use macros as APIs, not generated internals.
 
@@ -92,11 +85,11 @@ Suggested next reads:
 
 Examples need **`annotate-snippets`** (see `Cargo.toml` `required-features`).
 
-| Example | What it shows |
-|--------|----------------|
-| [`examples/json/`](examples/json/) | JSON demo: [`grammar.rs`](examples/json/grammar.rs) (recovery grammar, shared with tests/benches), [`main.rs`](examples/json/main.rs) (CLI, optional `parser-trace` / `--trace-file`). |
-| [`examples/mini_script.rs`](examples/mini_script.rs) | Small language: statements, precedence, `commit_on` + `recover_with`. |
-| [`examples/mini_language.rs`](examples/mini_language.rs) | Parse file + eval; recovered diagnostics vs fatal error. |
+| Example                                                  | What it shows                                                                                                                                                                          |
+| -------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [`examples/json/`](examples/json/)                       | JSON demo: [`grammar.rs`](examples/json/grammar.rs) (recovery grammar, shared with tests/benches), [`main.rs`](examples/json/main.rs) (CLI, optional `parser-trace` / `--trace-file`). |
+| [`examples/mini_script.rs`](examples/mini_script.rs)     | Small language: statements, precedence, `commit_on` + `recover_with`.                                                                                                                  |
+| [`examples/mini_language.rs`](examples/mini_language.rs) | Parse file + eval; recovered diagnostics vs fatal error.                                                                                                                               |
 
 Run JSON from a clone:
 
