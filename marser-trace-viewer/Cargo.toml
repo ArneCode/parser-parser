@@ -2,11 +2,16 @@
 name = "marser-trace-viewer"
 version = "0.1.0"
 edition = "2024"
+authors = ["Arne de Borman"]
 description = "Terminal UI for inspecting marser JSON/JSONL parser traces."
 license = "MIT"
 repository = "https://github.com/ArneCode/marser"
+homepage = "https://github.com/ArneCode/marser"
+documentation = "https://docs.rs/marser-trace-viewer"
 readme = "README.md"
-rust-version = "1.85"
+keywords = ["parser", "tracing", "debugging", "tui"]
+categories = ["parsing"]
+rust-version = "1.88"
 
 [lib]
 name = "marser_trace_viewer"

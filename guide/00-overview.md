@@ -59,7 +59,7 @@ In this guide, you will:
 
 ## Prerequisites
 
-- Rust **1.85 or later** (this workspace’s documented MSRV; see the crate README / `rust-version` in `Cargo.toml`)
+- Rust **1.88 or later** (this workspace’s documented MSRV; see the crate README / `rust-version` in `Cargo.toml`)
 - Comfort with basic Rust syntax (functions, enums, pattern matching)
 - Basic command line usage (`cargo run`, `cargo test`)
 

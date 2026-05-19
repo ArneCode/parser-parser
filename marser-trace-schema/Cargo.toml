@@ -2,11 +2,16 @@
 name = "marser-trace-schema"
 version = "0.1.0"
 edition = "2024"
+authors = ["Arne de Borman"]
 description = "JSON trace event schema and serde I/O for marser parser traces."
 license = "MIT"
 repository = "https://github.com/ArneCode/marser"
+homepage = "https://github.com/ArneCode/marser"
+documentation = "https://docs.rs/marser-trace-schema"
 readme = "README.md"
-rust-version = "1.85"
+keywords = ["parser", "tracing", "debugging", "json"]
+categories = ["parsing"]
+rust-version = "1.88"
 
 [dependencies]
 serde = { version = "1", features = ["derive"] }

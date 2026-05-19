@@ -1,0 +1,32 @@
+# Changelog
+
+**AI assistance:** This document was drafted with AI assistance. The maintainer reviewed it. If anything looks wrong, please [open an issue](https://github.com/ArneCode/marser/issues/new).
+
+All notable changes to this project will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [Unreleased]
+
+### Changed
+
+- Minimum supported Rust version is **1.88** (stable let chains in `if`/`while`).
+
+## [0.1.0] - 2026-05-19
+
+### Added
+
+- Initial public release of `marser`, `marser_macros`, `marser-trace-schema`, and `marser-trace-viewer`.
+- PEG-style parser combinators with `capture!`, matcher-level backtracking, and error recovery.
+- Optional `annotate-snippets` feature for terminal diagnostics (`ParserError::eprint`, etc.).
+- Optional `parser-trace` feature and experimental trace schema / viewer crates.
+- Optional `embed-guide` feature for long-form rustdoc chapters (`marser::guide`).
+- Integration tests, JSON example grammar, and Criterion benchmarks in the repository.
+
+### Notes
+
+- Trace file formats and trace-related APIs may change in future releases; pin versions and read release notes when upgrading.
+- Macro expansion details are not a stability guarantee; use `capture!` and documented helpers as the public API.
+
+[0.1.0]: https://github.com/ArneCode/marser/releases/tag/v0.1.0

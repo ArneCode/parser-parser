@@ -2,12 +2,16 @@
 name = "marser_macros"
 version = "0.1.0"
 edition = "2024"
-rust-version = "1.85"
+rust-version = "1.88"
+authors = ["Arne de Borman"]
 description = "Procedural macros for the marser parser-combinator library."
 license = "MIT"
 repository = "https://github.com/ArneCode/marser"
+homepage = "https://github.com/ArneCode/marser"
 readme = "../README.md"
 documentation = "https://docs.rs/marser_macros"
+keywords = ["parser", "combinator", "grammar", "peg", "parsing"]
+categories = ["parsing"]
 
 [lib]
 proc-macro = true

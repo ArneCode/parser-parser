@@ -15,23 +15,28 @@ authors = ["Arne de Borman"]
 description = "Parser combinator toolkit with matcher-level backtracking and rich error reporting."
 license = "MIT"
 repository = "https://github.com/ArneCode/marser"
+homepage = "https://github.com/ArneCode/marser"
 documentation = "https://docs.rs/marser"
 readme = "README.md"
 keywords = ["parser", "combinator", "grammar", "peg", "parsing"]
 categories = ["parsing"]
-rust-version = "1.85"
+rust-version = "1.88"
+exclude = [
+    "target/**",
+    "tests/JSONTestSuite",
+    "macros/**",
+    "marser-trace-schema/**",
+    "marser-trace-viewer/**",
+    ".vscode/**",
+    ".gitmodules",
+    "scripts/**",
+    ".tokeignore",
+    "src/bin/profile_json_parse.rs",
+]
 
 # docs.rs: build with tracing + erased so public API behind features is documented.
 [package.metadata.docs.rs]
 features = ["parser-trace", "annotate-snippets", "embed-guide"]
-
-exclude = [
-    "target/**",
-    "tests/JSONTestSuite/**",
-    "macros/**",
-    "marser-trace-schema/**",
-    "marser-trace-viewer/**",
-]
 
 # Readable stacks in `cargo flamegraph --bench …` / perf (line-level is still limited without LTO off).
 [profile.bench]
@@ -67,6 +72,7 @@ path = "benches/json_parse.rs"
 [[bin]]
 name = "profile_json_parse"
 path = "src/bin/profile_json_parse.rs"
+# Omitted from crates.io tarball via `exclude` below (local `cargo run --bin profile_json_parse` still works).
 
 [[example]]
 name = "json"

@@ -736,37 +736,37 @@ impl UseBindsRewriter {
 
 impl VisitMut for UseBindsRewriter {
     fn visit_expr_mut(&mut self, expr: &mut Expr) {
-        if let Expr::Macro(m) = expr {
-            if m.mac.path.is_ident("use_binds") {
-                let closure = match m.mac.parse_body::<ExprClosure>() {
-                    Ok(c) => c,
-                    Err(e) => {
-                        self.bump_err(e);
-                        return;
-                    }
-                };
-                let (ctx_ident, inner) = match parse_use_binds_closure(closure) {
-                    Ok(x) => x,
-                    Err(e) => {
-                        self.bump_err(e);
-                        return;
-                    }
-                };
-                let site = self.next_site.get();
-                self.next_site.set(site + 1);
-                self.sites.borrow_mut().push(UseBindSite {
-                    site,
-                    ctx_ident,
-                    inner,
-                });
-                let lit = syn::LitInt::new(&format!("{}", site), Span::call_site());
-                // ZST factory type, not `SnapshotFactory(closure)` — see module comment above.
-                match syn::parse2::<Expr>(quote! { __UseBindsSite::<#lit> }) {
-                    Ok(expanded) => *expr = expanded,
-                    Err(e) => self.bump_err(e),
+        if let Expr::Macro(m) = expr
+            && m.mac.path.is_ident("use_binds")
+        {
+            let closure = match m.mac.parse_body::<ExprClosure>() {
+                Ok(c) => c,
+                Err(e) => {
+                    self.bump_err(e);
+                    return;
                 }
-                return;
+            };
+            let (ctx_ident, inner) = match parse_use_binds_closure(closure) {
+                Ok(x) => x,
+                Err(e) => {
+                    self.bump_err(e);
+                    return;
+                }
+            };
+            let site = self.next_site.get();
+            self.next_site.set(site + 1);
+            self.sites.borrow_mut().push(UseBindSite {
+                site,
+                ctx_ident,
+                inner,
+            });
+            let lit = syn::LitInt::new(&format!("{}", site), Span::call_site());
+            // ZST factory type, not `SnapshotFactory(closure)` — see module comment above.
+            match syn::parse2::<Expr>(quote! { __UseBindsSite::<#lit> }) {
+                Ok(expanded) => *expr = expanded,
+                Err(e) => self.bump_err(e),
             }
+            return;
         }
         visit_mut::visit_expr_mut(self, expr);
     }
@@ -779,14 +779,14 @@ struct UseBindsInResultChecker {
 
 impl<'ast> Visit<'ast> for UseBindsInResultChecker {
     fn visit_expr(&mut self, expr: &'ast Expr) {
-        if let Expr::Macro(m) = expr {
-            if m.mac.path.is_ident("use_binds") {
-                self.error = Some(syn::Error::new_spanned(
-                    m.mac.path.get_ident().unwrap(),
-                    "`use_binds!` is only allowed in the grammar of `capture!`, not in the `=>` result expression",
-                ));
-                return;
-            }
+        if let Expr::Macro(m) = expr
+            && m.mac.path.is_ident("use_binds")
+        {
+            self.error = Some(syn::Error::new_spanned(
+                m.mac.path.get_ident().unwrap(),
+                "`use_binds!` is only allowed in the grammar of `capture!`, not in the `=>` result expression",
+            ));
+            return;
         }
         visit::visit_expr(self, expr);
     }

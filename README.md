@@ -79,7 +79,7 @@ Suggested next reads:
 
 ## Requirements
 
-- **Rust 1.85 or later** (`rust-version` in `Cargo.toml`).
+- **Rust 1.88 or later** (`rust-version` in `Cargo.toml`; requires stable **let chains** in `if`/`while`).
 
 ## Examples in this repository
 
