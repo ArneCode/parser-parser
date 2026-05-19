@@ -15,6 +15,29 @@ struct RuleMetadataKey {
     rule_name: Option<String>,
 }
 
+pub(crate) struct ExplicitMarkerTraceParams {
+    pub marker_id: u64,
+    pub phase: TraceMarkerPhase,
+    pub pos: usize,
+    pub label: Option<String>,
+    pub usage_metadata: RuleSourceMetadata,
+    pub definition_metadata: Option<RuleSourceMetadata>,
+    pub end_outcome: Option<ExplicitMarkerEndOutcome>,
+    pub marker_failure: Option<TraceMarkerFailureSnapshot>,
+}
+
+struct ExplicitMarkerRecord {
+    marker_id: u64,
+    marker_phase: TraceMarkerPhase,
+    runtime_kind: TraceEventKind,
+    status: NodeTraceStatus,
+    pos: usize,
+    label: Option<String>,
+    usage_metadata: RuleSourceMetadata,
+    definition_metadata: Option<RuleSourceMetadata>,
+    marker_failure: Option<TraceMarkerFailureSnapshot>,
+}
+
 #[derive(Clone, Debug, Default)]
 pub(crate) struct TraceState {
     pub(crate) session: TraceSession,
@@ -52,30 +75,23 @@ impl<'src> ParserContext<'src> {
         id
     }
 
-    pub fn trace_explicit_marker(
-        &mut self,
-        marker_id: u64,
-        phase: TraceMarkerPhase,
-        pos: usize,
-        label: Option<String>,
-        usage_metadata: RuleSourceMetadata,
-        definition_metadata: Option<RuleSourceMetadata>,
-        end_outcome: Option<ExplicitMarkerEndOutcome>,
-        marker_failure: Option<TraceMarkerFailureSnapshot>,
-    ) {
+    pub fn trace_explicit_marker(&mut self, params: ExplicitMarkerTraceParams) {
         debug_assert!(
-            marker_failure.is_none() || matches!(phase, TraceMarkerPhase::End),
+            params.marker_failure.is_none() || matches!(params.phase, TraceMarkerPhase::End),
             "marker_failure only allowed on explicit trace End"
         );
         debug_assert!(
-            !matches!(phase, TraceMarkerPhase::None),
+            !matches!(params.phase, TraceMarkerPhase::None),
             "explicit trace marker events should not use phase None"
         );
 
-        let (runtime_kind, status) = match phase {
+        let (runtime_kind, status) = match params.phase {
             TraceMarkerPhase::Start => (TraceEventKind::ParserEnter, NodeTraceStatus::Enter),
             TraceMarkerPhase::End => {
-                match end_outcome.expect("explicit trace End requires outcome") {
+                match params
+                    .end_outcome
+                    .expect("explicit trace End requires outcome")
+                {
                     ExplicitMarkerEndOutcome::Success => {
                         (TraceEventKind::ParserExit, NodeTraceStatus::Success)
                     }
@@ -90,31 +106,20 @@ impl<'src> ParserContext<'src> {
             TraceMarkerPhase::None => unreachable!("explicit marker phase None is invalid"),
         };
 
-        self.record_explicit_marker(
-            marker_id,
-            phase,
+        self.record_explicit_marker(ExplicitMarkerRecord {
+            marker_id: params.marker_id,
+            marker_phase: params.phase,
             runtime_kind,
             status,
-            pos,
-            label,
-            usage_metadata,
-            definition_metadata,
-            marker_failure,
-        );
+            pos: params.pos,
+            label: params.label,
+            usage_metadata: params.usage_metadata,
+            definition_metadata: params.definition_metadata,
+            marker_failure: params.marker_failure,
+        });
     }
 
-    fn record_explicit_marker(
-        &mut self,
-        marker_id: u64,
-        marker_phase: TraceMarkerPhase,
-        runtime_kind: TraceEventKind,
-        status: NodeTraceStatus,
-        pos: usize,
-        label: Option<String>,
-        usage_metadata: RuleSourceMetadata,
-        definition_metadata: Option<RuleSourceMetadata>,
-        marker_failure: Option<TraceMarkerFailureSnapshot>,
-    ) {
+    fn record_explicit_marker(&mut self, record: ExplicitMarkerRecord) {
         let Some(trace) = self.trace.as_mut() else {
             return;
         };
@@ -122,19 +127,23 @@ impl<'src> ParserContext<'src> {
         let node_id = trace.next_id;
         trace.next_id = trace.next_id.saturating_add(1);
 
-        let rule = Some(resolve_rule_identity(trace, usage_metadata, label.as_ref()));
+        let rule = Some(resolve_rule_identity(
+            trace,
+            record.usage_metadata,
+            record.label.as_ref(),
+        ));
         let usage_loc = rule.as_ref().map(|r| TraceLocation {
             file: r.rule_file.clone(),
             line: r.rule_line,
             column: r.rule_column,
         });
-        let definition_loc = definition_metadata.map(|meta| TraceLocation {
+        let definition_loc = record.definition_metadata.map(|meta| TraceLocation {
             file: meta.file.to_string(),
             line: meta.line,
             column: meta.column,
         });
-        let marker_failure = if matches!(marker_phase, TraceMarkerPhase::End) {
-            marker_failure
+        let marker_failure = if matches!(record.marker_phase, TraceMarkerPhase::End) {
+            record.marker_failure
         } else {
             None
         };
@@ -145,15 +154,15 @@ impl<'src> ParserContext<'src> {
             usage_loc: usage_loc.clone(),
             definition_loc: definition_loc.or(usage_loc),
             kind: NodeTraceKind::Runtime,
-            status,
-            label,
-            input_start: pos,
-            input_end: pos,
+            status: record.status,
+            label: record.label,
+            input_start: record.pos,
+            input_end: record.pos,
             is_step_marker: true,
-            trace_marker_id: Some(marker_id),
-            marker_phase,
+            trace_marker_id: Some(record.marker_id),
+            marker_phase: record.marker_phase,
             is_explicit_trace_marker: true,
-            runtime_kind: Some(runtime_kind),
+            runtime_kind: Some(record.runtime_kind),
             rule,
             error_sink_len: self.error_sink.len(),
             error_stack_len: self.error_stack.len(),

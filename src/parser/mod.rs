@@ -62,6 +62,11 @@ pub use token_parser::{TokenParser, token_parser};
 
 #[cfg(feature = "parser-trace")]
 use crate::trace::{TraceFormat, TraceSession};
+
+#[cfg(feature = "parser-trace")]
+type ParseWithTraceResult<Out> =
+    Result<(Out, Vec<ParserError>, TraceSession), FurthestFailError>;
+
 use crate::{
     context::ParserContext,
     error::{
@@ -175,14 +180,7 @@ where
     fn parse_whole_input_with_trace(
         &self,
         input: Inp,
-    ) -> Result<
-        (
-            <Self as internal::ParserImpl<'src, Inp>>::Output,
-            Vec<ParserError>,
-            TraceSession,
-        ),
-        FurthestFailError,
-    >
+    ) -> ParseWithTraceResult<<Self as internal::ParserImpl<'src, Inp>>::Output>
     where
         Self: Clone,
         Inp: Clone + 'src,
@@ -198,14 +196,7 @@ where
         &self,
         input: Inp,
         trace_session: TraceSession,
-    ) -> Result<
-        (
-            <Self as internal::ParserImpl<'src, Inp>>::Output,
-            Vec<ParserError>,
-            TraceSession,
-        ),
-        FurthestFailError,
-    >
+    ) -> ParseWithTraceResult<<Self as internal::ParserImpl<'src, Inp>>::Output>
     where
         Self: Clone,
         Inp: Clone + 'src,
@@ -219,14 +210,7 @@ where
     fn parse_str_with_trace(
         &self,
         src: &'src str,
-    ) -> Result<
-        (
-            <Self as internal::ParserImpl<'src, &'src str>>::Output,
-            Vec<ParserError>,
-            TraceSession,
-        ),
-        FurthestFailError,
-    >
+    ) -> ParseWithTraceResult<<Self as internal::ParserImpl<'src, &'src str>>::Output>
     where
         Self: Parser<'src, &'src str> + Clone,
     {

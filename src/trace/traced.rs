@@ -16,6 +16,8 @@ use crate::{
 use super::{
     ExplicitMarkerEndOutcome, RuleSourceMetadata, TraceMarkerFailureSnapshot, TraceMarkerPhase,
 };
+#[cfg(feature = "parser-trace")]
+use super::context_trace_impl::ExplicitMarkerTraceParams;
 
 #[cfg(feature = "parser-trace")]
 fn trace_failure_snapshot_for_end(
@@ -103,16 +105,16 @@ where
         let marker_id = {
             let context = runner.get_parser_context();
             let marker_id = context.next_trace_marker_id();
-            context.trace_explicit_marker(
+            context.trace_explicit_marker(ExplicitMarkerTraceParams {
                 marker_id,
-                TraceMarkerPhase::Start,
-                input.get_pos().into(),
-                trace_label.clone(),
-                self.source,
-                None,
-                None,
-                None,
-            );
+                phase: TraceMarkerPhase::Start,
+                pos: input.get_pos().into(),
+                label: trace_label.clone(),
+                usage_metadata: self.source,
+                definition_metadata: None,
+                end_outcome: None,
+                marker_failure: None,
+            });
             marker_id
         };
         let matched = runner.run_match(&self.inner, error_handler, input);
@@ -129,16 +131,16 @@ where
                 matched.as_ref().err().map(TraceMarkerFailureSnapshot::from),
                 input.get_pos().into(),
             );
-            runner.get_parser_context().trace_explicit_marker(
+            runner.get_parser_context().trace_explicit_marker(ExplicitMarkerTraceParams {
                 marker_id,
-                TraceMarkerPhase::End,
-                input.get_pos().into(),
-                trace_label,
-                self.source,
-                None,
-                Some(end_outcome),
-                failure_snapshot,
-            );
+                phase: TraceMarkerPhase::End,
+                pos: input.get_pos().into(),
+                label: trace_label,
+                usage_metadata: self.source,
+                definition_metadata: None,
+                end_outcome: Some(end_outcome),
+                marker_failure: failure_snapshot,
+            });
         }
         matched
     }
@@ -171,16 +173,16 @@ where
         #[cfg(feature = "parser-trace")]
         let marker_id = {
             let marker_id = context.next_trace_marker_id();
-            context.trace_explicit_marker(
+            context.trace_explicit_marker(ExplicitMarkerTraceParams {
                 marker_id,
-                TraceMarkerPhase::Start,
-                input.get_pos().into(),
-                trace_label.clone(),
-                self.source,
-                None,
-                None,
-                None,
-            );
+                phase: TraceMarkerPhase::Start,
+                pos: input.get_pos().into(),
+                label: trace_label.clone(),
+                usage_metadata: self.source,
+                definition_metadata: None,
+                end_outcome: None,
+                marker_failure: None,
+            });
             marker_id
         };
         let parsed = self.inner.parse(context, error_handler, input);
@@ -197,16 +199,16 @@ where
                 parsed.as_ref().err().map(TraceMarkerFailureSnapshot::from),
                 input.get_pos().into(),
             );
-            context.trace_explicit_marker(
+            context.trace_explicit_marker(ExplicitMarkerTraceParams {
                 marker_id,
-                TraceMarkerPhase::End,
-                input.get_pos().into(),
-                trace_label,
-                self.source,
-                None,
-                Some(end_outcome),
-                failure_snapshot,
-            );
+                phase: TraceMarkerPhase::End,
+                pos: input.get_pos().into(),
+                label: trace_label,
+                usage_metadata: self.source,
+                definition_metadata: None,
+                end_outcome: Some(end_outcome),
+                marker_failure: failure_snapshot,
+            });
         }
         parsed
     }
