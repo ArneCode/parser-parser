@@ -64,7 +64,12 @@ jobs:
       - name: rustdoc with docsrs cfg (matches docs.rs)
         env:
           RUSTDOCFLAGS: --cfg docsrs
-        run: cargo doc -p marser --features parser-trace,annotate-snippets,embed-guide --no-deps
+        run: >-
+          cargo doc -p marser
+          --features parser-trace,annotate-snippets,embed-guide
+          --no-deps
+          -Zunstable-options
+          -Zrustdoc-scrape-examples
 
   package:
     name: Package layout

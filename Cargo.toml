@@ -8,7 +8,7 @@ members = [
 
 [package]
 name = "marser"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2024"
 autobenches = false # explicit `[[bench]]` only; `benches/json_parse_shared.rs` is not a crate root
 authors = ["Arne de Borman"]
@@ -37,6 +37,7 @@ exclude = [
 # docs.rs: build with tracing + erased so public API behind features is documented.
 [package.metadata.docs.rs]
 features = ["parser-trace", "annotate-snippets", "embed-guide"]
+cargo-args = ["-Zunstable-options", "-Zrustdoc-scrape-examples"]
 
 # Readable stacks in `cargo flamegraph --bench …` / perf (line-level is still limited without LTO off).
 [profile.bench]
@@ -77,14 +78,17 @@ path = "src/bin/profile_json_parse.rs"
 [[example]]
 name = "json"
 required-features = ["annotate-snippets"]
+doc-scrape-examples = true
 
 [[example]]
 name = "mini_language"
 required-features = ["annotate-snippets"]
+doc-scrape-examples = true
 
 [[example]]
 name = "mini_script"
 required-features = ["annotate-snippets"]
+doc-scrape-examples = true
 
 [profile.samply]
 inherits = "release"
