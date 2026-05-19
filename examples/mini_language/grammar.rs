@@ -1,19 +1,19 @@
+use marser::capture;
 use marser::{
     error::{AnnotationKind, FurthestFailError, InlineError},
     label::WithLabel,
     matcher::{
-        Matcher, MatcherCombinator, commit_on, unwanted,
+        Matcher, MatcherCombinator, commit_on,
         if_error::{if_error, if_error_else_fail},
         many, negative_lookahead,
         none_of::none_of,
         one_or_more, optional,
         parser_matcher::match_parsed,
-        positive_lookahead,
+        positive_lookahead, unwanted,
     },
     one_of::one_of,
     parser::{DeferredWeak, Parser, ParserCombinator, recursive},
 };
-use marser::capture;
 
 #[derive(Clone, Debug)]
 pub enum UnaryOp {
@@ -174,13 +174,22 @@ fn number_expr<'src>() -> impl Parser<'src, &'src str, Output = Expr<'src>> {
 fn string_expr<'src>() -> impl Parser<'src, &'src str, Output = Expr<'src>> {
     capture!(
         commit_on(
-            '"',
+            bind_span!('"', open_quote_span as (usize, usize)),
             (
                 bind_slice!(
                     many(none_of(('"', '\n'))),
                     slice as &'src str
                 ),
-                '"'.try_insert_if_missing("missing closing quote")
+                '"'.err_if_no_match(use_binds!(|ctx| {
+                    let open_quote_span: Option<(usize, usize)> = open_quote_span.copied();
+                    InlineError::new("missing closing quote")
+                        .with_span(Some(ctx.span()))
+                        .with_annotation(
+                            open_quote_span.unwrap(),
+                            "quote opened here",
+                            AnnotationKind::Context,
+                        )
+                }))
             )
         )
         => slice
@@ -195,11 +204,20 @@ fn bool_expr<'src>() -> impl Parser<'src, &'src str, Output = Expr<'src>> {
 fn expr<'src>() -> impl Parser<'src, &'src str, Output = Expr<'src>> {
     recursive(|expr| {
         let group = capture!(commit_on(
-            '(',
+            bind_span!('(', open_paren_span as (usize, usize)),
             (
                 whitespace(),
                 bind!(expr.clone(), expr_inner),
-                ')'.try_insert_if_missing("missing closing parenthesis")
+                ')'.err_if_no_match(use_binds!(|ctx| {
+                    let open_paren_span: Option<(usize, usize)> = open_paren_span.copied();
+                    InlineError::new("missing closing parenthesis")
+                        .with_span(Some(ctx.span()))
+                        .with_annotation(
+                            open_paren_span.unwrap(),
+                            "parenthesis opened here",
+                            AnnotationKind::Context,
+                        )
+                }))
             )
         ) => Expr::Group(Box::new(expr_inner)));
 
@@ -561,11 +579,20 @@ fn block<'src>() -> impl Parser<'src, &'src str, Output = Block<'src>> {
 
         capture!(
             commit_on(
-                '{',
+                bind_span!('{', open_brace_span as (usize, usize)),
                 (
                     whitespace(),
                     many(bind!(statement, *statements)),
-                    '}'.try_insert_if_missing("missing closing '}'"),
+                    '}'.err_if_no_match(use_binds!(|ctx| {
+                        let open_brace_span: Option<(usize, usize)> = open_brace_span.copied();
+                        InlineError::new("missing closing '}'")
+                            .with_span(Some(ctx.span()))
+                            .with_annotation(
+                                open_brace_span.unwrap(),
+                                "brace opened here",
+                                AnnotationKind::Context,
+                            )
+                    })),
                     whitespace(),
                 )
             ) => Block {
@@ -584,7 +611,8 @@ fn function_def<'src>() -> impl Parser<'src, &'src str, Output = FunctionDef<'sr
             match_parsed(identifier(), "fn"),
             (
                 bind!(user_identifier(), name),
-                '('.try_insert_if_missing("missing opening '(' in function definition"),
+                bind_span!('(', open_paren_span as (usize, usize))
+                    .try_insert_if_missing("missing opening '(' in function definition"),
                 optional((
                     bind!(user_identifier(), *params),
                     many((
@@ -597,7 +625,16 @@ fn function_def<'src>() -> impl Parser<'src, &'src str, Output = FunctionDef<'sr
                     if_error(many(unwanted(',', "trailing comma"))),
                 )),
                 many(unwanted(',', "missing parameter")),
-                ')'.try_insert_if_missing("missing closing ')' in function definition"),
+                ')'.err_if_no_match(use_binds!(|ctx| {
+                    let open_paren_span: Option<(usize, usize)> = open_paren_span.copied();
+                    InlineError::new("missing closing ')' in function definition")
+                        .with_span(Some(ctx.span()))
+                        .with_annotation(
+                            open_paren_span.unwrap(),
+                            "parenthesis opened here",
+                            AnnotationKind::Context,
+                        )
+                })),
                 whitespace(),
                 bind!(block(), body),
             )
@@ -607,8 +644,8 @@ fn function_def<'src>() -> impl Parser<'src, &'src str, Output = FunctionDef<'sr
     .erase_types()
 }
 
-pub fn get_mini_language_grammar<'src>(
-) -> impl Parser<'src, &'src str, Output = Vec<FunctionDef<'src>>> + Clone {
+pub fn get_mini_language_grammar<'src>()
+-> impl Parser<'src, &'src str, Output = Vec<FunctionDef<'src>>> + Clone {
     capture!(
         (
             whitespace(),

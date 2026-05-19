@@ -2,7 +2,7 @@ use std::rc::Rc;
 
 use marser::capture;
 use marser::{
-    error::{AnnotationKind, FurthestFailError},
+    error::{AnnotationKind, FurthestFailError, InlineError},
     label::WithLabel,
     trace::WithTrace,
     matcher::{
@@ -202,33 +202,35 @@ pub fn get_json_grammar<'src>() -> impl Parser<'src, &'src str, Output = JsonVal
         let raw_string = Rc::new(
             capture!({
                 commit_on(
-                    '"',(
+                    bind_span!('"', open_quote_span as (usize, usize)),
+                    (
                     many(one_of((
                         bind!(character.clone(), *chars),
                         bind!(escaped_char, *chars),
                         bind!(unicode_escape, *chars),
                     ))),
-                    '"'.try_insert_if_missing("missing closing quote"),
+                    '"'.err_if_no_match(use_binds!(|ctx| {
+                        let open_quote_span: Option<(usize, usize)> = open_quote_span.copied();
+                        InlineError::new("missing closing quote")
+                            .with_span(Some(ctx.span()))
+                            .with_annotation(
+                                open_quote_span.unwrap(),
+                                "quote opened here",
+                                AnnotationKind::Context,
+                            )
+                    })),
                     ws.clone()
                 ))
             } =>  {
                 chars.into_iter().collect::<String>()
             })
-            .add_error_info(capture!(
-                bind_span!('"', quote) => Box::new(move |err: &mut FurthestFailError|{
-                err.add_annotation(
-                    quote,
-                    "unmatched quote",
-                    AnnotationKind::Context,
-                );
-            }) as Box<dyn Fn(&mut FurthestFailError)>
-            )),
         )
         .with_label("quoted string")
         .erase_types();
 
         let array = capture!({
-            commit_on((ws.clone(), '['),
+            commit_on(
+                (ws.clone(), bind_span!('[', open_bracket_span as (usize, usize))),
             (
                 ws.clone().trace(),
                 optional((
@@ -245,7 +247,16 @@ pub fn get_json_grammar<'src>() -> impl Parser<'src, &'src str, Output = JsonVal
                 ws.clone().trace(),
                 if_error(many((unwanted(',', "trailing comma"), ws.clone())))
                     .trace(),
-                ']'.try_insert_if_missing("missing closing ']'"),
+                ']'.err_if_no_match(use_binds!(|ctx| {
+                    let open_bracket_span: Option<(usize, usize)> = open_bracket_span.copied();
+                    InlineError::new("missing closing ']'")
+                        .with_span(Some(ctx.span()))
+                        .with_annotation(
+                            open_bracket_span.unwrap(),
+                            "bracket opened here",
+                            AnnotationKind::Context,
+                        )
+                })),
                 ws.clone().trace()
             ))
         } =>  {
@@ -270,7 +281,8 @@ pub fn get_json_grammar<'src>() -> impl Parser<'src, &'src str, Output = JsonVal
         .erase_types();
 
         let object = capture!({
-                commit_on((ws.clone(), '{'),
+                commit_on(
+                    (ws.clone(), bind_span!('{', open_brace_span as (usize, usize))),
                 (
                 ws.clone().trace(),
                 optional((
@@ -286,7 +298,16 @@ pub fn get_json_grammar<'src>() -> impl Parser<'src, &'src str, Output = JsonVal
                     )
                     .trace()
                 )),
-                '}'.try_insert_if_missing("missing closing '}'"),
+                '}'.err_if_no_match(use_binds!(|ctx| {
+                    let open_brace_span: Option<(usize, usize)> = open_brace_span.copied();
+                    InlineError::new("missing closing '}'")
+                        .with_span(Some(ctx.span()))
+                        .with_annotation(
+                            open_brace_span.unwrap(),
+                            "brace opened here",
+                            AnnotationKind::Context,
+                        )
+                })),
                 ws.clone().trace()
                 )
                 )

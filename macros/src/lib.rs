@@ -3,7 +3,7 @@
 //! Prefer `use marser::capture;` (re-exported from the main crate). This crate is the proc-macro
 //! implementation; [`capture`] builds a `marser::parser::capture::Capture` parser from a grammar expression.
 
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 
 use proc_macro::TokenStream;
 use proc_macro_crate::{FoundCrate, crate_name};
@@ -435,12 +435,223 @@ impl<'ast> Visit<'ast> for BindCollector {
     }
 }
 
-fn expand_use_binds_macro(
-    closure: ExprClosure,
-    reg: &BindRegistry,
+/// One `use_binds!(|ctx| { … })` site inside a `capture!`, collected for shared factory codegen.
+struct UseBindSite {
+    site: usize,
+    ctx_ident: Ident,
+    inner: proc_macro2::TokenStream,
+}
+
+/// Build the `(S, M, O)` tuple for [`Capture::<MRes, _, _>`] (same rules as the historical
+/// `type_tuple` in `capture!`: explicit `as T` is preserved; untyped values use `_`).
+fn build_capture_mres_tuple(registry: &BindRegistry) -> proc_macro2::TokenStream {
+    let build_bucket = |values: &[TypedBinding], spans: &[TypedBinding], is_vec: bool| {
+        let wrap = |inner: proc_macro2::TokenStream| {
+            if is_vec {
+                quote! { ::std::vec::Vec<#inner> }
+            } else {
+                quote! { ::std::option::Option<#inner> }
+            }
+        };
+        let mut pieces = Vec::new();
+        for b in values.iter() {
+            let inner = if let Some(ty) = &b.ty {
+                quote! { #ty }
+            } else {
+                quote! { _ }
+            };
+            pieces.push(wrap(inner));
+        }
+        for b in spans.iter() {
+            let inner = if let Some(ty) = &b.ty {
+                quote! { #ty }
+            } else {
+                quote! { (_, _) }
+            };
+            pieces.push(wrap(inner));
+        }
+        if pieces.is_empty() {
+            quote! { () }
+        } else {
+            quote! { ( #(#pieces,)* ) }
+        }
+    };
+
+    let s_ty = build_bucket(&registry.single_values, &registry.single_spans, false);
+    let m_ty = build_bucket(&registry.multiple_values, &registry.multiple_spans, true);
+    let o_ty = build_bucket(&registry.optional_values, &registry.optional_spans, false);
+    quote! { (#s_ty, #m_ty, #o_ty) }
+}
+
+/// Build the `(S, M, O)` tuple for [`BuildInlineError<MRes>`] on `__UseBindsFactory`, plus the list
+/// of fresh type parameters `__BindTn` (1A — avoids spelling outer lifetimes in nested impls).
+fn build_factory_mres_tuple(registry: &BindRegistry) -> (proc_macro2::TokenStream, Vec<Ident>) {
+    let mut gen_names: Vec<Ident> = Vec::new();
+    let mut next_ty = |span: Span| -> proc_macro2::TokenStream {
+        let n = gen_names.len();
+        let id = Ident::new(&format!("__BindT{n}"), span);
+        gen_names.push(id.clone());
+        quote! { #id }
+    };
+
+    let mut build_bucket = |values: &[TypedBinding], spans: &[TypedBinding], is_vec: bool| {
+        let wrap = |inner: proc_macro2::TokenStream| {
+            if is_vec {
+                quote! { ::std::vec::Vec<#inner> }
+            } else {
+                quote! { ::std::option::Option<#inner> }
+            }
+        };
+        let mut pieces = Vec::new();
+        for b in values.iter() {
+            pieces.push(wrap(next_ty(b.ident.span())));
+        }
+        for b in spans.iter() {
+            let inner = if let Some(ty) = &b.ty {
+                quote! { #ty }
+            } else {
+                quote! { (usize, usize) }
+            };
+            pieces.push(wrap(inner));
+        }
+        if pieces.is_empty() {
+            quote! { () }
+        } else {
+            quote! { ( #(#pieces,)* ) }
+        }
+    };
+
+    let s_ty = build_bucket(&registry.single_values, &registry.single_spans, false);
+    let m_ty = build_bucket(&registry.multiple_values, &registry.multiple_spans, true);
+    let o_ty = build_bucket(&registry.optional_values, &registry.optional_spans, false);
+    (quote! { (#s_ty, #m_ty, #o_ty) }, gen_names)
+}
+
+fn snapshot_bind_lets(
+    registry: &BindRegistry,
+) -> (
+    Vec<proc_macro2::TokenStream>,
+    Vec<proc_macro2::TokenStream>,
+    Vec<proc_macro2::TokenStream>,
+) {
+    let mut single_lets = Vec::new();
+    for (i, b) in registry
+        .single_values
+        .iter()
+        .chain(&registry.single_spans)
+        .enumerate()
+    {
+        let idx = Index::from(i);
+        let id = &b.ident;
+        single_lets.push(quote! {
+            #[allow(unused_variables)]
+            let #id = __single.#idx;
+        });
+    }
+    let mut multiple_lets = Vec::new();
+    for (i, b) in registry
+        .multiple_values
+        .iter()
+        .chain(&registry.multiple_spans)
+        .enumerate()
+    {
+        let idx = Index::from(i);
+        let id = &b.ident;
+        multiple_lets.push(quote! {
+            #[allow(unused_variables)]
+            let #id = &__multiple.#idx;
+        });
+    }
+    let mut optional_lets = Vec::new();
+    for (i, b) in registry
+        .optional_values
+        .iter()
+        .chain(&registry.optional_spans)
+        .enumerate()
+    {
+        let idx = Index::from(i);
+        let id = &b.ident;
+        optional_lets.push(quote! {
+            #[allow(unused_variables)]
+            let #id = __optional.#idx;
+        });
+    }
+    (single_lets, multiple_lets, optional_lets)
+}
+
+/// Emit one `__UseBindsFactory<const SITE>` plus a single `BuildInlineError` impl that dispatches
+/// on `SITE` (4B).
+fn emit_use_binds_factory(
+    sites: &[UseBindSite],
+    registry: &BindRegistry,
     marser: &Path,
-    _mres_tuple_unused: &proc_macro2::TokenStream,
-) -> std::result::Result<Expr, syn::Error> {
+    mres: &proc_macro2::TokenStream,
+    mres_generics: &[Ident],
+) -> proc_macro2::TokenStream {
+    if sites.is_empty() {
+        return quote! {};
+    }
+
+    let (single_lets, multiple_lets, optional_lets) = snapshot_bind_lets(registry);
+
+    let const_site_params = quote! { <const __SITE: usize> };
+    let build_inline_params = if mres_generics.is_empty() {
+        quote! { <const __SITE: usize> }
+    } else {
+        quote! { <const __SITE: usize, #(#mres_generics),*> }
+    };
+
+    let arms: Vec<_> = sites
+        .iter()
+        .map(|s| {
+            let lit = syn::LitInt::new(&format!("{}", s.site), Span::call_site());
+            let ctx = &s.ctx_ident;
+            let inner = &s.inner;
+            quote! {
+                #lit => {
+                    let #ctx = __ctx;
+                    #inner
+                }
+            }
+        })
+        .collect();
+
+    quote! {
+        struct __UseBindsFactory<const __SITE: usize>;
+
+        impl #const_site_params ::core::clone::Clone for __UseBindsFactory<__SITE> {
+            fn clone(&self) -> Self {
+                *self
+            }
+        }
+
+        impl #const_site_params ::core::marker::Copy for __UseBindsFactory<__SITE> {}
+
+        impl #build_inline_params #marser::error::BuildInlineError<#mres> for __UseBindsFactory<__SITE> {
+            fn build_inline_error<'__snap>(
+                &self,
+                __ctx: #marser::error::MatchDiagCtx,
+                __snap: <#mres as #marser::parser::capture::MatchResult>::Snapshot<'__snap>,
+            ) -> #marser::error::InlineError
+            where
+                #mres: '__snap,
+            {
+                let __single = &__snap.0;
+                let __multiple = &__snap.1;
+                let __optional = &__snap.2;
+                #(#single_lets)*
+                #(#multiple_lets)*
+                #(#optional_lets)*
+                match __SITE {
+                    #(#arms)*
+                    _ => ::core::unreachable!("use_binds site out of range"),
+                }
+            }
+        }
+    }
+}
+
+fn parse_use_binds_closure(closure: ExprClosure) -> std::result::Result<(Ident, proc_macro2::TokenStream), syn::Error> {
     let ctx_ident = match closure.inputs.iter().next() {
         Some(Pat::Type(pt)) => {
             if let Pat::Ident(pi) = pt.pat.as_ref() {
@@ -460,136 +671,16 @@ fn expand_use_binds_macro(
         }
         expr => quote! { #expr },
     };
-
-    // For each untyped binding we allocate a *fresh generic parameter* `__UseBindsTn`. This way
-    // the locally-emitted `impl BuildInlineError<MRes> for __UseBindsFactory` can name the tuple
-    // shape without `_` placeholders (forbidden in impl signatures) while still letting type
-    // inference at the call site pick the actual slot type.
-    let mut generics: Vec<Ident> = Vec::new();
-    let mut fresh_generic = |span: Span| -> Ident {
-        let id = Ident::new(&format!("__UseBindsT{}", generics.len()), span);
-        generics.push(id.clone());
-        id
-    };
-
-    let val_type = |b: &TypedBinding, generics: &mut Vec<Ident>| -> proc_macro2::TokenStream {
-        if let Some(ty) = &b.ty {
-            quote! { #ty }
-        } else {
-            let g = Ident::new(&format!("__UseBindsT{}", generics.len()), b.ident.span());
-            generics.push(g.clone());
-            quote! { #g }
-        }
-    };
-    let span_type = |b: &TypedBinding| -> proc_macro2::TokenStream {
-        if let Some(ty) = &b.ty {
-            quote! { #ty }
-        } else {
-            quote! { (usize, usize) }
-        }
-    };
-
-    let _ = &mut fresh_generic; // silence unused
-
-    let build_bucket =
-        |values: &[TypedBinding], spans: &[TypedBinding], is_vec: bool, generics: &mut Vec<Ident>| {
-            let wrap = |inner: proc_macro2::TokenStream| {
-                if is_vec {
-                    quote! { ::std::vec::Vec<#inner> }
-                } else {
-                    quote! { ::std::option::Option<#inner> }
-                }
-            };
-            let val_pieces: Vec<_> = values.iter().map(|b| wrap(val_type(b, generics))).collect();
-            let span_pieces: Vec<_> = spans.iter().map(|b| wrap(span_type(b))).collect();
-            let all: Vec<_> = val_pieces.into_iter().chain(span_pieces).collect();
-            if all.is_empty() {
-                quote! { () }
-            } else {
-                quote! { ( #(#all,)* ) }
-            }
-        };
-
-    let s_ty = build_bucket(&reg.single_values, &reg.single_spans, false, &mut generics);
-    let m_ty = build_bucket(&reg.multiple_values, &reg.multiple_spans, true, &mut generics);
-    let o_ty = build_bucket(&reg.optional_values, &reg.optional_spans, false, &mut generics);
-    let mres = quote! { (#s_ty, #m_ty, #o_ty) };
-
-    let mut single_lets = Vec::new();
-    for (i, b) in reg.single_values.iter().chain(&reg.single_spans).enumerate() {
-        let idx = Index::from(i);
-        let id = &b.ident;
-        single_lets.push(quote! { let #id = __single.#idx; });
-    }
-    let mut multiple_lets = Vec::new();
-    for (i, b) in reg.multiple_values.iter().chain(&reg.multiple_spans).enumerate() {
-        let idx = Index::from(i);
-        let id = &b.ident;
-        multiple_lets.push(quote! { let #id = &__multiple.#idx; });
-    }
-    let mut optional_lets = Vec::new();
-    for (i, b) in reg.optional_values.iter().chain(&reg.optional_spans).enumerate() {
-        let idx = Index::from(i);
-        let id = &b.ident;
-        optional_lets.push(quote! { let #id = __optional.#idx; });
-    }
-
-    let impl_generics = if generics.is_empty() {
-        quote! {}
-    } else {
-        quote! { <#(#generics,)*> }
-    };
-
-    // We emit a *locally-defined* factory struct with a direct `impl BuildInlineError<MRes>`.
-    // Going through a generic `SnapshotFactory<F>` with an HRTB `Fn(&MRes::Snapshot<'a>, …)` bound
-    // is fatal here: the closure literal itself produces a `Fn` impl whose HRTB over `'a` triggers
-    // the GAT well-formedness rule `MRes: 'a` universally, which forces `MRes: 'static` (and thus
-    // `'src: 'static`) and breaks any upstream `.erase_types()`.
-    //
-    // Implementing the trait directly lets us name the snapshot lifetime explicitly with the
-    // bound `where MRes: 'snap`, so the WF check on `MRes::Snapshot<'snap>` is satisfied without
-    // universal quantification.
-    let factory_tokens = quote! {
-        {
-            struct __UseBindsFactory;
-            impl ::core::clone::Clone for __UseBindsFactory {
-                fn clone(&self) -> Self { Self }
-            }
-            impl ::core::marker::Copy for __UseBindsFactory {}
-
-            impl #impl_generics #marser::error::BuildInlineError<#mres> for __UseBindsFactory {
-                fn build_inline_error<'__snap>(
-                    &self,
-                    __ctx: #marser::error::MatchDiagCtx,
-                    __snap: <#mres as #marser::parser::capture::MatchResult>::Snapshot<'__snap>,
-                ) -> #marser::error::InlineError
-                where
-                    #mres: '__snap,
-                {
-                    let __single = &__snap.0;
-                    let __multiple = &__snap.1;
-                    let __optional = &__snap.2;
-                    #(#single_lets)*
-                    #(#multiple_lets)*
-                    #(#optional_lets)*
-                    let #ctx_ident = __ctx;
-                    #inner
-                }
-            }
-            __UseBindsFactory
-        }
-    };
-    syn::parse2(factory_tokens)
+    Ok((ctx_ident, inner))
 }
 
-struct UseBindsRewriter<'a> {
-    registry: &'a BindRegistry,
-    marser_path: Path,
-    mres_tuple: proc_macro2::TokenStream,
+struct UseBindsRewriter {
+    sites: RefCell<Vec<UseBindSite>>,
+    next_site: Cell<usize>,
     errors: RefCell<Option<syn::Error>>,
 }
 
-impl VisitMut for UseBindsRewriter<'_> {
+impl VisitMut for UseBindsRewriter {
     fn visit_expr_mut(&mut self, expr: &mut Expr) {
         if let Expr::Macro(m) = expr
             && m.mac.path.is_ident("use_binds")
@@ -608,12 +699,29 @@ impl VisitMut for UseBindsRewriter<'_> {
                     return;
                 }
             };
-            match expand_use_binds_macro(
-                closure,
-                self.registry,
-                &self.marser_path,
-                &self.mres_tuple,
-            ) {
+            let (ctx_ident, inner) = match parse_use_binds_closure(closure) {
+                Ok(x) => x,
+                Err(e) => {
+                    let mut slot = self.errors.borrow_mut();
+                    *slot = Some(match slot.take() {
+                        None => e,
+                        Some(mut prev) => {
+                            prev.combine(e);
+                            prev
+                        }
+                    });
+                    return;
+                }
+            };
+            let site = self.next_site.get();
+            self.next_site.set(site + 1);
+            self.sites.borrow_mut().push(UseBindSite {
+                site,
+                ctx_ident,
+                inner,
+            });
+            let lit = syn::LitInt::new(&format!("{}", site), Span::call_site());
+            match syn::parse2::<Expr>(quote! { __UseBindsFactory::<#lit> }) {
                 Ok(expanded) => *expr = expanded,
                 Err(e) => {
                     let mut slot = self.errors.borrow_mut();
@@ -768,8 +876,9 @@ impl VisitMut for BindMacroExpander {
 /// - **`bind_slice!(parser, ident)`** / **`bind_slice!(parser, *ident)`** / **`bind_slice!(parser, ?ident)`** / **`bind_slice!(parser, ident as T)`** —
 ///   capture only the consumed input slice (expands to `marser::parser::capture::bind_slice`).
 ///
-/// - **`use_binds!(move \|ctx: MatchDiagCtx\| { … })`** — builds a [`marser::error::SnapshotFactory`] so
-///   `err_if_no_match` / `err_if_matched` factories can read prior captures from a snapshot.
+/// - **`use_binds!(move \|ctx: MatchDiagCtx\| { … })`** — expands to `__UseBindsFactory::<N>`; the
+///   `capture!` expansion emits one shared `__UseBindsFactory<const SITE>` implementing
+///   [`marser::error::BuildInlineError`] with `match SITE` dispatch so multiple sites share one type.
 ///
 /// Repeated **compatible** binds to the same identifier (same sigil bucket and compatible `as`
 /// types) are merged into one capture slot. Conflicting sigils, incompatible explicit types, or
@@ -809,62 +918,16 @@ pub fn capture(input: TokenStream) -> TokenStream {
         }
     };
 
-    // Build the corresponding type tuple.
-    //   Values → Option<_>  / Vec<_>
-    //   Spans  → Option<span::Span> / Vec<span::Span>
-    let type_tuple = |values: &[TypedBinding], spans: &[TypedBinding], is_vec: bool| {
-        let wrap = |inner: proc_macro2::TokenStream| {
-            if is_vec {
-                quote! { ::std::vec::Vec<#inner> }
-            } else {
-                quote! { ::std::option::Option<#inner> }
-            }
-        };
-
-        let val_types: Vec<_> = values
-            .iter()
-            .map(|binding| {
-                let inner = if let Some(ty) = &binding.ty {
-                    quote! { #ty }
-                } else {
-                    quote! { _ }
-                };
-                wrap(inner)
-            })
-            .collect();
-        let span_types: Vec<_> = spans
-            .iter()
-            .map(|binding| {
-                let inner = if let Some(ty) = &binding.ty {
-                    quote! { #ty }
-                } else {
-                    quote! { (_, _) }
-                };
-                wrap(inner)
-            })
-            .collect();
-        let all: Vec<_> = val_types.into_iter().chain(span_types).collect();
-
-        if all.is_empty() {
-            quote! { () }
-        } else {
-            quote! { ( #(#all,)* ) }
-        }
-    };
-
     let s_pat = pat_tuple(&registry.single_values, &registry.single_spans);
     let m_pat = pat_tuple(&registry.multiple_values, &registry.multiple_spans);
     let o_pat = pat_tuple(&registry.optional_values, &registry.optional_spans);
 
-    let s_ty = type_tuple(&registry.single_values, &registry.single_spans, false);
-    let m_ty = type_tuple(&registry.multiple_values, &registry.multiple_spans, true);
-    let o_ty = type_tuple(&registry.optional_values, &registry.optional_spans, false);
+    let mres_capture = build_capture_mres_tuple(&registry);
+    let (mres_factory, mres_generics) = build_factory_mres_tuple(&registry);
 
-    let mres_tuple = quote! { (#s_ty, #m_ty, #o_ty) };
     let mut use_binds_rw = UseBindsRewriter {
-        registry: &registry,
-        marser_path: marser_path.clone(),
-        mres_tuple,
+        sites: RefCell::new(Vec::new()),
+        next_site: Cell::new(0),
         errors: RefCell::new(None),
     };
     use_binds_rw.visit_expr_mut(&mut input.grammar);
@@ -872,15 +935,25 @@ pub fn capture(input: TokenStream) -> TokenStream {
     if let Some(e) = use_binds_rw.errors.into_inner() {
         return e.to_compile_error().into();
     }
+    let sites = use_binds_rw.sites.into_inner();
+
+    let factory_block = emit_use_binds_factory(
+        &sites,
+        &registry,
+        &marser_path,
+        &mres_factory,
+        &mres_generics,
+    );
 
     let grammar = &input.grammar;
     let result_expr = &input.result_expr;
 
     TokenStream::from(quote! {
         {
+            #factory_block
             #[allow(unused_variables)]
             #marser_path::parser::as_parser(
-                #marser_path::parser::capture::Capture::<(#s_ty, #m_ty, #o_ty), _, _>::new(
+                #marser_path::parser::capture::Capture::<#mres_capture, _, _>::new(
                     |#s_pat, #m_pat, #o_pat| { #grammar     },
                     |#s_pat, #m_pat, #o_pat| { #result_expr },
                 ),
