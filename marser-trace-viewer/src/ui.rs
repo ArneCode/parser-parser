@@ -214,7 +214,7 @@ fn render_source_preview(state: &ViewerState) -> Text<'static> {
 
         let mut line_starts = vec![0usize];
         for (idx, ch) in source.char_indices() {
-            if ch == '\n' && idx + 1 <= source.len() {
+            if ch == '\n' && idx < source.len() {
                 line_starts.push(idx + 1);
             }
         }

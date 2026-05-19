@@ -170,7 +170,7 @@ where
         input.set_pos(start_pos.clone());
         let session = context
             .take_trace_session()
-            .unwrap_or_else(TraceSession::new);
+            .unwrap_or_default();
         context = ParserContext::new();
         context.attach_trace_session(session);
         context.is_in_error_recovery = true;

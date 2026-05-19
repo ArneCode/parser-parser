@@ -118,7 +118,7 @@ impl<'src> Cache<'src> {
 
     /// # Safety:
     /// - If there has been at least one set_entry or get_or_create_table call with this parser_id,
-    /// then this method must be called with the same T as all those calls.
+    ///   then this method must be called with the same T as all those calls.
     ///
     /// This method is only called inside memoized.rs
     pub(crate) unsafe fn get_entry<'a, T: 'src>(
@@ -133,7 +133,7 @@ impl<'src> Cache<'src> {
 
     /// # Safety:
     /// - If this method or get_or_create_table has ever been called before with the same parser_id,
-    /// then the T used in this call must be the same as all those previous calls
+    ///   then the T used in this call must be the same as all those previous calls
     pub(crate) unsafe fn set_entry<'a, T: 'src>(
         &'a mut self,
         parser_id: ParserId,

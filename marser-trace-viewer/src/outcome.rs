@@ -61,7 +61,7 @@ pub fn outcome_for_marker_span(
         };
     }
 
-    let window_end_exclusive = next_start_index(events, start_idx).unwrap_or_else(|| events.len());
+    let window_end_exclusive = next_start_index(events, start_idx).unwrap_or(events.len());
     let mut saw_error = false;
     let mut saw_fail = false;
     let mut saw_success_end = false;

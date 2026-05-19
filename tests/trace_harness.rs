@@ -39,10 +39,8 @@ fn trace_collects_explicit_marker_events() {
 #[test]
 fn trace_event_ids_are_monotonic() {
     let (_out, _errors, trace) = parse_with_trace(tiny_parser(), "ab").unwrap();
-    let mut expected_id = 0u64;
-    for event in trace.events() {
-        assert_eq!(event.node_id, expected_id);
-        expected_id += 1;
+    for (expected_id, event) in trace.events().iter().enumerate() {
+        assert_eq!(event.node_id, expected_id as u64);
     }
 }
 

@@ -842,7 +842,6 @@ impl VisitMut for BindMacroExpander {
                 let bind_span = id.span();
                 let rewrite = if let Some(span_id) = &info.span_ident {
                     let marser = self.marser_path.clone();
-                    let span_id = span_id;
                     quote_spanned! {bind_span=>
                         #marser::parser::capture::bind_span(
                             #marser::parser::capture::bind_result(#parser, #id),

@@ -35,7 +35,7 @@ impl std::error::Error for UnsupportedTraceVersion {}
 /// `None` is treated as version [`SCHEMA_VERSION`] for backward compatibility.
 pub fn check_trace_version(version: Option<u32>) -> Result<(), UnsupportedTraceVersion> {
     let v = version.unwrap_or(SCHEMA_VERSION);
-    if v < SUPPORTED_TRACE_VERSION_MIN || v > SUPPORTED_TRACE_VERSION_MAX {
+    if !(SUPPORTED_TRACE_VERSION_MIN..=SUPPORTED_TRACE_VERSION_MAX).contains(&v) {
         return Err(UnsupportedTraceVersion {
             found: v,
             min: SUPPORTED_TRACE_VERSION_MIN,

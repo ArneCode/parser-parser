@@ -146,7 +146,7 @@ impl MatcherCombinator for char {}
 
 impl MatcherCombinator for &[u8] {}
 
-impl<'src, 'pat, MRes> super::internal::MatcherImpl<'src, &'src [u8], MRes> for &'pat [u8] {
+impl<'src, MRes> super::internal::MatcherImpl<'src, &'src [u8], MRes> for &[u8] {
     const CAN_MATCH_DIRECTLY: bool = true;
     const HAS_PROPERTY: bool = false;
     const CAN_FAIL: bool = true;
