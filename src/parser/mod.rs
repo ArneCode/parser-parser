@@ -33,10 +33,10 @@
 
 pub mod capture;
 pub mod deferred;
-/// Opaque `impl Parser` wrapper ([`impl_parser::as_parser`]); kept separate from [`capture`].
-pub mod impl_parser;
 /// Type-erased parser wrapper and helpers.
 pub mod erase_types;
+/// Opaque `impl Parser` wrapper ([`impl_parser::as_parser`]); kept separate from [`capture`].
+pub mod impl_parser;
 pub mod memoized;
 pub mod multiple;
 /// Output-mapping parser wrapper.
@@ -60,20 +60,18 @@ pub use single_token::SingleTokenParser;
 use std::rc::Rc;
 pub use token_parser::{TokenParser, token_parser};
 
+#[cfg(feature = "parser-trace")]
+use crate::trace::{TraceFormat, TraceSession};
 use crate::{
     context::ParserContext,
     error::{
-        FurthestFailError,
-        MatcherRunError,
-        ParserError,
+        FurthestFailError, MatcherRunError, ParserError,
         error_handler::{ErrorHandler, ErrorHandlerChoice},
     },
     input::{Input, InputStream},
     matcher::{ErrorContextualizer, ignore_result::IgnoreResult},
     parser::recover_error::ErrorRecoverer as ErrorRecovererInner,
 };
-#[cfg(feature = "parser-trace")]
-use crate::trace::{TraceFormat, TraceSession};
 
 pub(crate) mod internal {
     use std::fmt::{Debug, Display};
@@ -138,7 +136,10 @@ where
 {
     /// Parse all of `input` with the default whole-input + EOF [`crate::matcher::commit_matcher::commit_on`]
     /// wrapper (same driver as [`crate::parse`] for `Inp = &'src str`).
-    fn parse_whole_input(&self, input: Inp) -> Result<
+    fn parse_whole_input(
+        &self,
+        input: Inp,
+    ) -> Result<
         (
             <Self as internal::ParserImpl<'src, Inp>>::Output,
             Vec<ParserError>,
@@ -153,7 +154,10 @@ where
     }
 
     /// Like [`Self::parse_whole_input`] for string input (convenience alias).
-    fn parse_str(&self, src: &'src str) -> Result<
+    fn parse_str(
+        &self,
+        src: &'src str,
+    ) -> Result<
         (
             <Self as internal::ParserImpl<'src, &'src str>>::Output,
             Vec<ParserError>,
@@ -206,8 +210,7 @@ where
         Self: Clone,
         Inp: Clone + 'src,
     {
-        let (result, trace) =
-            crate::parse_whole_input_inner_with_trace(self, input, trace_session);
+        let (result, trace) = crate::parse_whole_input_inner_with_trace(self, input, trace_session);
         result.map(|(output, errors)| (output, errors, trace))
     }
 
@@ -290,8 +293,8 @@ where
 /// See [`crate::guide::errors_and_recovery`] for `recover_with` / `add_error_info`, and
 /// [`crate::guide::common_patterns`] for `maybe_erase_types` on large grammars.
 pub trait ParserCombinator {
-    /// Memoize parse results keyed by input position (including outputs that borrow the input).
-    fn memoized(self) -> memoized::Memoized<Self>
+    /// Memoize parse results of type T keyed by input position (including outputs that borrow the input).
+    fn memoized<T>(self) -> memoized::Memoized<Self, T>
     where
         Self: Sized,
     {
@@ -396,7 +399,10 @@ pub trait ParserCombinator {
     }
 }
 
-impl<'src, Inp: Input<'src>, P> Parser<'src, Inp> for P where P: internal::ParserImpl<'src, Inp> + 'src {}
+impl<'src, Inp: Input<'src>, P> Parser<'src, Inp> for P where
+    P: internal::ParserImpl<'src, Inp> + 'src
+{
+}
 
 pub(crate) trait ParserObjSafe<'src, Inp: Input<'src>, Output>: std::fmt::Debug {
     fn parse(

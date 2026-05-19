@@ -17,8 +17,8 @@ The full crate introduction is in `README.md` at the repository root. For book-s
 #![allow(private_bounds, private_interfaces)]
 extern crate self as marser;
 
+pub(crate) mod cache;
 pub(crate) mod context;
-pub(crate) mod memo_store;
 pub mod error;
 #[cfg(feature = "embed-guide")]
 #[path = "guide_embed.rs"]
@@ -52,9 +52,7 @@ use crate::trace::TraceFormat;
 use crate::trace::TraceSession;
 use crate::{
     context::ParserContext,
-    error::{
-        FurthestFailError, MatcherRunError, ParserError, error_handler::EmptyErrorHandler,
-    },
+    error::{FurthestFailError, MatcherRunError, ParserError, error_handler::EmptyErrorHandler},
     input::{Input, InputStream},
     matcher::{
         any_token::AnyToken, commit_matcher::commit_on, negative_lookahead::negative_lookahead,
@@ -210,7 +208,8 @@ pub fn parse_with_trace<'src, Pars, Out: 'src>(
 where
     Pars: Parser<'src, &'src str, Output = Out> + Clone + 'src,
 {
-    let (result, trace) = crate::parse_whole_input_inner_with_trace(&parser, src, TraceSession::new());
+    let (result, trace) =
+        crate::parse_whole_input_inner_with_trace(&parser, src, TraceSession::new());
     result.map(|(output, errors)| (output, errors, trace))
 }
 
@@ -224,8 +223,7 @@ pub fn parse_with_trace_session<'src, Pars, Out: 'src>(
 where
     Pars: Parser<'src, &'src str, Output = Out> + Clone + 'src,
 {
-    let (result, trace) =
-        crate::parse_whole_input_inner_with_trace(&parser, src, trace_session);
+    let (result, trace) = crate::parse_whole_input_inner_with_trace(&parser, src, trace_session);
     result.map(|(output, errors)| (output, errors, trace))
 }
 

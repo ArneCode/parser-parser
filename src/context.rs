@@ -15,8 +15,8 @@
 
 use std::collections::HashSet;
 
+use crate::cache::Cache;
 use crate::error::ParserError;
-use crate::memo_store::MemoStore;
 #[cfg(feature = "parser-trace")]
 use crate::trace::TraceState;
 
@@ -24,7 +24,7 @@ use crate::trace::TraceState;
 ///
 /// The lifetime `'src` matches the input parse invocation (see [`crate::input::InputStream`]).
 pub struct ParserContext<'src> {
-    pub memo_store: MemoStore<'src>,
+    pub cache: Cache<'src>,
     pub error_sink: Vec<ParserError>,
     pub registered_error_set: HashSet<(usize, usize)>,
     pub error_stack: Vec<ParserError>,
@@ -38,7 +38,7 @@ impl<'src> ParserContext<'src> {
     #[inline]
     pub fn new() -> Self {
         Self {
-            memo_store: MemoStore::default(),
+            cache: Cache::new(),
             error_sink: Vec::new(),
             registered_error_set: HashSet::new(),
             error_stack: Vec::new(),

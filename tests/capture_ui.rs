@@ -6,6 +6,7 @@
 //! (See the **Compile tests (`trybuild`)** section in the repo `README.md`.)
 
 #[test]
+#[cfg(not(miri))]
 fn capture_macro_ui() {
     let t = trybuild::TestCases::new();
     t.pass("tests/ui/capture_macro_smoke.rs");

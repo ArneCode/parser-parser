@@ -2,8 +2,8 @@
 
 use std::rc::Rc;
 
-use marser::parser::{Parser, ParserCombinator};
 use marser::capture;
+use marser::parser::{Parser, ParserCombinator};
 
 fn letter_word<'src>() -> impl Parser<'src, &'src str, Output = Rc<&'src str>> + Clone {
     capture!(
@@ -19,6 +19,7 @@ fn letter_word<'src>() -> impl Parser<'src, &'src str, Output = Rc<&'src str>> +
             slice as &'src str
         ) => slice
     )
+    .map_output(Rc::new)
     .memoized()
 }
 

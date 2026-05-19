@@ -3,15 +3,13 @@
 use std::mem::swap;
 
 use crate::{
+    cache::Cache,
     error::{
         MatcherRunError,
         error_handler::{ErrorHandler, MultiErrorHandler},
     },
     input::{Input, InputStream},
-    matcher::{
-        MatchRunner, Matcher, MatcherCombinator,
-    },
-    memo_store::MemoStore,
+    matcher::{MatchRunner, Matcher, MatcherCombinator},
     parser::capture::MatchResult,
 };
 
@@ -70,10 +68,13 @@ where
 
         let mut inner_error_handler = MultiErrorHandler::new(input.get_pos().into());
         // use empty cache so that every Symbol is explored fully, otherwise we might miss some errors due to memoization.
-        let mut cache = MemoStore::default();
-        swap(&mut runner.get_parser_context().memo_store, &mut cache);
-        let result = runner.run_match(&self.then_matcher, &mut inner_error_handler, input)?;
-        swap(&mut runner.get_parser_context().memo_store, &mut cache);
+        let mut cache = Cache::new();
+        swap(&mut runner.get_parser_context().cache, &mut cache);
+        let result = runner.run_match(&self.then_matcher, &mut inner_error_handler, input);
+        swap(&mut runner.get_parser_context().cache, &mut cache);
+
+        // only evaluating errors after swapping old cache back in
+        let result = result?;
 
         if result {
             Ok(true)
