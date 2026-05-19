@@ -191,10 +191,10 @@ impl<'src, MRes> super::internal::MatcherImpl<'src, &'src [u8], MRes> for u8 {
         Runner: MatchRunner<'a, 'src, &'src [u8], MRes = MRes>,
         'src: 'a,
     {
-        if let Some(tok) = input.next() {
-            if *tok == *self {
-                return Ok(true);
-            }
+        if let Some(tok) = input.next()
+            && *tok == *self
+        {
+            return Ok(true);
         }
         Ok(false)
     }

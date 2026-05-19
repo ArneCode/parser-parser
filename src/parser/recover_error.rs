@@ -83,13 +83,12 @@ where
                         if !context
                             .registered_error_set
                             .contains(&(self.id, start_pos.clone().into()))
+                            && let MatcherRunError::FurthestFail(f) = &e
                         {
-                            if let MatcherRunError::FurthestFail(f) = &e {
-                                context.error_sink.push(f.clone().as_parser_error());
-                                context
-                                    .registered_error_set
-                                    .insert((self.id, start_pos.into()));
-                            }
+                            context.error_sink.push(f.clone().as_parser_error());
+                            context
+                                .registered_error_set
+                                .insert((self.id, start_pos.into()));
                         }
 
                         Ok(Some(output))

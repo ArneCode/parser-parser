@@ -139,12 +139,12 @@ fn render_grammar_preview(state: &ViewerState) -> Text<'static> {
     let line_len = rule_line.len();
     let mut hl_start = (active_loc.column as usize).saturating_sub(1).min(line_len);
     let mut hl_end = hl_start;
-    if let Some(name) = rule.rule_name.as_deref() {
-        if !name.is_empty() {
-            let tentative_end = (hl_start + name.len()).min(line_len);
-            if tentative_end > hl_start && rule_line[hl_start..tentative_end] == *name {
-                hl_end = tentative_end;
-            }
+    if let Some(name) = rule.rule_name.as_deref()
+        && !name.is_empty()
+    {
+        let tentative_end = (hl_start + name.len()).min(line_len);
+        if tentative_end > hl_start && rule_line[hl_start..tentative_end] == *name {
+            hl_end = tentative_end;
         }
     }
     if hl_end <= hl_start && hl_start < line_len {

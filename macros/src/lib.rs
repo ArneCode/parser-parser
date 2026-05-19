@@ -263,10 +263,10 @@ impl BindRegistry {
                     ),
                 ));
             }
-            if existing.ty.is_none() {
-                if let Some(t) = ty {
-                    existing.ty = Some(t);
-                }
+            if existing.ty.is_none()
+                && let Some(t) = ty
+            {
+                existing.ty = Some(t);
             }
             Ok(())
         } else {
@@ -292,16 +292,16 @@ impl BindRegistry {
                 ),
             ));
         }
-        if let Some(existing) = self.value_kind_if_present(&ident) {
-            if existing != *kind {
-                return Err(syn::Error::new_spanned(
-                    &ident,
-                    format!(
-                        "binding `{}` is used with incompatible sigils (for example `x` vs `*x` vs `?x`) in the same `capture!`",
-                        ident
-                    ),
-                ));
-            }
+        if let Some(existing) = self.value_kind_if_present(&ident)
+            && existing != *kind
+        {
+            return Err(syn::Error::new_spanned(
+                &ident,
+                format!(
+                    "binding `{}` is used with incompatible sigils (for example `x` vs `*x` vs `?x`) in the same `capture!`",
+                    ident
+                ),
+            ));
         }
         let list = self.values_mut(kind);
         Self::merge_into(list, ident, ty)
@@ -322,16 +322,16 @@ impl BindRegistry {
                 ),
             ));
         }
-        if let Some(existing) = self.span_kind_if_present(&ident) {
-            if existing != *kind {
-                return Err(syn::Error::new_spanned(
-                    &ident,
-                    format!(
-                        "span binding `{}` is used with incompatible sigils in the same `capture!`",
-                        ident
-                    ),
-                ));
-            }
+        if let Some(existing) = self.span_kind_if_present(&ident)
+            && existing != *kind
+        {
+            return Err(syn::Error::new_spanned(
+                &ident,
+                format!(
+                    "span binding `{}` is used with incompatible sigils in the same `capture!`",
+                    ident
+                ),
+            ));
         }
         let list = self.spans_mut(kind);
         Self::merge_into(list, ident, ty)
@@ -381,15 +381,15 @@ impl<'ast> Visit<'ast> for BindCollector {
                         return;
                     }
                 };
-                if let Some(ref span_ident) = info.span_ident {
-                    if *span_ident == info.ident {
-                        self.bump_err(syn::Error::new_spanned(
-                            span_ident,
-                            "`bind!` value and span targets must use distinct identifiers",
-                        ));
-                        self.visit_expr(&info.parser);
-                        return;
-                    }
+                if let Some(ref span_ident) = info.span_ident
+                    && *span_ident == info.ident
+                {
+                    self.bump_err(syn::Error::new_spanned(
+                        span_ident,
+                        "`bind!` value and span targets must use distinct identifiers",
+                    ));
+                    self.visit_expr(&info.parser);
+                    return;
                 }
                 if let Err(e) =
                     self.reg
