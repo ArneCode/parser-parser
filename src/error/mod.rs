@@ -26,8 +26,8 @@ mod inline_error;
 mod render_annotate;
 
 pub use inline_error::{
-    AnnotationKind, BuildInlineError, ClosureBuild, DiagnosticAnnotation, InlineError,
-    MatchDiagCtx, MissingSyntax, SnapshotFactory, UnwantedSyntax, ctx_factory,
+    AnnotationKind, BuildInlineError, ClosureBuild, DiagnosticAnnotation,
+    InlineError, MatchDiagCtx, MissingSyntax, SnapshotFactory, UnwantedSyntax, ctx_factory,
 };
 
 pub(crate) mod error_handler;

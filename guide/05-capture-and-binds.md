@@ -601,7 +601,8 @@ capture!(
 Things to remember:
 
 - `use_binds!` is for **diagnostic builders**, not normal parser output.
-- It only makes sense **inside `capture!`**, where bind snapshots exist.
+- It only makes sense **inside the grammar** of `capture!` (not in the `=>` result expression), where bind snapshots exist.
+- The macro expands each site to a `__UseBindsSite::<N>` type that implements [`BuildInlineError`](crate::error::BuildInlineError) with the same `'snap` snapshot model as [`SnapshotFactory`](crate::error::SnapshotFactory) (hand-written factories can use `SnapshotFactory` directly).
 - It reads the captures that were already established on the successful path up
   to that point in the grammar.
 - The `ctx` argument gives you the current diagnostic span / insertion point,

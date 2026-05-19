@@ -282,7 +282,8 @@ where
 }
 
 /// Wraps a closure `Fn(&MRes::Snapshot<'a>, MatchDiagCtx) -> InlineError` for [`BuildInlineError`]
-/// (typically produced by `use_binds!` inside `capture!`).
+/// (typically produced by hand-written snapshot factories; `use_binds!` uses [`BuildInlineError`]
+/// directly on macro-generated `__UseBindsSite` instead).
 ///
 /// The closure bound goes through the internal `SnapCallable` trait (below) instead of `Fn` directly so that the HRTB
 /// over the snapshot lifetime is **conditional on `MRes: 'a`** rather than universal — without

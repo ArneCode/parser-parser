@@ -14,4 +14,5 @@ fn capture_macro_ui() {
     t.compile_fail("tests/ui/capture_value_span_same.rs");
     t.compile_fail("tests/ui/capture_trailing_tokens.rs");
     t.compile_fail("tests/ui/capture_type_mismatch.rs");
+    t.compile_fail("tests/ui/capture_use_binds_in_result.rs");
 }

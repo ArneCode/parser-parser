@@ -1,0 +1,5 @@
+error: `use_binds!` is only allowed in the grammar of `capture!`, not in the `=>` result expression
+ --> tests/ui/capture_use_binds_in_result.rs:4:80
+  |
+4 |     let _p = capture!(bind!(marser::parser::SingleTokenParser::new('a'), x) => use_binds!(|ctx| {
+  |                                                                                ^^^^^^^^^

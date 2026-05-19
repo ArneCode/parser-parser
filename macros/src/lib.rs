@@ -3,6 +3,9 @@
 //! Prefer `use marser::capture;` (re-exported from the main crate). This crate is the proc-macro
 //! implementation; [`capture`] builds a `marser::parser::capture::Capture` parser from a grammar expression.
 
+// this was implemented by AI. It works as far as I can tell.
+// I plan to simplify the use_binds! logic in the future.
+
 use std::cell::{Cell, RefCell};
 
 use proc_macro::TokenStream;
@@ -435,15 +438,7 @@ impl<'ast> Visit<'ast> for BindCollector {
     }
 }
 
-/// One `use_binds!(|ctx| { … })` site inside a `capture!`, collected for shared factory codegen.
-struct UseBindSite {
-    site: usize,
-    ctx_ident: Ident,
-    inner: proc_macro2::TokenStream,
-}
-
-/// Build the `(S, M, O)` tuple for [`Capture::<MRes, _, _>`] (same rules as the historical
-/// `type_tuple` in `capture!`: explicit `as T` is preserved; untyped values use `_`).
+/// Build the `(S, M, O)` tuple for [`Capture::<MRes, _, _>`] (explicit `as T` preserved; untyped values use `_`).
 fn build_capture_mres_tuple(registry: &BindRegistry) -> proc_macro2::TokenStream {
     let build_bucket = |values: &[TypedBinding], spans: &[TypedBinding], is_vec: bool| {
         let wrap = |inner: proc_macro2::TokenStream| {
@@ -483,8 +478,34 @@ fn build_capture_mres_tuple(registry: &BindRegistry) -> proc_macro2::TokenStream
     quote! { (#s_ty, #m_ty, #o_ty) }
 }
 
-/// Build the `(S, M, O)` tuple for [`BuildInlineError<MRes>`] on `__UseBindsFactory`, plus the list
-/// of fresh type parameters `__BindTn` (1A — avoids spelling outer lifetimes in nested impls).
+// ---------------------------------------------------------------------------
+// `use_binds!` expansion
+// ---------------------------------------------------------------------------
+//
+// User-facing syntax is `use_binds!(|ctx| { … })` for `err_if_*` factories. Hand-written
+// grammars can use `marser::error::SnapshotFactory(|snap, ctx| { … })` instead; that path goes
+// through `SnapCallable` in the main crate.
+//
+// We do **not** expand each `use_binds!` to an inline `SnapshotFactory` closure because:
+//
+// 1. **Type inference** — `Capture::<MRes, …>` needs a concrete `MRes` triple. An untyped closure
+//    in the grammar blocks inference (`E0282`). Putting `__BindTn` on `Capture::new` itself would
+//    leak those names into the user's function scope (`E0412`).
+//
+// 2. **`'src` / `erase_types`** — Wrapping a site in `SnapshotFactory(…)` makes `err_if_*` see
+//    `SnapshotFactory<F>` with `F: for<'a> SnapCallable<'a, MRes>`. That bound can still force the
+//    `MRes: 'static` well-formedness trap (see `inline_error.rs`), breaking parsers with
+//    `bind_slice!` and `.erase_types()` on borrowed input.
+//
+// The approach below matches what worked before: one ZST per capture, `BuildInlineError` with an
+// explicit `build_inline_error<'snap>(…, snapshot) where MRes: 'snap`, and `__BindTn` only on the
+// **impl** (not on `Capture`). Sites are `__UseBindsSite::<N>`; multiple sites share one struct and
+// a `match SITE` body. Same snapshot locals as a closure expansion would use (`snapshot_bind_lets`).
+
+/// `(S, M, O)` for [`BuildInlineError`] on `__UseBindsSite`, plus `__BindTn` impl type parameters.
+///
+/// Separate from [`build_capture_mres_tuple`]: `Capture` keeps `_` for inference; the factory impl
+/// declares `__BindT0`, … so rustc can unify capture slots with `bind!` output types.
 fn build_factory_mres_tuple(registry: &BindRegistry) -> (proc_macro2::TokenStream, Vec<Ident>) {
     let mut gen_names: Vec<Ident> = Vec::new();
     let mut next_ty = |span: Span| -> proc_macro2::TokenStream {
@@ -579,9 +600,15 @@ fn snapshot_bind_lets(
     (single_lets, multiple_lets, optional_lets)
 }
 
-/// Emit one `__UseBindsFactory<const SITE>` plus a single `BuildInlineError` impl that dispatches
-/// on `SITE` (4B).
-fn emit_use_binds_factory(
+/// One `use_binds!` site collected before codegen (becomes a `match` arm in [`emit_use_binds_sites`]).
+struct UseBindSite {
+    site: usize,
+    ctx_ident: Ident,
+    inner: proc_macro2::TokenStream,
+}
+
+/// Emit `__UseBindsSite` and a single `BuildInlineError` impl for all sites in this `capture!`.
+fn emit_use_binds_sites(
     sites: &[UseBindSite],
     registry: &BindRegistry,
     marser: &Path,
@@ -617,17 +644,17 @@ fn emit_use_binds_factory(
         .collect();
 
     quote! {
-        struct __UseBindsFactory<const __SITE: usize>;
+        struct __UseBindsSite<const __SITE: usize>;
 
-        impl #const_site_params ::core::clone::Clone for __UseBindsFactory<__SITE> {
+        impl #const_site_params ::core::clone::Clone for __UseBindsSite<__SITE> {
             fn clone(&self) -> Self {
                 *self
             }
         }
 
-        impl #const_site_params ::core::marker::Copy for __UseBindsFactory<__SITE> {}
+        impl #const_site_params ::core::marker::Copy for __UseBindsSite<__SITE> {}
 
-        impl #build_inline_params #marser::error::BuildInlineError<#mres> for __UseBindsFactory<__SITE> {
+        impl #build_inline_params #marser::error::BuildInlineError<#mres> for __UseBindsSite<__SITE> {
             fn build_inline_error<'__snap>(
                 &self,
                 __ctx: #marser::error::MatchDiagCtx,
@@ -680,6 +707,19 @@ struct UseBindsRewriter {
     errors: RefCell<Option<syn::Error>>,
 }
 
+impl UseBindsRewriter {
+    fn bump_err(&self, e: syn::Error) {
+        let mut slot = self.errors.borrow_mut();
+        *slot = Some(match slot.take() {
+            None => e,
+            Some(mut prev) => {
+                prev.combine(e);
+                prev
+            }
+        });
+    }
+}
+
 impl VisitMut for UseBindsRewriter {
     fn visit_expr_mut(&mut self, expr: &mut Expr) {
         if let Expr::Macro(m) = expr
@@ -688,28 +728,14 @@ impl VisitMut for UseBindsRewriter {
             let closure = match m.mac.parse_body::<ExprClosure>() {
                 Ok(c) => c,
                 Err(e) => {
-                    let mut slot = self.errors.borrow_mut();
-                    *slot = Some(match slot.take() {
-                        None => e,
-                        Some(mut prev) => {
-                            prev.combine(e);
-                            prev
-                        }
-                    });
+                    self.bump_err(e);
                     return;
                 }
             };
             let (ctx_ident, inner) = match parse_use_binds_closure(closure) {
                 Ok(x) => x,
                 Err(e) => {
-                    let mut slot = self.errors.borrow_mut();
-                    *slot = Some(match slot.take() {
-                        None => e,
-                        Some(mut prev) => {
-                            prev.combine(e);
-                            prev
-                        }
-                    });
+                    self.bump_err(e);
                     return;
                 }
             };
@@ -721,22 +747,34 @@ impl VisitMut for UseBindsRewriter {
                 inner,
             });
             let lit = syn::LitInt::new(&format!("{}", site), Span::call_site());
-            match syn::parse2::<Expr>(quote! { __UseBindsFactory::<#lit> }) {
+            // ZST factory type, not `SnapshotFactory(closure)` — see module comment above.
+            match syn::parse2::<Expr>(quote! { __UseBindsSite::<#lit> }) {
                 Ok(expanded) => *expr = expanded,
-                Err(e) => {
-                    let mut slot = self.errors.borrow_mut();
-                    *slot = Some(match slot.take() {
-                        None => e,
-                        Some(mut prev) => {
-                            prev.combine(e);
-                            prev
-                        }
-                    });
-                }
+                Err(e) => self.bump_err(e),
             }
             return;
         }
         visit_mut::visit_expr_mut(self, expr);
+    }
+}
+
+/// Reject `use_binds!` in the `capture!` result expression (only meaningful in the grammar).
+struct UseBindsInResultChecker {
+    error: Option<syn::Error>,
+}
+
+impl<'ast> Visit<'ast> for UseBindsInResultChecker {
+    fn visit_expr(&mut self, expr: &'ast Expr) {
+        if let Expr::Macro(m) = expr
+            && m.mac.path.is_ident("use_binds")
+        {
+            self.error = Some(syn::Error::new_spanned(
+                m.mac.path.get_ident().unwrap(),
+                "`use_binds!` is only allowed in the grammar of `capture!`, not in the `=>` result expression",
+            ));
+            return;
+        }
+        visit::visit_expr(self, expr);
     }
 }
 
@@ -876,9 +914,10 @@ impl VisitMut for BindMacroExpander {
 /// - **`bind_slice!(parser, ident)`** / **`bind_slice!(parser, *ident)`** / **`bind_slice!(parser, ?ident)`** / **`bind_slice!(parser, ident as T)`** —
 ///   capture only the consumed input slice (expands to `marser::parser::capture::bind_slice`).
 ///
-/// - **`use_binds!(move \|ctx: MatchDiagCtx\| { … })`** — expands to `__UseBindsFactory::<N>`; the
-///   `capture!` expansion emits one shared `__UseBindsFactory<const SITE>` implementing
-///   [`marser::error::BuildInlineError`] with `match SITE` dispatch so multiple sites share one type.
+/// - **`use_binds!(|ctx| { … })`** — expands to `__UseBindsSite::<N>` (not an inline
+///   [`marser::error::SnapshotFactory`] closure). One shared `__UseBindsSite<const SITE>` per
+///   `capture!` implements [`marser::error::BuildInlineError`] with `match SITE` dispatch. See the
+///   `use_binds! expansion` comment in this crate for why (inference, `'src`, `erase_types`).
 ///
 /// Repeated **compatible** binds to the same identifier (same sigil bucket and compatible `as`
 /// types) are merged into one capture slot. Conflicting sigils, incompatible explicit types, or
@@ -923,6 +962,7 @@ pub fn capture(input: TokenStream) -> TokenStream {
     let o_pat = pat_tuple(&registry.optional_values, &registry.optional_spans);
 
     let mres_capture = build_capture_mres_tuple(&registry);
+    // Only used when the grammar contains `use_binds!`; see `use_binds!` section above.
     let (mres_factory, mres_generics) = build_factory_mres_tuple(&registry);
 
     let mut use_binds_rw = UseBindsRewriter {
@@ -931,13 +971,18 @@ pub fn capture(input: TokenStream) -> TokenStream {
         errors: RefCell::new(None),
     };
     use_binds_rw.visit_expr_mut(&mut input.grammar);
-    use_binds_rw.visit_expr_mut(&mut input.result_expr);
     if let Some(e) = use_binds_rw.errors.into_inner() {
         return e.to_compile_error().into();
     }
     let sites = use_binds_rw.sites.into_inner();
 
-    let factory_block = emit_use_binds_factory(
+    let mut result_checker = UseBindsInResultChecker { error: None };
+    result_checker.visit_expr(&input.result_expr);
+    if let Some(e) = result_checker.error {
+        return e.to_compile_error().into();
+    }
+
+    let use_binds_block = emit_use_binds_sites(
         &sites,
         &registry,
         &marser_path,
@@ -950,7 +995,7 @@ pub fn capture(input: TokenStream) -> TokenStream {
 
     TokenStream::from(quote! {
         {
-            #factory_block
+            #use_binds_block
             #[allow(unused_variables)]
             #marser_path::parser::as_parser(
                 #marser_path::parser::capture::Capture::<#mres_capture, _, _>::new(
