@@ -74,3 +74,27 @@ impl<'src, Inp: Input<'src, Token = char>> super::internal::ParserImpl<'src, Inp
         Ok(None)
     }
 }
+
+impl ParserCombinator for u8 {}
+
+impl<'src> super::internal::ParserImpl<'src, &'src [u8]> for u8 {
+    type Output = u8;
+    const CAN_FAIL: bool = true;
+
+    #[inline]
+    fn parse(
+        &self,
+        _context: &mut ParserContext<'src>,
+        _error_handler: &mut impl ErrorHandler,
+        input: &mut InputStream<'src, &'src [u8]>,
+    ) -> Result<Option<Self::Output>, MatcherRunError> {
+        let start = input.get_pos();
+        if let Some(tok) = input.next()
+            && *tok == *self
+        {
+            return Ok(Some(*self));
+        }
+        input.set_pos(start);
+        Ok(None)
+    }
+}

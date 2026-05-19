@@ -196,3 +196,109 @@ where
         Some(Box::new(format!("{}..={}", self.start(), self.end())))
     }
 }
+
+// --- `&[u8]` input (`Token = &u8`): ranges over `u8` ---
+
+impl<'src> super::internal::ParserImpl<'src, &'src [u8]> for RangeInclusive<u8> {
+    type Output = u8;
+    const CAN_FAIL: bool = true;
+
+    #[inline]
+    fn parse(
+        &self,
+        _context: &mut ParserContext<'src>,
+        _error_handler: &mut impl ErrorHandler,
+        input: &mut InputStream<'src, &'src [u8]>,
+    ) -> Result<Option<Self::Output>, MatcherRunError> {
+        let old_pos = input.get_pos();
+        if let Some(token) = input.next()
+            && self.contains(token)
+        {
+            return Ok(Some(*token));
+        }
+        input.set_pos(old_pos);
+        Ok(None)
+    }
+}
+
+impl<'src> super::internal::ParserImpl<'src, &'src [u8]> for Range<u8> {
+    type Output = u8;
+    const CAN_FAIL: bool = true;
+
+    #[inline]
+    fn parse(
+        &self,
+        _context: &mut ParserContext<'src>,
+        _error_handler: &mut impl ErrorHandler,
+        input: &mut InputStream<'src, &'src [u8]>,
+    ) -> Result<Option<Self::Output>, MatcherRunError> {
+        let old_pos = input.get_pos();
+        if let Some(token) = input.next()
+            && self.contains(token)
+        {
+            return Ok(Some(*token));
+        }
+        input.set_pos(old_pos);
+        Ok(None)
+    }
+}
+
+impl<'src, MRes> MatcherImpl<'src, &'src [u8], MRes> for RangeInclusive<u8> {
+    const CAN_MATCH_DIRECTLY: bool = true;
+    const HAS_PROPERTY: bool = false;
+    const CAN_FAIL: bool = true;
+
+    #[inline]
+    fn match_with_runner<'a, Runner>(
+        &'a self,
+        _runner: &mut Runner,
+        _error_handler: &mut impl ErrorHandler,
+        input: &mut InputStream<'src, &'src [u8]>,
+    ) -> Result<bool, MatcherRunError>
+    where
+        Runner: MatchRunner<'a, 'src, &'src [u8], MRes = MRes>,
+        'src: 'a,
+    {
+        if let Some(token) = input.next()
+            && self.contains(token)
+        {
+            return Ok(true);
+        }
+        Ok(false)
+    }
+
+    #[inline]
+    fn maybe_label(&self) -> Option<Box<dyn Display>> {
+        Some(Box::new(format!("{}..={}", self.start(), self.end())))
+    }
+}
+
+impl<'src, MRes> MatcherImpl<'src, &'src [u8], MRes> for Range<u8> {
+    const CAN_MATCH_DIRECTLY: bool = true;
+    const HAS_PROPERTY: bool = false;
+    const CAN_FAIL: bool = true;
+
+    #[inline]
+    fn match_with_runner<'a, Runner>(
+        &'a self,
+        _runner: &mut Runner,
+        _error_handler: &mut impl ErrorHandler,
+        input: &mut InputStream<'src, &'src [u8]>,
+    ) -> Result<bool, MatcherRunError>
+    where
+        Runner: MatchRunner<'a, 'src, &'src [u8], MRes = MRes>,
+        'src: 'a,
+    {
+        if let Some(token) = input.next()
+            && self.contains(token)
+        {
+            return Ok(true);
+        }
+        Ok(false)
+    }
+
+    #[inline]
+    fn maybe_label(&self) -> Option<Box<dyn Display>> {
+        Some(Box::new(format!("{}..{}", self.start, self.end)))
+    }
+}
