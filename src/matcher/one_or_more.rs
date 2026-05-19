@@ -24,10 +24,7 @@ pub fn one_or_more<Match>(matcher: Match) -> OneOrMore<Match> {
     OneOrMore::new(matcher)
 }
 
-impl<Match> super::MatcherCombinator for OneOrMore<Match> where
-    Match: super::MatcherCombinator
-{
-}
+impl<Match> super::MatcherCombinator for OneOrMore<Match> where Match: super::MatcherCombinator {}
 
 impl<'src, Inp: Input<'src>, MRes, Match> super::internal::MatcherImpl<'src, Inp, MRes>
     for OneOrMore<Match>

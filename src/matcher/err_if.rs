@@ -67,9 +67,8 @@ where
             false => {
                 if error_handler.is_real() {
                     let ctx = MatchDiagCtx::insertion_point(start_pos);
-                    let err = runner.with_snapshot(|snap| {
-                        self.factory.build_inline_error(ctx, snap)
-                    });
+                    let err =
+                        runner.with_snapshot(|snap| self.factory.build_inline_error(ctx, snap));
                     runner
                         .get_parser_context()
                         .push_stack_error(ParserError::Inline(err));

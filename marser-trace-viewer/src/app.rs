@@ -10,9 +10,9 @@ use crossterm::{
 };
 use ratatui::{Terminal, backend::CrosstermBackend};
 
-use marser_trace_schema::{TraceFormat, load_trace_file};
 use crate::state::ViewerState;
 use crate::ui;
+use marser_trace_schema::{TraceFormat, load_trace_file};
 
 pub fn run(
     trace_path: std::path::PathBuf,

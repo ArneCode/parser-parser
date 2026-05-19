@@ -31,7 +31,11 @@ pub fn render(frame: &mut Frame<'_>, state: &ViewerState) {
     let grammar_preview = render_grammar_preview(state);
     frame.render_widget(
         Paragraph::new(grammar_preview)
-            .block(Block::default().title("Grammar Source").borders(Borders::ALL))
+            .block(
+                Block::default()
+                    .title("Grammar Source")
+                    .borders(Borders::ALL),
+            )
             .wrap(Wrap { trim: false }),
         outer[0],
     );
@@ -45,10 +49,7 @@ pub fn render(frame: &mut Frame<'_>, state: &ViewerState) {
     } else {
         "Source Input".to_string()
     };
-    let mut source_lines = vec![
-        Line::from("controls: i s u backspace q"),
-        Line::from(""),
-    ];
+    let mut source_lines = vec![Line::from("controls: i s u backspace q"), Line::from("")];
     source_lines.extend(source_preview.lines);
     frame.render_widget(
         Paragraph::new(Text::from(source_lines))
@@ -81,17 +82,28 @@ pub fn render(frame: &mut Frame<'_>, state: &ViewerState) {
         format!("trace: cursor -/{} | no current shown event", total.max(1))
     };
     frame.render_widget(
-        Paragraph::new(trace_status).block(Block::default().title("Trace Position").borders(Borders::ALL)),
+        Paragraph::new(trace_status).block(
+            Block::default()
+                .title("Trace Position")
+                .borders(Borders::ALL),
+        ),
         bottom[0],
     );
     frame.render_widget(
-        Paragraph::new(state.last_step_result.as_str())
-            .block(Block::default().borders(Borders::ALL).title("Step / current")),
+        Paragraph::new(state.last_step_result.as_str()).block(
+            Block::default()
+                .borders(Borders::ALL)
+                .title("Step / current"),
+        ),
         bottom[1],
     );
     frame.render_widget(
         Paragraph::new(state.marker_context_text())
-            .block(Block::default().borders(Borders::ALL).title("Marker context"))
+            .block(
+                Block::default()
+                    .borders(Borders::ALL)
+                    .title("Marker context"),
+            )
             .wrap(Wrap { trim: true }),
         bottom[2],
     );
@@ -118,7 +130,9 @@ fn render_grammar_preview(state: &ViewerState) -> Text<'static> {
     let Some(active_loc) = active_loc else {
         return Text::from("Current event has no location.");
     };
-    let line_idx = (active_loc.line as usize).saturating_sub(1).min(lines.len() - 1);
+    let line_idx = (active_loc.line as usize)
+        .saturating_sub(1)
+        .min(lines.len() - 1);
     let from = line_idx.saturating_sub(10);
     let to = (line_idx + 11).min(lines.len());
     let rule_line = lines[line_idx];
@@ -141,8 +155,7 @@ fn render_grammar_preview(state: &ViewerState) -> Text<'static> {
             hl_start -= 1;
         }
         hl_end = hl_start;
-        while hl_end < line_len
-            && (bytes[hl_end].is_ascii_alphanumeric() || bytes[hl_end] == b'_')
+        while hl_end < line_len && (bytes[hl_end].is_ascii_alphanumeric() || bytes[hl_end] == b'_')
         {
             hl_end += 1;
         }
@@ -221,9 +234,7 @@ fn render_source_preview(state: &ViewerState) -> Text<'static> {
         let from_line = start_line.saturating_sub(8);
         let to_line = (end_line + 9).min(line_starts.len());
 
-        let overlaps = |a0: usize, a1: usize, b0: usize, b1: usize| -> bool {
-            a1 > b0 && a0 < b1
-        };
+        let overlaps = |a0: usize, a1: usize, b0: usize, b1: usize| -> bool { a1 > b0 && a0 < b1 };
 
         let mut lines = Vec::new();
         for line_idx in from_line..to_line {

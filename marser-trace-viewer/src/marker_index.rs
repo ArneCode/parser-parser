@@ -15,7 +15,9 @@ pub fn build_marker_index(events: &[NodeTrace]) -> MarkerIndex {
     let start_indices = events
         .iter()
         .enumerate()
-        .filter(|(_, e)| e.is_explicit_trace_marker && matches!(e.marker_phase, TraceMarkerPhase::Start))
+        .filter(|(_, e)| {
+            e.is_explicit_trace_marker && matches!(e.marker_phase, TraceMarkerPhase::Start)
+        })
         .map(|(idx, _)| idx)
         .collect::<Vec<_>>();
 

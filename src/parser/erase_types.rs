@@ -82,4 +82,3 @@ where
 {
     Erased { inner: Box::new(p) }
 }
-

@@ -23,15 +23,16 @@ impl MarkerOutcome {
     }
 }
 
-pub fn outcome_for_marker_span(events: &[NodeTrace], start_idx: usize, start_to_end: &std::collections::HashMap<usize, usize>) -> MarkerOutcome {
+pub fn outcome_for_marker_span(
+    events: &[NodeTrace],
+    start_idx: usize,
+    start_to_end: &std::collections::HashMap<usize, usize>,
+) -> MarkerOutcome {
     if let Some(end_idx) = start_to_end.get(&start_idx).copied() {
         let start = &events[start_idx];
         let mut saw_error = false;
         for event in &events[(start_idx + 1)..end_idx] {
-            if matches!(
-                event.runtime_kind,
-                Some(TraceEventKind::MatchHardError)
-            ) {
+            if matches!(event.runtime_kind, Some(TraceEventKind::MatchHardError)) {
                 saw_error = true;
                 break;
             }
@@ -45,10 +46,7 @@ pub fn outcome_for_marker_span(events: &[NodeTrace], start_idx: usize, start_to_
         }
         let end = &events[end_idx];
         max_error_stack_len = max_error_stack_len.max(end.error_stack_len);
-        if matches!(
-            end.runtime_kind,
-            Some(TraceEventKind::MatchHardError)
-        ) {
+        if matches!(end.runtime_kind, Some(TraceEventKind::MatchHardError)) {
             return MarkerOutcome::Error;
         }
         let recovered_by_counters = max_error_stack_len > start.error_stack_len;
@@ -71,10 +69,7 @@ pub fn outcome_for_marker_span(events: &[NodeTrace], start_idx: usize, start_to_
     let start = &events[start_idx];
     let mut max_error_stack_len = start.error_stack_len;
     for event in &events[start_idx..window_end_exclusive] {
-        if matches!(
-            event.runtime_kind,
-            Some(TraceEventKind::MatchHardError)
-        ) {
+        if matches!(event.runtime_kind, Some(TraceEventKind::MatchHardError)) {
             saw_error = true;
         }
         max_error_stack_len = max_error_stack_len.max(event.error_stack_len);
@@ -110,7 +105,9 @@ fn next_start_index(events: &[NodeTrace], after: usize) -> Option<usize> {
         .iter()
         .enumerate()
         .filter(|(idx, e)| {
-            *idx > after && e.is_explicit_trace_marker && matches!(e.marker_phase, TraceMarkerPhase::Start)
+            *idx > after
+                && e.is_explicit_trace_marker
+                && matches!(e.marker_phase, TraceMarkerPhase::Start)
         })
         .map(|(idx, _)| idx)
         .next()

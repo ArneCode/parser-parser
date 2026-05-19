@@ -19,6 +19,6 @@ pub use io::{TraceFormat, detect_trace_format, load_json, load_jsonl, load_trace
 pub use rule::{RuleIdentity, RuleSourceMetadata, TraceLocation};
 pub use session::TraceSession;
 pub use version::{
-    UnsupportedTraceVersion, SCHEMA_VERSION, SUPPORTED_TRACE_VERSION_MAX,
-    SUPPORTED_TRACE_VERSION_MIN, check_trace_version,
+    SCHEMA_VERSION, SUPPORTED_TRACE_VERSION_MAX, SUPPORTED_TRACE_VERSION_MIN,
+    UnsupportedTraceVersion, check_trace_version,
 };

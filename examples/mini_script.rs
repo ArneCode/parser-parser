@@ -27,12 +27,20 @@
 // the expression after `=>` builds the AST value from any bound pieces.
 use std::{env, fs, process, rc::Rc};
 
-use marser::{
-    error::{FurthestFailError, ParserError}, input::Input, label::WithLabel, matcher::{
-        AnyToken, Matcher, MatcherCombinator, commit_matcher::commit_on, if_error::if_error, multiple::many, negative_lookahead::negative_lookahead, one_or_more::one_or_more, optional::optional, parser_matcher::match_parsed, positive_lookahead::positive_lookahead, unwanted
-    }, one_of::one_of, parser::{Parser, ParserCombinator, deferred::recursive}
-};
 use marser::capture;
+use marser::{
+    error::{FurthestFailError, ParserError},
+    input::Input,
+    label::WithLabel,
+    matcher::{
+        AnyToken, Matcher, MatcherCombinator, commit_matcher::commit_on, if_error::if_error,
+        multiple::many, negative_lookahead::negative_lookahead, one_or_more::one_or_more,
+        optional::optional, parser_matcher::match_parsed, positive_lookahead::positive_lookahead,
+        unwanted,
+    },
+    one_of::one_of,
+    parser::{Parser, ParserCombinator, deferred::recursive},
+};
 
 type Span = (usize, usize);
 
@@ -88,8 +96,14 @@ struct UnaryToken {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Stmt<'src> {
-    Let { name: Ident<'src>, value: Expr<'src> },
-    Assign { name: Ident<'src>, value: Expr<'src> },
+    Let {
+        name: Ident<'src>,
+        value: Expr<'src>,
+    },
+    Assign {
+        name: Ident<'src>,
+        value: Expr<'src>,
+    },
     Print(Expr<'src>),
     If {
         condition: Expr<'src>,
@@ -107,10 +121,19 @@ pub enum Stmt<'src> {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Expr<'src> {
-    Number { literal: &'src str, span: Span },
-    Bool { value: bool, span: Span },
+    Number {
+        literal: &'src str,
+        span: Span,
+    },
+    Bool {
+        value: bool,
+        span: Span,
+    },
     Ident(Ident<'src>),
-    Group { expr: Box<Expr<'src>>, span: Span },
+    Group {
+        expr: Box<Expr<'src>>,
+        span: Span,
+    },
     Unary {
         op: UnaryOp,
         expr: Box<Expr<'src>>,
@@ -122,7 +145,10 @@ pub enum Expr<'src> {
         right: Box<Expr<'src>>,
         span: Span,
     },
-    Invalid { source: &'src str, span: Span },
+    Invalid {
+        source: &'src str,
+        span: Span,
+    },
 }
 
 impl<'src> Expr<'src> {
@@ -149,11 +175,7 @@ fn merge_span(left: Span, right: Span) -> Span {
 //
 // `fold_binary` turns that into a left-associative AST. For example,
 // `a - b - c` becomes `(a - b) - c`.
-fn fold_binary<'src>(
-    first: Expr<'src>,
-    ops: Vec<BinaryOp>,
-    rights: Vec<Expr<'src>>,
-) -> Expr<'src> {
+fn fold_binary<'src>(first: Expr<'src>, ops: Vec<BinaryOp>, rights: Vec<Expr<'src>>) -> Expr<'src> {
     ops.into_iter()
         .zip(rights)
         .fold(first, |left, (op, right)| {
@@ -450,7 +472,8 @@ fn invalid_statement_parser<'src>() -> impl Parser<'src, &'src str, Output = Stm
     )
 }
 
-pub fn get_mini_script_grammar<'src>() -> impl Parser<'src, &'src str, Output = Program<'src>> + Clone {
+pub fn get_mini_script_grammar<'src>()
+-> impl Parser<'src, &'src str, Output = Program<'src>> + Clone {
     // Statements are recursive because blocks contain statements, and statements
     // can themselves be blocks.
     let statement = recursive(|statement| {

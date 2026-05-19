@@ -20,7 +20,9 @@
 //!   on [`SingleProperty`], [`MultipleProperty`], and [`OptionalProperty`] call `SingleSnapProj::project`
 //!   (or the multiple/optional equivalents) on that value.
 
-use super::match_result::{MatchResult, MatchResultMultiple, MatchResultOptional, MatchResultSingle};
+use super::match_result::{
+    MatchResult, MatchResultMultiple, MatchResultOptional, MatchResultSingle,
+};
 
 /// Snapshot projector for a [`MatchResultSingle`] bucket: given a bucket-level snapshot, return
 /// the slot corresponding to one specific bound value.
@@ -36,10 +38,7 @@ where
     Bucket: MatchResultSingle,
 {
     /// Returns a mutable reference to the `Option<&'d V>` field inside `snap` for this bind slot.
-    fn project<'a, 'd>(
-        &self,
-        snap: &'a mut Bucket::Snapshot<'d>,
-    ) -> &'a mut Option<&'d V>
+    fn project<'a, 'd>(&self, snap: &'a mut Bucket::Snapshot<'d>) -> &'a mut Option<&'d V>
     where
         Bucket: 'd;
 }
@@ -54,10 +53,7 @@ where
     Bucket: MatchResultMultiple,
 {
     /// Returns a mutable reference to the `Vec<&'d V>` field inside `snap` for this bind slot.
-    fn project<'a, 'd>(
-        &self,
-        snap: &'a mut Bucket::Snapshot<'d>,
-    ) -> &'a mut Vec<&'d V>
+    fn project<'a, 'd>(&self, snap: &'a mut Bucket::Snapshot<'d>) -> &'a mut Vec<&'d V>
     where
         Bucket: 'd;
 }
@@ -72,10 +68,7 @@ where
     Bucket: MatchResultOptional,
 {
     /// Returns a mutable reference to the `Option<&'d V>` field inside `snap` for this bind slot.
-    fn project<'a, 'd>(
-        &self,
-        snap: &'a mut Bucket::Snapshot<'d>,
-    ) -> &'a mut Option<&'d V>
+    fn project<'a, 'd>(&self, snap: &'a mut Bucket::Snapshot<'d>) -> &'a mut Option<&'d V>
     where
         Bucket: 'd;
 }

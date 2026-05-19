@@ -9,7 +9,8 @@ use crate::{
     context::ParserContext,
     error::{MatcherRunError, error_handler::ErrorHandler},
     input::{Input, InputStream},
-    matcher::{MatchRunner, MatcherCombinator, internal::MatcherImpl}, parser::ParserCombinator,
+    matcher::{MatchRunner, MatcherCombinator, internal::MatcherImpl},
+    parser::ParserCombinator,
 };
 
 /// Named wrapper holding a [`RangeBounds`] value; accepts one in-range token (same idea as the [`Range`] / [`RangeInclusive`] impls below).
@@ -18,9 +19,7 @@ pub struct RangeParser<Range> {
     range: Range,
 }
 
-impl<Range> ParserCombinator for RangeParser<Range> 
-{
-}
+impl<Range> ParserCombinator for RangeParser<Range> {}
 
 impl<Range> RangeParser<Range> {
     /// Parser that accepts one token contained in `range`.
@@ -57,9 +56,7 @@ where
     }
 }
 
-impl<Token> ParserCombinator for Range<Token> 
-{
-}
+impl<Token> ParserCombinator for Range<Token> {}
 
 impl<'src, Inp: Input<'src, Token = Token>, Token> super::internal::ParserImpl<'src, Inp>
     for Range<Token>
@@ -88,9 +85,7 @@ where
     }
 }
 
-impl<Token> ParserCombinator for RangeInclusive<Token> 
-{
-}
+impl<Token> ParserCombinator for RangeInclusive<Token> {}
 
 impl<'src, Inp: Input<'src, Token = Token>, Token> super::internal::ParserImpl<'src, Inp>
     for RangeInclusive<Token>
@@ -119,9 +114,7 @@ where
     }
 }
 
-impl<Token> MatcherCombinator for Range<Token> 
-{
-}
+impl<Token> MatcherCombinator for Range<Token> {}
 
 impl<'src, Inp: Input<'src, Token = Token>, Token, MRes> MatcherImpl<'src, Inp, MRes>
     for Range<Token>
@@ -158,9 +151,7 @@ where
     }
 }
 
-impl<Token> MatcherCombinator for RangeInclusive<Token> 
-{
-}
+impl<Token> MatcherCombinator for RangeInclusive<Token> {}
 
 impl<'src, Inp: Input<'src, Token = Token>, Token, MRes> MatcherImpl<'src, Inp, MRes>
     for RangeInclusive<Token>

@@ -21,10 +21,11 @@ fn valid_json_parses_without_recovery_errors() {
     for path in valid_files {
         let source = read_fixture(path);
         let parser = json_example::get_json_grammar();
-        let (value, errors) = parser
-            .parse_str(source.as_str())
-            .unwrap_or_else(|err| {
-            panic!("valid fixture {} failed with hard parse error:\n{err:#?}", path);
+        let (value, errors) = parser.parse_str(source.as_str()).unwrap_or_else(|err| {
+            panic!(
+                "valid fixture {} failed with hard parse error:\n{err:#?}",
+                path
+            );
         });
 
         assert!(
@@ -48,11 +49,7 @@ fn invalid_json_produces_recovery_errors_and_recovered_ast() {
     ];
 
     for path in invalid_files {
-        assert!(
-            Path::new(path).exists(),
-            "missing invalid fixture {}",
-            path
-        );
+        assert!(Path::new(path).exists(), "missing invalid fixture {}", path);
         let source = read_fixture(path);
         let parser = json_example::get_json_grammar();
 

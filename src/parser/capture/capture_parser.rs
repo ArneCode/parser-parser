@@ -108,7 +108,8 @@ where
             match runner.run_match(&self.matcher, error_handler, input) {
                 Ok(true) => {
                     let (res_single, res_multiple, res_optional) = runner.get_match_result();
-                    let result = (self.constructor)(res_single.to_output(), res_multiple, res_optional);
+                    let result =
+                        (self.constructor)(res_single.to_output(), res_multiple, res_optional);
                     Ok(Some(result))
                 }
                 Ok(false) => Ok(None),
@@ -119,7 +120,8 @@ where
             match runner.run_match(&self.matcher, error_handler, input) {
                 Ok(true) => {
                     let (res_single, res_multiple, res_optional) = runner.get_match_result();
-                    let result = (self.constructor)(res_single.to_output(), res_multiple, res_optional);
+                    let result =
+                        (self.constructor)(res_single.to_output(), res_multiple, res_optional);
                     Ok(Some(result))
                 }
                 Ok(false) => Ok(None),

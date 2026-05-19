@@ -23,10 +23,7 @@ pub fn optional<Match>(matcher: Match) -> Optional<Match> {
     Optional::new(matcher)
 }
 
-impl<Match> super::MatcherCombinator for Optional<Match> where
-    Match: super::MatcherCombinator
-{
-}
+impl<Match> super::MatcherCombinator for Optional<Match> where Match: super::MatcherCombinator {}
 
 impl<'src, Inp: Input<'src>, MRes, Match> super::internal::MatcherImpl<'src, Inp, MRes>
     for Optional<Match>

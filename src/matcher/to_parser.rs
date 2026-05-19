@@ -22,10 +22,7 @@ pub struct ToParser<Match, Output> {
 impl<Match, Output> ToParser<Match, Output> {
     /// Wrap `matcher` and return `output` whenever it succeeds.
     pub fn new(matcher: Match, output: Output) -> Self {
-        Self {
-            matcher,
-            output,
-        }
+        Self { matcher, output }
     }
 }
 

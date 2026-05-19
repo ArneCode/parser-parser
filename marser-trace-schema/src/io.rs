@@ -23,7 +23,10 @@ struct TraceJsonEnvelope {
     source_text: Option<String>,
 }
 
-pub fn load_trace_file(path: impl AsRef<Path>, format: Option<TraceFormat>) -> io::Result<TraceSession> {
+pub fn load_trace_file(
+    path: impl AsRef<Path>,
+    format: Option<TraceFormat>,
+) -> io::Result<TraceSession> {
     let path = path.as_ref();
     let file = File::open(path)?;
     let format = match format {

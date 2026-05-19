@@ -21,6 +21,4 @@ pub use result_binder::{ResultBinder, bind_result};
 pub use slice_binder::{SliceBinder, bind_slice};
 pub use span_binder::{SpanBinder, bind_span};
 
-pub use match_result::{
-    MatchResult, MatchResultMultiple, MatchResultOptional, MatchResultSingle,
-};
+pub use match_result::{MatchResult, MatchResultMultiple, MatchResultOptional, MatchResultSingle};

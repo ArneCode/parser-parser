@@ -2,7 +2,7 @@
 
 use marser_trace_schema::{
     NodeTrace, NodeTraceKind, NodeTraceStatus, TraceEventKind, TraceMarkerPhase, TraceSession,
-    load_json, check_trace_version,
+    check_trace_version, load_json,
 };
 
 #[test]

@@ -4,8 +4,8 @@
 
 use std::collections::HashMap;
 
-use marser_trace_schema::{NodeTrace, TraceEventKind, TraceMarkerPhase, TraceSession};
 use crate::marker_index::build_marker_index;
+use marser_trace_schema::{NodeTrace, TraceEventKind, TraceMarkerPhase, TraceSession};
 
 #[derive(Clone, Debug)]
 pub enum ReplayCommand {
@@ -103,7 +103,9 @@ impl ReplaySession {
         }
         if let Some(next_idx) = self.next_marker_start_after(self.cursor) {
             self.cursor = next_idx;
-            return Some(ReplayNotification::CurrentEvent(self.events[next_idx].clone()));
+            return Some(ReplayNotification::CurrentEvent(
+                self.events[next_idx].clone(),
+            ));
         }
         self.cursor = self.events.len();
         Some(ReplayNotification::ParseComplete)
@@ -145,7 +147,9 @@ impl ReplaySession {
             && let Some(next_idx) = self.next_marker_start_after(end_idx)
         {
             self.cursor = next_idx;
-            return Some(ReplayNotification::CurrentEvent(self.events[next_idx].clone()));
+            return Some(ReplayNotification::CurrentEvent(
+                self.events[next_idx].clone(),
+            ));
         }
         self.cursor = self.events.len();
         Some(ReplayNotification::ParseComplete)
@@ -172,9 +176,11 @@ impl ReplaySession {
 
     fn matches_breakpoint(bp: &ReplayBreakpoint, event: &NodeTrace) -> bool {
         match bp {
-            ReplayBreakpoint::EventKind(kind) => event.runtime_kind.as_ref().is_some_and(|runtime_kind| {
-                std::mem::discriminant(kind) == std::mem::discriminant(runtime_kind)
-            }),
+            ReplayBreakpoint::EventKind(kind) => {
+                event.runtime_kind.as_ref().is_some_and(|runtime_kind| {
+                    std::mem::discriminant(kind) == std::mem::discriminant(runtime_kind)
+                })
+            }
             ReplayBreakpoint::Label(label) => event.label.as_ref() == Some(label),
             ReplayBreakpoint::RuleId(rule_id) => event
                 .rule

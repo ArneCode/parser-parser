@@ -113,8 +113,7 @@ fn non_interactive_valid_fixtures_run_successfully() {
         assert!(
             errors.is_empty(),
             "non-interactive valid fixture {} had {} diagnostic(s)",
-            file.display()
-            ,
+            file.display(),
             errors.len()
         );
         let _ = value;

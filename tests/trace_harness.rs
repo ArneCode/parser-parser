@@ -9,7 +9,10 @@ use marser::{
     parser::Parser,
     trace::{NodeTraceStatus, TraceEventKind, TraceFormat, TraceMarkerPhase, WithTrace},
 };
-use std::{fs, time::{SystemTime, UNIX_EPOCH}};
+use std::{
+    fs,
+    time::{SystemTime, UNIX_EPOCH},
+};
 
 fn tiny_parser<'src>() -> impl Parser<'src, &'src str, Output = &'src str> + Clone {
     one_of(("ab".to("ab"), "ac".to("ac")))
@@ -52,7 +55,10 @@ fn trace_events_include_rule_identity_metadata() {
         .iter()
         .filter_map(|event| event.rule.as_ref())
         .collect::<Vec<_>>();
-    assert!(!with_rule.is_empty(), "expected at least one event with rule metadata");
+    assert!(
+        !with_rule.is_empty(),
+        "expected at least one event with rule metadata"
+    );
     assert!(
         with_rule
             .iter()
@@ -76,7 +82,12 @@ fn same_rule_reuses_rule_id_within_parse() {
     let count = trace
         .events()
         .iter()
-        .filter(|event| event.rule.as_ref().is_some_and(|rule| rule.rule_id == first_rule_id))
+        .filter(|event| {
+            event
+                .rule
+                .as_ref()
+                .is_some_and(|rule| rule.rule_id == first_rule_id)
+        })
         .count();
     assert!(count > 1, "expected same rule id to appear multiple times");
 }
@@ -105,15 +116,23 @@ fn depth_only_changes_at_capture_boundaries() {
     let starts = trace
         .events()
         .iter()
-        .filter(|event| event.is_explicit_trace_marker && matches!(event.marker_phase, TraceMarkerPhase::Start))
+        .filter(|event| {
+            event.is_explicit_trace_marker && matches!(event.marker_phase, TraceMarkerPhase::Start)
+        })
         .collect::<Vec<_>>();
     let ends = trace
         .events()
         .iter()
-        .filter(|event| event.is_explicit_trace_marker && matches!(event.marker_phase, TraceMarkerPhase::End))
+        .filter(|event| {
+            event.is_explicit_trace_marker && matches!(event.marker_phase, TraceMarkerPhase::End)
+        })
         .collect::<Vec<_>>();
     assert!(!starts.is_empty());
-    assert_eq!(starts.len(), ends.len(), "explicit starts/ends should stay paired");
+    assert_eq!(
+        starts.len(),
+        ends.len(),
+        "explicit starts/ends should stay paired"
+    );
 }
 
 #[test]
@@ -136,7 +155,9 @@ fn explicit_trace_markers_are_paired_and_ordered() {
         .filter_map(|event| event.label.clone())
         .collect::<Vec<_>>();
     assert!(
-        start_labels.windows(2).any(|pair| pair == ["first arm", "second arm"]),
+        start_labels
+            .windows(2)
+            .any(|pair| pair == ["first arm", "second arm"]),
         "expected explicit marker starts to preserve trace call order"
     );
 
@@ -155,12 +176,7 @@ fn explicit_trace_markers_are_paired_and_ordered() {
 
 #[test]
 fn explicit_trace_marker_end_reflects_inner_soft_fail() {
-    let parser = one_of((
-        "zz"
-            .to("zz")
-            .trace_with_label("no match"),
-        "ab".to("ab"),
-    ));
+    let parser = one_of(("zz".to("zz").trace_with_label("no match"), "ab".to("ab")));
     let (_out, _errors, trace) = parse_with_trace(parser.clone(), "ab").unwrap();
     let end = trace
         .events()
@@ -191,10 +207,7 @@ fn explicit_trace_marker_end_reflects_inner_success() {
 
 #[test]
 fn explicit_trace_marker_end_includes_failure_snapshot_on_soft_fail() {
-    let parser = one_of((
-        "zz".to("zz").trace_with_label("no match"),
-        "ab".to("ab"),
-    ));
+    let parser = one_of(("zz".to("zz").trace_with_label("no match"), "ab".to("ab")));
     let (_out, _errors, trace) = parse_with_trace(parser.clone(), "ab").unwrap();
     let end = trace
         .events()
@@ -236,5 +249,3 @@ fn parse_with_trace_to_file_writes_trace_on_error() {
 
     let _ = fs::remove_file(trace_path);
 }
-
-

@@ -157,8 +157,7 @@ impl<'src, I: Input<'src>> InputStream<'src, I> {
     /// Forwards to [`Input::try_consume_prefix_bytes`] on the underlying input.
     #[inline]
     pub(crate) fn try_consume_prefix_bytes(&mut self, prefix: &[u8]) -> Option<bool> {
-        self.input
-            .try_consume_prefix_bytes(&mut self.pos, prefix)
+        self.input.try_consume_prefix_bytes(&mut self.pos, prefix)
     }
 
     #[inline]
@@ -236,7 +235,10 @@ mod tests {
     fn str_input_try_consume_via_trait() {
         let mut s: &str = "abc";
         let mut pos = 0usize;
-        assert_eq!(Input::try_consume_prefix_bytes(&mut s, &mut pos, b"ab"), Some(true));
+        assert_eq!(
+            Input::try_consume_prefix_bytes(&mut s, &mut pos, b"ab"),
+            Some(true)
+        );
         assert_eq!(pos, 2);
     }
 }

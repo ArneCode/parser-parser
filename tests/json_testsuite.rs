@@ -114,7 +114,8 @@ fn exercise_file(path: &Path) {
         Err(e) => panic!("{}: read: {e}", path.display()),
     };
 
-    let kind = classify(path).unwrap_or_else(|| panic!("{}: unknown filename prefix", path.display()));
+    let kind =
+        classify(path).unwrap_or_else(|| panic!("{}: unknown filename prefix", path.display()));
 
     thread::scope(|s| {
         thread::Builder::new()
@@ -194,6 +195,10 @@ fn nst_single_file_from_env() {
         return;
     };
     let path = PathBuf::from(path);
-    assert!(path.is_file(), "JSONSUITE_FILE={} is not a file", path.display());
+    assert!(
+        path.is_file(),
+        "JSONSUITE_FILE={} is not a file",
+        path.display()
+    );
     exercise_file(&path);
 }

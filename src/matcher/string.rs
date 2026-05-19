@@ -21,8 +21,7 @@ impl StringMatcher {
     }
 }
 
-impl super::MatcherCombinator for StringMatcher {
-}
+impl super::MatcherCombinator for StringMatcher {}
 
 impl<'src, Inp: Input<'src, Token = char>, MRes> super::internal::MatcherImpl<'src, Inp, MRes>
     for StringMatcher
@@ -66,8 +65,7 @@ impl<'src, Inp: Input<'src, Token = char>, MRes> super::internal::MatcherImpl<'s
     }
 }
 
-impl super::MatcherCombinator for &str {
-}
+impl super::MatcherCombinator for &str {}
 
 impl<'src, Inp: Input<'src, Token = char>, MRes> super::internal::MatcherImpl<'src, Inp, MRes>
     for &str

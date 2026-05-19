@@ -108,7 +108,10 @@ impl ViewerState {
     }
 
     fn next_start_after(&self, idx: usize) -> Option<usize> {
-        self.start_indices.iter().copied().find(|start| *start > idx)
+        self.start_indices
+            .iter()
+            .copied()
+            .find(|start| *start > idx)
     }
 
     pub fn set_current_index(&mut self, idx: usize) {
@@ -164,8 +167,10 @@ impl ViewerState {
             );
         } else {
             self.current_idx = None;
-            self.last_step_result =
-                format!("s: {} -> {} | parse complete", current_label, current_outcome);
+            self.last_step_result = format!(
+                "s: {} -> {} | parse complete",
+                current_label, current_outcome
+            );
         }
     }
 

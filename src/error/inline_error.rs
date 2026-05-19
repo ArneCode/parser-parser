@@ -150,11 +150,7 @@ impl fmt::Display for InlineError {
             write!(f, " at {a}..{b}")?;
         }
         for ann in &self.annotations {
-            write!(
-                f,
-                "\n  {}..{}: {}",
-                ann.span.0, ann.span.1, ann.message
-            )?;
+            write!(f, "\n  {}..{}: {}", ann.span.0, ann.span.1, ann.message)?;
         }
         for note in &self.notes {
             write!(f, "\nnote: {note}")?;

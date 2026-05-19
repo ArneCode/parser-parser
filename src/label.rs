@@ -17,15 +17,9 @@ pub struct Labeled<L, I> {
     inner: I,
 }
 
-impl<L, I> ParserCombinator for Labeled<L, I> where
-    I: ParserCombinator,
-{
-}
+impl<L, I> ParserCombinator for Labeled<L, I> where I: ParserCombinator {}
 
-impl<L, I> MatcherCombinator for Labeled<L, I> where
-    I: MatcherCombinator,
-{
-}
+impl<L, I> MatcherCombinator for Labeled<L, I> where I: MatcherCombinator {}
 
 impl<L, I> Labeled<L, I> {
     /// Pairs a label with an inner parser or matcher.

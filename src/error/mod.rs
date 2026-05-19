@@ -26,8 +26,8 @@ mod inline_error;
 mod render_annotate;
 
 pub use inline_error::{
-    AnnotationKind, BuildInlineError, ClosureBuild, DiagnosticAnnotation,
-    InlineError, MatchDiagCtx, MissingSyntax, SnapshotFactory, UnwantedSyntax, ctx_factory,
+    AnnotationKind, BuildInlineError, ClosureBuild, DiagnosticAnnotation, InlineError,
+    MatchDiagCtx, MissingSyntax, SnapshotFactory, UnwantedSyntax, ctx_factory,
 };
 
 pub(crate) mod error_handler;
@@ -268,11 +268,7 @@ impl std::fmt::Display for FurthestFailError {
         };
         write!(f, "{} at {}..{}", expected_msg, self.span.0, self.span.1)?;
         for ann in &self.annotations {
-            write!(
-                f,
-                "\n  {}..{}: {}",
-                ann.span.0, ann.span.1, ann.message
-            )?;
+            write!(f, "\n  {}..{}: {}", ann.span.0, ann.span.1, ann.message)?;
         }
         for note in &self.notes {
             write!(f, "\nnote: {note}")?;

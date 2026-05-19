@@ -9,8 +9,8 @@ use marser::parser::Parser;
 #[allow(dead_code)]
 mod json_grammar;
 
-pub use json_grammar::get_json_grammar;
 pub use json_grammar::JsonValue;
+pub use json_grammar::get_json_grammar;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum Fixture {

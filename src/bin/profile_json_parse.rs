@@ -27,7 +27,7 @@ use marser::parser::Parser;
 #[path = "../../benches/json_parse_shared.rs"]
 mod shared;
 
-use shared::{assert_parse_clean, get_json_grammar, load_src, Fixture};
+use shared::{Fixture, assert_parse_clean, get_json_grammar, load_src};
 
 fn usage() -> ! {
     eprintln!("usage: profile_json_parse [json0|canada] [seconds]");

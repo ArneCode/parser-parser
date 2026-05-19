@@ -159,7 +159,8 @@ impl ErrorHandler for MultiErrorHandler {
             }
         }
         // Now this error is at least as interesting as the best failure, so register it.
-        self.expected_labels.push((label.unwrap().to_string(), idx.creation_time));
+        self.expected_labels
+            .push((label.unwrap().to_string(), idx.creation_time));
     }
     #[inline]
     fn to_choice(&mut self) -> ErrorHandlerChoice<'_> {

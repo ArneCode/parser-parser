@@ -5,7 +5,8 @@ use std::fmt::Debug;
 use crate::{
     context::ParserContext,
     error::{MatcherRunError, error_handler::ErrorHandler},
-    input::{Input, InputStream}, parser::ParserCombinator,
+    input::{Input, InputStream},
+    parser::ParserCombinator,
 };
 
 /// Matches `token` and advances by one on success.
@@ -21,9 +22,7 @@ impl<Token> SingleTokenParser<Token> {
     }
 }
 
-impl<Token> ParserCombinator for SingleTokenParser<Token> 
-{
-}
+impl<Token> ParserCombinator for SingleTokenParser<Token> {}
 
 impl<'src, Inp: Input<'src, Token = Token>, Token: PartialEq + Clone + Debug>
     super::internal::ParserImpl<'src, Inp> for SingleTokenParser<Token>
@@ -49,9 +48,7 @@ impl<'src, Inp: Input<'src, Token = Token>, Token: PartialEq + Clone + Debug>
 }
 
 // impl<Token, Label> MaybeLabel<Label> for SingleTokenParser<Token> {}
-impl ParserCombinator for char 
-{
-}
+impl ParserCombinator for char {}
 
 impl<'src, Inp: Input<'src, Token = char>> super::internal::ParserImpl<'src, Inp> for char {
     type Output = char;

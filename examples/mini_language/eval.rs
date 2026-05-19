@@ -299,16 +299,32 @@ impl<'src> Runtime<'src> {
                     match (lhs, rhs) {
                         (Value::Num(l), Value::Num(r)) => Ok(Value::Num(l + r)),
                         (Value::Str(l), Value::Str(r)) => Ok(Value::Str(l + &r)),
-                        _ => Err(RuntimeError::new("operator `+` expects number+number or string+string")),
+                        _ => Err(RuntimeError::new(
+                            "operator `+` expects number+number or string+string",
+                        )),
                     }
                 }
-                BinOp::Sub => Ok(Value::Num(self.eval_expr(lhand)?.as_num()? - self.eval_expr(rhand)?.as_num()?)),
-                BinOp::Mul => Ok(Value::Num(self.eval_expr(lhand)?.as_num()? * self.eval_expr(rhand)?.as_num()?)),
-                BinOp::Div => Ok(Value::Num(self.eval_expr(lhand)?.as_num()? / self.eval_expr(rhand)?.as_num()?)),
-                BinOp::Less => Ok(Value::Bool(self.eval_expr(lhand)?.as_num()? < self.eval_expr(rhand)?.as_num()?)),
-                BinOp::LessOrEqual => Ok(Value::Bool(self.eval_expr(lhand)?.as_num()? <= self.eval_expr(rhand)?.as_num()?)),
-                BinOp::Greater => Ok(Value::Bool(self.eval_expr(lhand)?.as_num()? > self.eval_expr(rhand)?.as_num()?)),
-                BinOp::GreaterOrEqual => Ok(Value::Bool(self.eval_expr(lhand)?.as_num()? >= self.eval_expr(rhand)?.as_num()?)),
+                BinOp::Sub => Ok(Value::Num(
+                    self.eval_expr(lhand)?.as_num()? - self.eval_expr(rhand)?.as_num()?,
+                )),
+                BinOp::Mul => Ok(Value::Num(
+                    self.eval_expr(lhand)?.as_num()? * self.eval_expr(rhand)?.as_num()?,
+                )),
+                BinOp::Div => Ok(Value::Num(
+                    self.eval_expr(lhand)?.as_num()? / self.eval_expr(rhand)?.as_num()?,
+                )),
+                BinOp::Less => Ok(Value::Bool(
+                    self.eval_expr(lhand)?.as_num()? < self.eval_expr(rhand)?.as_num()?,
+                )),
+                BinOp::LessOrEqual => Ok(Value::Bool(
+                    self.eval_expr(lhand)?.as_num()? <= self.eval_expr(rhand)?.as_num()?,
+                )),
+                BinOp::Greater => Ok(Value::Bool(
+                    self.eval_expr(lhand)?.as_num()? > self.eval_expr(rhand)?.as_num()?,
+                )),
+                BinOp::GreaterOrEqual => Ok(Value::Bool(
+                    self.eval_expr(lhand)?.as_num()? >= self.eval_expr(rhand)?.as_num()?,
+                )),
                 BinOp::Equal => {
                     let lhs = self.eval_expr(lhand)?;
                     let rhs = self.eval_expr(rhand)?;

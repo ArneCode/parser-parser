@@ -5,8 +5,8 @@ use marser::error::{FurthestFailError, ParserError};
 use marser::parser::Parser;
 
 use self::eval::{RuntimeError, Value, run_file};
-use self::grammar::get_mini_language_grammar;
 use self::grammar::FunctionDef;
+use self::grammar::get_mini_language_grammar;
 
 // `RunError` is only surfaced through `run_source`; the example binary does not call `run_source`.
 #[allow(dead_code)]

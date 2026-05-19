@@ -2,6 +2,8 @@
 
 use std::fmt::Display;
 
+#[cfg(feature = "parser-trace")]
+use crate::error::error_handler::ErrorHandlerChoice;
 use crate::{
     context::ParserContext,
     error::{MatcherRunError, error_handler::ErrorHandler},
@@ -9,8 +11,6 @@ use crate::{
     matcher::{MatchRunner, Matcher, MatcherCombinator, internal::MatcherImpl},
     parser::{Parser, ParserCombinator, internal::ParserImpl},
 };
-#[cfg(feature = "parser-trace")]
-use crate::error::error_handler::ErrorHandlerChoice;
 
 #[cfg(feature = "parser-trace")]
 use super::{
@@ -28,12 +28,15 @@ fn trace_failure_snapshot_for_end(
         ExplicitMarkerEndOutcome::Success => None,
         ExplicitMarkerEndOutcome::HardError => hard_err,
         ExplicitMarkerEndOutcome::SoftFail => match error_handler.to_choice() {
-            ErrorHandlerChoice::Multi(m) => Some(TraceMarkerFailureSnapshot::from(&m.to_parser_error())),
+            ErrorHandlerChoice::Multi(m) => {
+                Some(TraceMarkerFailureSnapshot::from(&m.to_parser_error()))
+            }
             ErrorHandlerChoice::Empty(_) => Some(TraceMarkerFailureSnapshot {
                 span_start: input_pos,
                 span_end: input_pos,
                 expected: vec![],
-                summary: "no match (soft fail; no labelled errors recorded for this attempt)".to_string(),
+                summary: "no match (soft fail; no labelled errors recorded for this attempt)"
+                    .to_string(),
             }),
         },
     }

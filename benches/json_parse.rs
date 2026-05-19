@@ -1,12 +1,12 @@
 use std::time::Duration;
 
-use criterion::{black_box, criterion_group, criterion_main, Criterion};
+use criterion::{Criterion, black_box, criterion_group, criterion_main};
 use marser::parser::Parser;
 
 #[path = "json_parse_shared.rs"]
 mod shared;
 
-use shared::{assert_parse_clean, get_json_grammar, load_src, Fixture};
+use shared::{Fixture, assert_parse_clean, get_json_grammar, load_src};
 
 fn bench_fixture(c: &mut Criterion, fixture: Fixture) {
     let label = fixture.label();

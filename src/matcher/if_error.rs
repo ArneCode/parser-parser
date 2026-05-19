@@ -18,7 +18,8 @@ pub struct IfErrorElseFail<Inner> {
 }
 
 impl<Inner> super::MatcherCombinator for IfError<Inner> where Inner: super::MatcherCombinator {}
-impl<Inner> super::MatcherCombinator for IfErrorElseFail<Inner> where Inner: super::MatcherCombinator {}
+impl<Inner> super::MatcherCombinator for IfErrorElseFail<Inner> where Inner: super::MatcherCombinator
+{}
 
 impl<Inner> crate::parser::ParserCombinator for IfErrorElseFail<Inner> where
     Inner: crate::parser::ParserCombinator

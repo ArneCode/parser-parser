@@ -47,11 +47,12 @@ pub mod sequence;
 pub mod string;
 /// Matcher-to-parser adapters that return a fixed output.
 pub mod to_parser;
+pub use crate::error::MatcherRunError;
 pub use any_token::AnyToken;
 pub use commit_matcher::{CommitMatcher, commit_on};
 pub use err_if::{
-    ErrIfMatchedMatcher, ErrIfNoMatchMatcher, err_if_matched, err_if_no_match, try_insert_if_missing,
-    unwanted,
+    ErrIfMatchedMatcher, ErrIfNoMatchMatcher, err_if_matched, err_if_no_match,
+    try_insert_if_missing, unwanted,
 };
 pub use error_contextualizer::ErrorContextualizer;
 pub use multiple::{Multiple, many};
@@ -63,15 +64,11 @@ pub use positive_lookahead::{PositiveLookahead, positive_lookahead};
 pub(crate) use runner::{DirectMatchRunner, MatchRunner, NoMemoizeBacktrackingRunner};
 pub use string::StringMatcher;
 pub use to_parser::ToParser;
-pub use crate::error::MatcherRunError;
 
 use std::{fmt::Display, ops::Deref, rc::Rc};
 
 use crate::{
-    error::{
-        MissingSyntax, UnwantedSyntax,
-        error_handler::ErrorHandler,
-    },
+    error::{MissingSyntax, UnwantedSyntax, error_handler::ErrorHandler},
     input::{Input, InputStream},
 };
 

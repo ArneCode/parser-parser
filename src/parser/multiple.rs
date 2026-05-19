@@ -14,7 +14,8 @@ pub struct MultipleParser<Pars, CombF> {
     combine_fn: CombF,
 }
 
-impl<Pars, CombF> std::fmt::Debug for MultipleParser<Pars, CombF> where
+impl<Pars, CombF> std::fmt::Debug for MultipleParser<Pars, CombF>
+where
     Pars: std::fmt::Debug,
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -31,10 +32,7 @@ impl<Pars, CombF> MultipleParser<Pars, CombF> {
     }
 }
 
-impl<Pars, CombF> ParserCombinator for MultipleParser<Pars, CombF> where
-    Pars: ParserCombinator
-{
-}
+impl<Pars, CombF> ParserCombinator for MultipleParser<Pars, CombF> where Pars: ParserCombinator {}
 
 impl<'src, Inp: Input<'src>, NodeIn, NodeOut, Pars, CombF> super::internal::ParserImpl<'src, Inp>
     for MultipleParser<Pars, CombF>

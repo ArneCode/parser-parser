@@ -23,10 +23,7 @@ pub fn many<Match>(matcher: Match) -> Multiple<Match> {
     Multiple::new(matcher)
 }
 
-impl<Match> super::MatcherCombinator for Multiple<Match> where
-    Match: super::MatcherCombinator
-{
-}
+impl<Match> super::MatcherCombinator for Multiple<Match> where Match: super::MatcherCombinator {}
 
 impl<'src, Inp: Input<'src>, MRes, Match> super::internal::MatcherImpl<'src, Inp, MRes>
     for Multiple<Match>

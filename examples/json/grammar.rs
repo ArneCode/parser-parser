@@ -4,7 +4,6 @@ use marser::capture;
 use marser::{
     error::{AnnotationKind, FurthestFailError, InlineError},
     label::WithLabel,
-    trace::WithTrace,
     matcher::{
         AnyToken, MatcherCombinator,
         commit_matcher::commit_on,
@@ -13,11 +12,11 @@ use marser::{
         negative_lookahead,
         one_or_more::one_or_more,
         optional::optional,
-        positive_lookahead,
-        unwanted,
+        positive_lookahead, unwanted,
     },
     one_of::one_of,
     parser::{Parser, ParserCombinator, deferred::recursive, token_parser::TokenParser},
+    trace::WithTrace,
 };
 
 #[derive(Debug, Clone, PartialEq)]
@@ -91,7 +90,9 @@ impl<'src> JsonValue<'src> {
 
 pub fn get_json_grammar<'src>() -> impl Parser<'src, &'src str, Output = JsonValue<'src>> + Clone {
     recursive(|element| {
-        let ws = Rc::new(many(one_of((' ', '\t', '\n', '\r')).with_label("whitespace")));
+        let ws = Rc::new(many(
+            one_of((' ', '\t', '\n', '\r')).with_label("whitespace"),
+        ));
 
         let null = capture!(("null", ws.clone()) => JsonValue::Null).with_label("null");
         let bool_false =
@@ -199,32 +200,30 @@ pub fn get_json_grammar<'src>() -> impl Parser<'src, &'src str, Output = JsonVal
             std::char::from_u32(codepoint).unwrap_or('\u{FFFD}')
         })
         .with_label("unicode escape");
-        let raw_string = Rc::new(
-            capture!({
-                commit_on(
-                    bind_span!('"', open_quote_span as (usize, usize)),
-                    (
-                    many(one_of((
-                        bind!(character.clone(), *chars),
-                        bind!(escaped_char, *chars),
-                        bind!(unicode_escape, *chars),
-                    ))),
-                    '"'.err_if_no_match(use_binds!(|ctx| {
-                        let open_quote_span: Option<(usize, usize)> = open_quote_span.copied();
-                        InlineError::new("missing closing quote")
-                            .with_span(Some(ctx.span()))
-                            .with_annotation(
-                                open_quote_span.unwrap(),
-                                "quote opened here",
-                                AnnotationKind::Context,
-                            )
-                    })),
-                    ws.clone()
-                ))
-            } =>  {
-                chars.into_iter().collect::<String>()
-            })
-        )
+        let raw_string = Rc::new(capture!({
+            commit_on(
+                bind_span!('"', open_quote_span as (usize, usize)),
+                (
+                many(one_of((
+                    bind!(character.clone(), *chars),
+                    bind!(escaped_char, *chars),
+                    bind!(unicode_escape, *chars),
+                ))),
+                '"'.err_if_no_match(use_binds!(|ctx| {
+                    let open_quote_span: Option<(usize, usize)> = open_quote_span.copied();
+                    InlineError::new("missing closing quote")
+                        .with_span(Some(ctx.span()))
+                        .with_annotation(
+                            open_quote_span.unwrap(),
+                            "quote opened here",
+                            AnnotationKind::Context,
+                        )
+                })),
+                ws.clone()
+            ))
+        } =>  {
+            chars.into_iter().collect::<String>()
+        }))
         .with_label("quoted string")
         .erase_types();
 

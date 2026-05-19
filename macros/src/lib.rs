@@ -12,9 +12,7 @@ use quote::{quote, quote_spanned};
 use syn::parse::{Parse, ParseStream, Result as ParseResult};
 use syn::visit::{self, Visit};
 use syn::visit_mut::{self, VisitMut};
-use syn::{
-    Expr, ExprClosure, Ident, Index, Path, Pat, Token, Type, parse_quote,
-};
+use syn::{Expr, ExprClosure, Ident, Index, Pat, Path, Token, Type, parse_quote};
 
 // ---------------------------------------------------------------------------
 // Input structs
@@ -100,13 +98,19 @@ impl Parse for BindInfo {
         let (span_ident, span_kind, span_ty) = if input.peek(Token![,]) {
             let _: Token![,] = input.parse()?;
             let span_target = parse_typed_target(input)?;
-            (Some(span_target.ident), Some(span_target.kind), span_target.ty)
+            (
+                Some(span_target.ident),
+                Some(span_target.kind),
+                span_target.ty,
+            )
         } else {
             (None, None, None)
         };
 
         if !input.is_empty() {
-            return Err(input.error("unexpected tokens in `bind!` (expected `bind!(parser, target [, span_target])`)"));
+            return Err(input.error(
+                "unexpected tokens in `bind!` (expected `bind!(parser, target [, span_target])`)",
+            ));
         }
 
         Ok(BindInfo {
@@ -244,7 +248,11 @@ impl BindRegistry {
         }
     }
 
-    fn merge_into(list: &mut Vec<TypedBinding>, ident: Ident, ty: Option<Type>) -> std::result::Result<(), syn::Error> {
+    fn merge_into(
+        list: &mut Vec<TypedBinding>,
+        ident: Ident,
+        ty: Option<Type>,
+    ) -> std::result::Result<(), syn::Error> {
         if let Some(existing) = list.iter_mut().find(|e| e.ident == ident) {
             if !Self::types_compatible(&existing.ty, &ty) {
                 return Err(syn::Error::new_spanned(
@@ -269,7 +277,12 @@ impl BindRegistry {
 
     /// Register a value capture. Repeated uses of the same `ident` with the same sigil bucket are merged
     /// when `as` types are compatible (see module docs on `capture!`).
-    fn register_value(&mut self, ident: Ident, ty: Option<Type>, kind: &BindKind) -> std::result::Result<(), syn::Error> {
+    fn register_value(
+        &mut self,
+        ident: Ident,
+        ty: Option<Type>,
+        kind: &BindKind,
+    ) -> std::result::Result<(), syn::Error> {
         if self.ident_in_any_span_list(&ident) {
             return Err(syn::Error::new_spanned(
                 &ident,
@@ -294,7 +307,12 @@ impl BindRegistry {
         Self::merge_into(list, ident, ty)
     }
 
-    fn register_span(&mut self, ident: Ident, ty: Option<Type>, kind: &BindKind) -> std::result::Result<(), syn::Error> {
+    fn register_span(
+        &mut self,
+        ident: Ident,
+        ty: Option<Type>,
+        kind: &BindKind,
+    ) -> std::result::Result<(), syn::Error> {
         if self.ident_in_any_value_list(&ident) {
             return Err(syn::Error::new_spanned(
                 &ident,
@@ -373,20 +391,18 @@ impl<'ast> Visit<'ast> for BindCollector {
                         return;
                     }
                 }
-                if let Err(e) = self.reg.register_value(
-                    info.ident.clone(),
-                    info.value_ty.clone(),
-                    &info.kind,
-                ) {
+                if let Err(e) =
+                    self.reg
+                        .register_value(info.ident.clone(), info.value_ty.clone(), &info.kind)
+                {
                     self.bump_err(e);
                 }
                 if let Some(span_ident) = &info.span_ident {
                     let span_kind = info.span_kind.as_ref().unwrap();
-                    if let Err(e) = self.reg.register_span(
-                        span_ident.clone(),
-                        info.span_ty.clone(),
-                        span_kind,
-                    ) {
+                    if let Err(e) =
+                        self.reg
+                            .register_span(span_ident.clone(), info.span_ty.clone(), span_kind)
+                    {
                         self.bump_err(e);
                     }
                 }
@@ -402,9 +418,9 @@ impl<'ast> Visit<'ast> for BindCollector {
                         return;
                     }
                 };
-                if let Err(e) = self
-                    .reg
-                    .register_span(info.span_ident.clone(), info.ty.clone(), &info.kind)
+                if let Err(e) =
+                    self.reg
+                        .register_span(info.span_ident.clone(), info.ty.clone(), &info.kind)
                 {
                     self.bump_err(e);
                 }
@@ -420,11 +436,10 @@ impl<'ast> Visit<'ast> for BindCollector {
                         return;
                     }
                 };
-                if let Err(e) = self.reg.register_value(
-                    info.slice_ident.clone(),
-                    info.ty.clone(),
-                    &info.kind,
-                ) {
+                if let Err(e) =
+                    self.reg
+                        .register_value(info.slice_ident.clone(), info.ty.clone(), &info.kind)
+                {
                     self.bump_err(e);
                 }
                 self.visit_expr(&info.parser);
@@ -675,7 +690,9 @@ fn emit_use_binds_sites(
     }
 }
 
-fn parse_use_binds_closure(closure: ExprClosure) -> std::result::Result<(Ident, proc_macro2::TokenStream), syn::Error> {
+fn parse_use_binds_closure(
+    closure: ExprClosure,
+) -> std::result::Result<(Ident, proc_macro2::TokenStream), syn::Error> {
     let ctx_ident = match closure.inputs.iter().next() {
         Some(Pat::Type(pt)) => {
             if let Pat::Ident(pi) = pt.pat.as_ref() {
@@ -946,7 +963,11 @@ pub fn capture(input: TokenStream) -> TokenStream {
     }
 
     let pat_tuple = |values: &[TypedBinding], spans: &[TypedBinding]| {
-        let all: Vec<_> = values.iter().chain(spans.iter()).map(|x| &x.ident).collect();
+        let all: Vec<_> = values
+            .iter()
+            .chain(spans.iter())
+            .map(|x| &x.ident)
+            .collect();
         if all.is_empty() {
             quote! { () }
         } else {

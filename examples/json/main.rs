@@ -3,13 +3,13 @@ mod grammar;
 #[cfg(not(test))]
 use std::{env, fs, process};
 
-#[cfg(all(feature = "parser-trace", not(test)))]
-use marser::trace::TraceFormat;
 #[cfg(not(test))]
 use marser::error::ParserError;
 use marser::parser::Parser;
+#[cfg(all(feature = "parser-trace", not(test)))]
+use marser::trace::TraceFormat;
 
-use grammar::{get_json_grammar, JsonValue};
+use grammar::{JsonValue, get_json_grammar};
 
 #[cfg(not(test))]
 const DEFAULT_JSON_PATH: &str = "tests/data/json1.json";
@@ -103,9 +103,7 @@ where
                 eprintln!("trace written to {trace_file_path}");
                 print_parse_ok(&value, &errors, path, sample);
             }
-            Err(marser::ParseWithTraceToFileError::Parse(err)) => {
-                err.eprint(path, sample)
-            }
+            Err(marser::ParseWithTraceToFileError::Parse(err)) => err.eprint(path, sample),
             Err(marser::ParseWithTraceToFileError::Io(err)) => {
                 eprintln!("Failed to write trace file '{trace_file_path}': {err}");
                 process::exit(1);

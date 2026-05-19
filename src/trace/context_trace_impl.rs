@@ -74,15 +74,19 @@ impl<'src> ParserContext<'src> {
 
         let (runtime_kind, status) = match phase {
             TraceMarkerPhase::Start => (TraceEventKind::ParserEnter, NodeTraceStatus::Enter),
-            TraceMarkerPhase::End => match end_outcome.expect("explicit trace End requires outcome") {
-                ExplicitMarkerEndOutcome::Success => {
-                    (TraceEventKind::ParserExit, NodeTraceStatus::Success)
+            TraceMarkerPhase::End => {
+                match end_outcome.expect("explicit trace End requires outcome") {
+                    ExplicitMarkerEndOutcome::Success => {
+                        (TraceEventKind::ParserExit, NodeTraceStatus::Success)
+                    }
+                    ExplicitMarkerEndOutcome::SoftFail => {
+                        (TraceEventKind::MatchFail, NodeTraceStatus::Fail)
+                    }
+                    ExplicitMarkerEndOutcome::HardError => {
+                        (TraceEventKind::MatchHardError, NodeTraceStatus::Fail)
+                    }
                 }
-                ExplicitMarkerEndOutcome::SoftFail => (TraceEventKind::MatchFail, NodeTraceStatus::Fail),
-                ExplicitMarkerEndOutcome::HardError => {
-                    (TraceEventKind::MatchHardError, NodeTraceStatus::Fail)
-                }
-            },
+            }
             TraceMarkerPhase::None => unreachable!("explicit marker phase None is invalid"),
         };
 
