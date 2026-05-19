@@ -183,6 +183,10 @@ cargo test --features json-testsuite --test json_testsuite
 
 Per-file matrix helpers live under `tests/run_jsonsuite_*.py` (they set `JSONSUITE_FILE` and run `nst_single_file_from_env` in a subprocess).
 
+## Early release
+
+**Early release:** `marser` is my first published Rust library (0.1.x). If you try it, I'd appreciate feedback on the API, error messages, and docs — please [open an issue](https://github.com/ArneCode/marser/issues/new) (bug or idea).
+
 ## License
 
 This project is licensed under the MIT License.
