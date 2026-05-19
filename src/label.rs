@@ -79,6 +79,9 @@ where
         error_handler: &mut impl ErrorHandler,
         input: &mut InputStream<'src, Inp>,
     ) -> Result<Option<Self::Output>, MatcherRunError> {
+        if !error_handler.is_real() {
+            return self.inner.parse(context, error_handler, input);
+        }
         let idx = error_handler.register_start(input.get_pos().into());
         match self.inner.parse(context, error_handler, input)? {
             Some(output) => {
