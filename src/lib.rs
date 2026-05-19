@@ -5,7 +5,7 @@
 
 The full crate introduction is in `README.md` at the repository root. For book-style chapters in rustdoc (`marser::guide`), build docs with **`--features embed-guide`** (this matches the docs.rs build)."
 )]
-#![cfg_attr(docsrs, feature(doc_auto_cfg))]
+#![cfg_attr(docsrs, feature(doc_cfg))]
 #![deny(missing_docs)]
 // `Parser` and `Matcher` are sealed via `pub(crate)` supertraits (`ParserImpl`,
 // `MatcherImpl`) whose method signatures intentionally reference crate-private

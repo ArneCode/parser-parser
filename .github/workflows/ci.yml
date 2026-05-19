@@ -60,8 +60,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-      - uses: dtolnay/rust-toolchain@stable
-      - run: cargo doc -p marser --features parser-trace,annotate-snippets,embed-guide --no-deps
+      - uses: dtolnay/rust-toolchain@nightly
+      - name: rustdoc with docsrs cfg (matches docs.rs)
+        env:
+          RUSTDOCFLAGS: --cfg docsrs
+        run: cargo doc -p marser --features parser-trace,annotate-snippets,embed-guide --no-deps
 
   package:
     name: Package layout

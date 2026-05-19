@@ -9,9 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- docs.rs builds again: `doc_auto_cfg` (removed in Rust 1.92) is replaced with `doc_cfg` under the `docsrs` cfg.
+
 ### Changed
 
 - Minimum supported Rust version is **1.88** (stable let chains in `if`/`while`).
+- CI runs a nightly `cargo doc` with `--cfg docsrs` and the same features as docs.rs so removed or renamed rustdoc features are caught before publish.
 
 ## [0.1.0] - 2026-05-19
 
