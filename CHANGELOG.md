@@ -13,6 +13,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - docs.rs builds again: `doc_auto_cfg` (removed in Rust 1.92) is replaced with `doc_cfg` under the `docsrs` cfg.
 
+
+
+[0.1.0]: https://github.com/ArneCode/marser/releases/tag/v0.1.0
+
 ### Changed
 
 - Minimum supported Rust version is **1.88** (stable let chains in `if`/`while`).
@@ -33,5 +37,3 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Trace file formats and trace-related APIs may change in future releases; pin versions and read release notes when upgrading.
 - Macro expansion details are not a stability guarantee; use `capture!` and documented helpers as the public API.
-
-[0.1.0]: https://github.com/ArneCode/marser/releases/tag/v0.1.0
