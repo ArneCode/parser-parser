@@ -1,3 +1,5 @@
+> **AI assistance:** This document was written with AI assistance. The maintainer reviewed it and did not find errors.
+
 # marser-trace-schema
 
 **Experimental:** This crate’s public API and the JSON / JSONL trace formats may

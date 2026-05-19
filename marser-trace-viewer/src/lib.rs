@@ -1,3 +1,5 @@
+//! AI assistance: this file was written with AI assistance. The maintainer reviewed it and did not find errors.
+//!
 //! TUI and replay helpers for marser trace logs.
 //!
 //! **Experimental:** UI and replay APIs may change between releases; see the crate

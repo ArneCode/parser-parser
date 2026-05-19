@@ -1,3 +1,5 @@
+//! AI assistance: this file was written with AI assistance. The maintainer reviewed it and did not find errors.
+
 use marser_trace_schema::{
     NodeTrace, NodeTraceKind, NodeTraceStatus, TraceEventKind, TraceMarkerPhase, TraceSession,
 };

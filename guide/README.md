@@ -1,3 +1,11 @@
+Book-style guide to `marser` for newcomers and for evaluating fit.
+
+<div style="background-color: #fff8e1; border-left: 4px solid #f9a825; padding: 0.75em 1em; margin: 1em 0;">
+
+**AI assistance:** This chapter was drafted with AI assistance while the library is still young. The guide is expected to improve over time as APIs and examples stabilize. If anything looks wrong or confusing, please [report it on GitHub](https://github.com/ArneCode/marser/issues/new).
+
+</div>
+
 # marser Guide
 
 This guide supports both **newcomers** and **experienced Rust users evaluating** whether `marser` fits their project.

@@ -1,5 +1,5 @@
 error: conflicting explicit `as` types for repeated binding `x` in `capture!`
- --> tests/ui/capture_type_mismatch.rs:7:64
+ --> tests/ui/capture_type_mismatch.rs:9:64
   |
-7 |             bind!(marser::parser::SingleTokenParser::new('b'), x as u64)
+9 |             bind!(marser::parser::SingleTokenParser::new('b'), x as u64)
   |                                                                ^

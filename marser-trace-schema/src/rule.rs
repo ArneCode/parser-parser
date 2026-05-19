@@ -1,3 +1,5 @@
+//! AI assistance: this file was written with AI assistance. The maintainer reviewed it and did not find errors.
+
 use serde::{Deserialize, Serialize};
 
 /// Call-site metadata for a traced rule (not serialized as a standalone trace value).

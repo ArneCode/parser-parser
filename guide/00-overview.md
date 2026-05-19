@@ -1,3 +1,11 @@
+Where `marser` fits, trade-offs, and glossary.
+
+<div style="background-color: #fff8e1; border-left: 4px solid #f9a825; padding: 0.75em 1em; margin: 1em 0;">
+
+**AI assistance:** This chapter was drafted with AI assistance while the library is still young. The guide is expected to improve over time as APIs and examples stabilize. If anything looks wrong or confusing, please [report it on GitHub](https://github.com/ArneCode/marser/issues/new).
+
+</div>
+
 # Overview
 
 `marser` is a parser-combinator library for writing PEG-style grammars in Rust code.

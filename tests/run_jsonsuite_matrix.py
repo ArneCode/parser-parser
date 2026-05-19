@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# AI assistance: this file was written with AI assistance. The maintainer reviewed it and did not find errors.
 """Run JSONTestSuite per-file matrix in debug/release.
 
 This script runs each file in tests/JSONTestSuite/test_parsing in an isolated

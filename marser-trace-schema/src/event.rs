@@ -1,3 +1,5 @@
+//! AI assistance: this file was written with AI assistance. The maintainer reviewed it and did not find errors.
+
 use serde::{Deserialize, Serialize};
 
 use crate::rule::{RuleIdentity, TraceLocation};

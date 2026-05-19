@@ -1,3 +1,5 @@
+//! AI assistance: this file was written with AI assistance. The maintainer reviewed it and did not find errors.
+//!
 //! In-process replay / stepping over a trace event list (used by the TUI and tests).
 
 use std::collections::HashMap;

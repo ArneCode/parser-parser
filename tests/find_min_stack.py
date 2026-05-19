@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# AI assistance: this file was written with AI assistance. The maintainer reviewed it and did not find errors.
 """Find approximate minimum RUST_MIN_STACK for JSONTestSuite cases.
 
 Uses binary search against the single-file Rust test:

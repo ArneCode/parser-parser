@@ -1,3 +1,5 @@
+//! AI assistance: this file was written with AI assistance. The maintainer reviewed it and did not find errors.
+//!
 //! [nst/JSONTestSuite](https://github.com/nst/JSONTestSuite) conformance harness for the JSON grammar in
 //! [`examples/json/grammar.rs`](../examples/json/grammar.rs) (recovery-oriented; shared with the `json` example and benches).
 //!

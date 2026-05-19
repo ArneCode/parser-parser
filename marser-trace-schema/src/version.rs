@@ -1,3 +1,5 @@
+//! AI assistance: this file was written with AI assistance. The maintainer reviewed it and did not find errors.
+//!
 //! On-disk `trace_version` policy for JSON traces.
 
 /// Version written in the `{ "trace_version", "nodes", "source_text?" }` JSON envelope.

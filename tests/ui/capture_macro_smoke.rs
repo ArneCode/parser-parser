@@ -1,3 +1,5 @@
+// AI assistance: this file was written with AI assistance. The maintainer reviewed it and did not find errors.
+
 use marser::capture;
 use marser::parser::{Parser, SingleTokenParser};
 

@@ -3,9 +3,6 @@
 //! Prefer `use marser::capture;` (re-exported from the main crate). This crate is the proc-macro
 //! implementation; [`capture`] builds a `marser::parser::capture::Capture` parser from a grammar expression.
 
-// this was implemented by AI. It works as far as I can tell.
-// I plan to simplify the use_binds! logic in the future.
-
 use std::cell::{Cell, RefCell};
 
 use proc_macro::TokenStream;

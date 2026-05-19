@@ -1,3 +1,5 @@
+//! AI assistance: this file was written with AI assistance. The maintainer reviewed it and did not find errors.
+//!
 //! `trybuild` checks for `capture!` / `bind!` expansion (repeated binds, conflicts, trailing tokens).
 //!
 //! Run: `cargo test --test capture_ui`  

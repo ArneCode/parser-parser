@@ -1,3 +1,5 @@
+//! AI assistance: this file was written with AI assistance. The maintainer reviewed it and did not find errors.
+
 use std::collections::HashMap;
 
 use marser_trace_schema::{NodeTrace, TraceMarkerPhase};

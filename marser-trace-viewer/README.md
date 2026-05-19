@@ -1,3 +1,5 @@
+> **AI assistance:** This document was written with AI assistance. The maintainer reviewed it and did not find errors.
+
 # marser-trace-viewer
 
 **Experimental:** UI, CLI, and replay behavior may change between releases without

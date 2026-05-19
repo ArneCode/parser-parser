@@ -1,3 +1,5 @@
+//! AI assistance: this file was written with AI assistance. The maintainer reviewed it and did not find errors.
+//!
 //! Regression: [`marser::parser::Memoized`] must accept parser outputs that borrow the input (`'src`).
 
 use std::rc::Rc;

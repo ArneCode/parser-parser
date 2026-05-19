@@ -1,3 +1,5 @@
+//! AI assistance: this file was written with AI assistance. The maintainer reviewed it and did not find errors.
+//!
 //! Repeated compatible `*name` binds in one `capture!` (regression for bind registry merging).
 
 use marser::capture;

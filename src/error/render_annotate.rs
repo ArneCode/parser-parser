@@ -1,3 +1,5 @@
+//! AI assistance: this file was written with AI assistance. The maintainer reviewed it and did not find errors.
+//!
 //! Pretty error rendering via [annotate-snippets](https://docs.rs/annotate-snippets).
 //! Compiled only with the `annotate-snippets` feature.
 

@@ -117,7 +117,7 @@ Input:
 
 Example diagnostic (terminal; requires **`annotate-snippets`**):
 
-![Example parse error for invalid JSON](image-1.png)
+![Example parse error for invalid JSON](https://raw.githubusercontent.com/ArneCode/marser/main/image-1.png)
 
 With recovery, the same run can still yield a partial AST (details in the JSON example and guide).
 
@@ -193,3 +193,16 @@ Per-file matrix helpers live under `tests/run_jsonsuite_*.py` (they set `JSONSUI
 ## License
 
 This project is licensed under the MIT License.
+
+## AI assistance
+
+Parts of this repository were drafted or expanded with AI tools, including:
+
+- the guide under [`guide/`](guide/)
+- rustdoc / module doc comments in the library (`src/`, `macros/`)
+- integration tests and test documentation under [`tests/`](tests/)
+- the `capture!` proc-macro implementation in [`macros/`](macros/)
+- the optional **`annotate-snippets`** feature (terminal diagnostics in [`src/error/render_annotate.rs`](src/error/render_annotate.rs)), mostly written with AI
+- the trace tooling crates [`marser-trace-schema/`](marser-trace-schema/) and [`marser-trace-viewer/`](marser-trace-viewer/)
+
+The maintainer reviewed this material and did not find errors. If you spot a mistake, please open an issue or pull request.

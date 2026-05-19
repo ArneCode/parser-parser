@@ -1,5 +1,5 @@
 error: `bind!` value and span targets must use distinct identifiers
- --> tests/ui/capture_value_span_same.rs:7:9
+ --> tests/ui/capture_value_span_same.rs:9:9
   |
-7 |         x
+9 |         x
   |         ^

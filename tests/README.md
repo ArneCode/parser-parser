@@ -1,3 +1,5 @@
+> **AI assistance:** This document was written with AI assistance. The maintainer reviewed it and did not find errors.
+
 # Integration tests (`tests/`)
 
 ## Run the full test suite

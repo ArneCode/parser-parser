@@ -1,3 +1,5 @@
+//! AI assistance: this file was written with AI assistance. The maintainer reviewed it and did not find errors.
+//!
 //! Types and serde I/O for marser parser trace logs (JSON / JSONL).
 //!
 //! **Experimental:** APIs and serialized trace formats may change between releases;

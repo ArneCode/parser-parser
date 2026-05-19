@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# AI assistance: this file was written with AI assistance. The maintainer reviewed it and did not find errors.
 """Run one JSONTestSuite file through marser's single-file test."""
 # example usage:
 # python3 tests/run_jsonsuite_single.py tests/JSONTestSuite/test_parsing/n_structure_100000_opening_arrays.json --mode release
