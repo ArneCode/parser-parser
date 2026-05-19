@@ -1,0 +1,78 @@
+# AI assistance: written with AI assistance; maintainer reviewed.
+name: CI
+
+on:
+  push:
+  pull_request:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  msrv:
+    name: MSRV (1.85)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.85.0
+      - run: cargo test -p marser
+
+  test:
+    name: Test (workspace)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo test --workspace
+
+  features:
+    name: Features (parser-trace, json-testsuite)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo test -p marser --features "parser-trace json-testsuite"
+
+  capture_ui:
+    name: trybuild (capture_ui)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo test -p marser --test capture_ui
+
+  clippy:
+    name: Clippy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+      - run: cargo clippy --workspace --all-features -- -D warnings
+
+  doc:
+    name: Docs (docs.rs parity)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo doc -p marser --features parser-trace,annotate-snippets,embed-guide --no-deps
+
+  package:
+    name: Package layout
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: JSONTestSuite must not be in marser tarball
+        run: |
+          count="$(cargo package -p marser --list --allow-dirty | grep -c JSONTestSuite || true)"
+          if [ "$count" != "0" ]; then
+            echo "expected 0 JSONTestSuite paths in package, got $count"
+            exit 1
+          fi
