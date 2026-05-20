@@ -70,11 +70,11 @@ You can find a full guide [`here`](https://docs.rs/marser/latest/marser/guide/in
 
 ## Cargo features
 
-| Feature                 | When you need it                                                                         |
-| ----------------------- | ---------------------------------------------------------------------------------------- |
-| *(default)*             | Core library only.                                                                       |
-| **`annotate-snippets`** | Enables rendering of error messages using the annotate-snippets crate                    |
-| **`parser-trace`**      | Structured parse tracing and trace files; companion crates are experimental (see below). |
+| Feature                 | When you need it                                                                                                                                       |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| *(default)*             | Core library only.                                                                                                                                     |
+| **`annotate-snippets`** | Enables rendering of error messages using the annotate-snippets crate                                                                                  |
+| **`parser-trace`**      | Enables writing of parser traces that can be used to replay the parsing in a TUI. Read more in the [guide](https://docs.rs/marser/latest/marser/guide/tracing_and_debugging/index.html) |
 
 
 **Compatibility:** Releases follow semver for the **documented public API**. Everyday composition (`capture!`, matchers, errors) is intended to stay stable across minors; **tracing** and trace crates may evolve faster. Macro **expansion** details are not a stability guarantee — please use macros as APIs, not generated internals.
