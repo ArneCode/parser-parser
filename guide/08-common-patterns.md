@@ -69,7 +69,7 @@ let _value = recursive(|_weak: DeferredWeak<'_, '_, &str, ()>| {
 
 After a **committed** construct fails hard, you can still **recover** with `recover_with` so the surrounding parse continues and the AST records an explicit `Invalid` / error node. Pair with `commit_on` so “wrong top-level alternative” stays soft, but “inside this `{` we are parsing an object” stays strict.
 
-See [Errors and Recovery](crate::guide::errors_and_recovery) and `examples/mini_script.rs`.
+See [Errors and Recovery](crate::guide::errors_and_recovery) and `examples/mini_language/grammar.rs`.
 
 ## Borrowed text vs owned values
 
@@ -99,4 +99,4 @@ This page is for quick reminders. When a pattern starts interacting with diagnos
 
 - go to [Errors and Recovery](crate::guide::errors_and_recovery) for committed rules and collected errors
 - go to [Capture and Binds](crate::guide::capture_and_binds) for bind-shape pitfalls
-- go to `examples/json/grammar.rs` or `examples/mini_script.rs` for full, runnable grammar layouts
+- go to `examples/json/grammar.rs` or `examples/mini_language/grammar.rs` for full, runnable grammar layouts

@@ -16,7 +16,7 @@ In your `Cargo.toml`:
 
 ```toml
 [dependencies]
-marser = { version = "0.1.0", features = ["annotate-snippets"] }
+marser = { version = "0.1.1", features = ["annotate-snippets"] }
 ```
 
 The **`annotate-snippets`** feature matches how this repository runs examples (`ParserError::eprint`). You can omit it if you do not need the optional [annotate-snippets](https://docs.rs/annotate-snippets) dependency or the `eprint` / `write` helpers.

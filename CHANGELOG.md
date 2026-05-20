@@ -12,6 +12,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Improved README.md
 
+### Removed
+- The `mini_script` example and its unused fixtures under `tests/data/mini_script/`.
+
 ## [0.1.1] - 2026-05-19
 
 ### Changed

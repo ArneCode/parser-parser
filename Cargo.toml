@@ -85,11 +85,6 @@ name = "mini_language"
 required-features = ["annotate-snippets"]
 doc-scrape-examples = true
 
-[[example]]
-name = "mini_script"
-required-features = ["annotate-snippets"]
-doc-scrape-examples = true
-
 [profile.samply]
 inherits = "release"
 debug = true
