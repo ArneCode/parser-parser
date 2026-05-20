@@ -4,7 +4,7 @@
 
 ## Quickstart
 
-To add this library to your rust project run:
+To add this library to your Rust project run:
 ```bash
 cargo add marser
 ```
@@ -89,8 +89,8 @@ Examples need the **`annotate-snippets`** feature for rendering of errors
 
 | Example                                                  | What it shows                                                   |
 | -------------------------------------------------------- | --------------------------------------------------------------- |
-| [`examples/json/`](examples/json/)                       | A RFC 8259 compliant JSON parser                                |
-| [`examples/mini_language.rs`](examples/mini_language.rs) | Small language: statements, operator precedence, functions etc. |
+| [`examples/json/`](examples/json/)                       | A JSON parser with error recovery and custom error messages.                                |
+| [`examples/mini_language.rs`](examples/mini_language.rs) | Small language: statements, operator precedence, functions etc. with error recovery and custom error messages. |
 
 Run JSON from a git clone:
 
