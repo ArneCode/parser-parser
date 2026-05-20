@@ -501,7 +501,7 @@ Use `recover_with(...)` when:
 From a checkout of this repository (the `json` example requires **`annotate-snippets`**):
 
 ```bash
-cargo run -p marser --features annotate-snippets --example json -- tests/data/json1.json
+cargo run --example json --features annotate-snippets -- tests/data/json1.json
 ```
 
 This example prints diagnostics and recovered output, demonstrating both strict

@@ -53,5 +53,5 @@ Then optionally: [Common patterns](crate::guide::common_patterns), [Parser and M
 If you want to run the JSON example from a checkout (matches CI / local workflows):
 
 ```bash
-cargo run -p marser --features annotate-snippets --example json -- tests/data/json1.json
+cargo run --example json --features annotate-snippets -- tests/data/json1.json
 ```

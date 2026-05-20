@@ -3,9 +3,9 @@
 `marser` is a parser-combinator library for writing **PEG-style grammars in Rust** with a focus on useful errors, error recovery and good performance.
 
 It supports: 
-- **Zero-copy parsing possible** for faster parsers
-- **Multiple input formats** supported - `&str` and `&[u8]` / `&[T]` or implement the `Input` trait yourself.
-- ***Packrat-style caching** - just wrap your parsers in `.memoized()` to chache results at each position.
+- **Zero-copy parsing** for faster parsers
+- **Multiple input formats** - use `&str` and `&[u8]` / `&[T]` or implement the `Input` trait yourself.
+- **Packrat-style caching** - just wrap your parsers in `.memoized()` to cache results at each position.
 - **Simple debugging** of your parsers using a custom TUI
 
 ## Quickstart
@@ -68,11 +68,13 @@ fn main() {
     assert_eq!(roll, Roll { count: 2, sides: 6 });
 }
 ```
-You can find more examples [`here`](https://github.com/ArneCode/marser/tree/main/examples). Read about them [below](#examples-in-this-repository)
+Runnable examples live under [`examples/`](examples/README.md) (see also [below](#examples-in-this-repository)).
 
-## Learn More
+## Learn more
 
-You can find a full guide [`here`](https://docs.rs/marser/latest/marser/guide/index.html)
+- [Guide](https://docs.rs/marser/latest/marser/guide/index.html) on docs.rs
+- [API documentation](https://docs.rs/marser)
+- [crates.io](https://crates.io/crates/marser)
 
 ## Cargo features
 
@@ -80,7 +82,7 @@ You can find a full guide [`here`](https://docs.rs/marser/latest/marser/guide/in
 | ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | *(default)*             | Core library only.                                                                                                                                                                      |
 | **`annotate-snippets`** | Enables rendering of error messages using the annotate-snippets crate                                                                                                                   |
-| **`parser-trace`**      | Enables writing of parser traces that can be used to replay the parsing in a TUI. Read more in the [guide](https://docs.rs/marser/latest/marser/guide/tracing_and_debugging/index.html) |
+| **`parser-trace`**      | **Experimental:** record parser traces to replay them in the trace viewer TUI. See the [tracing guide](https://docs.rs/marser/latest/marser/guide/tracing_and_debugging/index.html) and [`marser-trace-viewer/`](marser-trace-viewer/README.md). |
 
 
 **Compatibility:** Releases follow semver for the **documented public API**. Everyday composition (`capture!`, matchers, errors) is intended to stay stable across minors; **tracing** and trace crates may evolve faster. Macro **expansion** details are not a stability guarantee — please use macros as APIs, not generated internals.
@@ -132,28 +134,14 @@ This parser can also still produce a recovered output:
 }
 ```
 
-## Experimental debugging support with TUI
-
-See the guide chapter [Tracing and Debugging](https://docs.rs/marser/latest/marser/guide/tracing_and_debugging/index.html).
-
 ## Early release
 
-**Early release:** `marser` is my first published Rust library. If you try it, I'd appreciate feedback on the API, error messages, and docs — please [open an issue](https://github.com/ArneCode/marser/issues/new) (bug or idea).
+**Early release:** `marser` is my first published Rust library. Feedback on the API, error messages, and docs is welcome — [open an issue](https://github.com/ArneCode/marser/issues/new)
 
 ## License
 
-This project is licensed under the MIT License.
+This project is licensed under the [MIT License](LICENSE).
 
 ## AI assistance
 
-Parts of this repository were drafted or expanded with AI tools, including:
-
-- the guide under [`guide/`](guide/)
-- rustdoc / module doc comments in the library (`src/`, `macros/`)
-- integration tests and test documentation under [`tests/`](tests/)
-- the `capture!` proc-macro implementation in [`macros/`](macros/)
-- the optional **`annotate-snippets`** feature (terminal diagnostics in [`src/error/render_annotate.rs`](src/error/render_annotate.rs)), mostly written with AI
-- the trace tooling crates [`marser-trace-schema/`](marser-trace-schema/) and [`marser-trace-viewer/`](marser-trace-viewer/)
-- parts of this README
-
-The maintainer reviewed this material and did not find errors. If you spot a mistake, please open an issue or pull request.
+Parts of this repository were drafted or expanded with AI tools (guide, library docs, tests, macros, trace crates, examples, and parts of this README). The maintainer reviewed this material. If you spot a mistake, please [open an issue](https://github.com/ArneCode/marser/issues/new).

@@ -81,7 +81,7 @@ CI runs these on every push and pull request (see [`.github/workflows/ci.yml`](.
 Examples require **`annotate-snippets`**:
 
 ```bash
-cargo run -p marser --features annotate-snippets --example json -- tests/data/json1.json
+cargo run --example json --features annotate-snippets -- tests/data/json1.json
 ```
 
 ### Docs (match docs.rs locally)

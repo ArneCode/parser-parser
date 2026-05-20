@@ -54,7 +54,7 @@ This keeps replay deterministic and aligned with grammar-level trace points.
 Generate a trace from the JSON example:
 
 ```bash
-cargo run -p marser --features "annotate-snippets parser-trace" --example json -- tests/data/json1.json --trace-file /tmp/json-trace.json
+cargo run --example json --features "annotate-snippets parser-trace" -- tests/data/json1.json --trace-file /tmp/json-trace.json
 ```
 
 Open it in the viewer:

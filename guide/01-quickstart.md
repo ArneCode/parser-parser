@@ -12,19 +12,16 @@ This section gets you from zero to a tiny working parser.
 
 ## 1) Add dependency
 
-In your `Cargo.toml`:
-
-```toml
-[dependencies]
-marser = { version = "0.1.1", features = ["annotate-snippets"] }
+```bash
+cargo add marser
 ```
 
-The **`annotate-snippets`** feature matches how this repository runs examples (`ParserError::eprint`). You can omit it if you do not need the optional [annotate-snippets](https://docs.rs/annotate-snippets) dependency or the `eprint` / `write` helpers.
+Optional features are listed in the [repository README](https://github.com/ArneCode/marser#cargo-features) and on [docs.rs](https://docs.rs/marser).
 
-For local development of this repository, you can run examples directly:
+From a clone of this repository, run an example with the feature flags that example needs (see the README *Examples* section):
 
 ```bash
-cargo run -p marser --features annotate-snippets --example json -- tests/data/json1.json
+cargo run --example json --features annotate-snippets -- tests/data/json1.json
 ```
 
 ## 2) Mental model: parser vs matcher
