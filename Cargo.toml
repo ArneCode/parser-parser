@@ -8,7 +8,7 @@ members = [
 
 [package]
 name = "marser"
-version = "0.1.1"
+version = "0.1.2"
 edition = "2024"
 autobenches = false # explicit `[[bench]]` only; `benches/json_parse_shared.rs` is not a crate root
 authors = ["Arne de Borman"]

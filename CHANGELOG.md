@@ -9,8 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.2] - 2026-05-20
+
+### Added
+- README files under `examples/`, `examples/json/`, and `examples/mini_language/` with run commands and layout notes.
+
 ### Changed
-- Improved README.md
+- README: links (docs.rs, crates.io, LICENSE, CONTRIBUTING), trimmed AI/tracing sections, example table points at `examples/*/README.md`, general improvements.
 
 ### Removed
 - The `mini_script` example and its unused fixtures under `tests/data/mini_script/`.
