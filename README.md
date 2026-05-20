@@ -1,6 +1,12 @@
 # marser
 
-`marser` is a parser-combinator library for writing **PEG-style grammars in Rust**. It focuses on error reporting and recovery while still enabling good performance.
+`marser` is a parser-combinator library for writing **PEG-style grammars in Rust** with a focus on useful errors, error recovery and good performance.
+
+It supports: 
+- **Zero-copy parsing possible** for faster parsers
+- **Multiple input formats** supported - `&str` and `&[u8]` / `&[T]` or implement the `Input` trait yourself.
+- ***Packrat-style caching** - just wrap your parsers in `.memoized()` to chache results at each position.
+- **Simple debugging** of your parsers using a custom TUI
 
 ## Quickstart
 
