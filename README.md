@@ -70,10 +70,10 @@ You can find a full guide [`here`](https://docs.rs/marser/latest/marser/guide/in
 
 ## Cargo features
 
-| Feature                 | When you need it                                                                                                                                       |
-| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| *(default)*             | Core library only.                                                                                                                                     |
-| **`annotate-snippets`** | Enables rendering of error messages using the annotate-snippets crate                                                                                  |
+| Feature                 | When you need it                                                                                                                                                                        |
+| ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| *(default)*             | Core library only.                                                                                                                                                                      |
+| **`annotate-snippets`** | Enables rendering of error messages using the annotate-snippets crate                                                                                                                   |
 | **`parser-trace`**      | Enables writing of parser traces that can be used to replay the parsing in a TUI. Read more in the [guide](https://docs.rs/marser/latest/marser/guide/tracing_and_debugging/index.html) |
 
 
@@ -87,9 +87,9 @@ You can find a full guide [`here`](https://docs.rs/marser/latest/marser/guide/in
 
 Examples need the **`annotate-snippets`** feature for rendering of errors
 
-| Example                                                  | What it shows                                                   |
-| -------------------------------------------------------- | --------------------------------------------------------------- |
-| [`examples/json/`](examples/json/)                       | A JSON parser with error recovery and custom error messages.                                |
+| Example                                                  | What it shows                                                                                                  |
+| -------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| [`examples/json/`](examples/json/)                       | A JSON parser with error recovery and custom error messages.                                                   |
 | [`examples/mini_language.rs`](examples/mini_language.rs) | Small language: statements, operator precedence, functions etc. with error recovery and custom error messages. |
 
 Run JSON from a git clone:
@@ -148,5 +148,6 @@ Parts of this repository were drafted or expanded with AI tools, including:
 - the `capture!` proc-macro implementation in [`macros/`](macros/)
 - the optional **`annotate-snippets`** feature (terminal diagnostics in [`src/error/render_annotate.rs`](src/error/render_annotate.rs)), mostly written with AI
 - the trace tooling crates [`marser-trace-schema/`](marser-trace-schema/) and [`marser-trace-viewer/`](marser-trace-viewer/)
+- parts of this README
 
 The maintainer reviewed this material and did not find errors. If you spot a mistake, please open an issue or pull request.
