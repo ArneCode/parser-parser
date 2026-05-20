@@ -62,7 +62,7 @@ fn main() {
     assert_eq!(roll, Roll { count: 2, sides: 6 });
 }
 ```
-You can find more examples [`here`](https://github.com/ArneCode/marser/tree/main/examples)
+You can find more examples [`here`](https://github.com/ArneCode/marser/tree/main/examples). Read about them [below](#examples-in-this-repository)
 
 ## Learn More
 
