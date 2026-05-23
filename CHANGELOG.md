@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- improved error recovery of json example
+- changed docs for trace viewer
+
+### Fixed
+- label messed up error recognition if inner parser returned error
+
 ## [0.1.2] - 2026-05-20
 
 ### Added
