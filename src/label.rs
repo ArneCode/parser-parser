@@ -77,14 +77,18 @@ where
             return self.inner.parse(context, error_handler, input);
         }
         let idx = error_handler.register_start(input.get_pos().into());
-        match self.inner.parse(context, error_handler, input)? {
-            Some(output) => {
+        match self.inner.parse(context, error_handler, input) {
+            Ok(Some(output)) => {
                 error_handler.register_success(idx);
                 Ok(Some(output))
             }
-            None => {
+            Ok(None) => {
                 error_handler.register_failure(Some(self.label.clone()), idx);
                 Ok(None)
+            }
+            Err(e) => {
+                error_handler.register_failure(Some(self.label.clone()), idx);
+                Err(e)
             }
         }
     }
