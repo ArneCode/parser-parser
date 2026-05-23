@@ -100,6 +100,29 @@ pub fn get_json_grammar<'src>() -> impl Parser<'src, &'src str, Output = JsonVal
         let bool_true =
             capture!(("true", ws.clone()) => JsonValue::Boolean(true)).with_label("true");
         let boolean = one_of((bool_true, bool_false)).with_label("boolean");
+
+        let invalid_element = capture!(
+            if_error_else_fail(bind_slice!(unwanted(one_or_more(
+                (
+                    negative_lookahead(one_of((
+                        '{',
+                        '[',
+                        '"',
+                        ',',
+                        ']',
+                        '}',
+                        ':',
+                        // not just using ws, because that can return sucess by consuming 0 tokens
+                        one_of((' ', '\t', '\n', '\r'))
+                    ))),
+                    AnyToken
+                )
+            ), "invalid element"), slice),
+            ) => JsonValue::Invalid(slice)
+        )
+        .with_label("invalid element")
+        .erase_types();
+
         let number = capture!(
             commit_on(positive_lookahead(one_of(('-', '.', '+', '0'..='9'))),
             bind_slice!((
@@ -154,11 +177,7 @@ pub fn get_json_grammar<'src>() -> impl Parser<'src, &'src str, Output = JsonVal
             ),
         )))
         .recover_with(
-            // many(one_of(('+', '-', '0'..='9', '.', 'e', 'E'))),
-            // JsonValue::Invalid,
-            capture!(
-                bind_slice!(many(one_of(('+', '-', '0'..='9', '.', 'e', 'E'))), slice) => JsonValue::Invalid(slice)
-            ),
+            invalid_element.clone()
         )
         .with_label("number");
 
@@ -271,6 +290,7 @@ pub fn get_json_grammar<'src>() -> impl Parser<'src, &'src str, Output = JsonVal
                 ':',
                 ws.clone().trace(),
                 bind!(element.clone(), value).trace(),
+                if_error(optional(invalid_element.clone().ignore_result()))
                 )
             } => {
                 (key, value)
@@ -289,6 +309,8 @@ pub fn get_json_grammar<'src>() -> impl Parser<'src, &'src str, Output = JsonVal
                     many((
                         ','.trace().try_insert_if_missing("missing comma"),
                         ws.clone().trace(),
+                        if_error(many((unwanted(',', "missing element"), ws.clone())))
+                            .trace(),
                         bind!(key_value_pair.clone(), *key_value_pairs),
                     )),
                     if_error(
@@ -320,29 +342,7 @@ pub fn get_json_grammar<'src>() -> impl Parser<'src, &'src str, Output = JsonVal
             .map_output(JsonValue::String)
             .with_label("string");
 
-        let invalid_element = capture!(
-            if_error_else_fail(bind_slice!(unwanted(one_or_more(
-                (
-                    negative_lookahead(one_of((
-                        '{',
-                        '[',
-                        '"',
-                        '-',
-                        '0'..='9',
-                        ',',
-                        ']',
-                        '}',
-                        ':',
-                        // not just using ws, because that can return sucess by consuming 0 tokens
-                        one_of((' ', '\t', '\n', '\r'))
-                    ))),
-                    AnyToken
-                )
-            ), "invalid element"), slice),
-            ) => JsonValue::Invalid(slice)
-        )
-        .with_label("invalid element")
-        .erase_types();
+
 
         capture!((
             ws.clone().trace(),
