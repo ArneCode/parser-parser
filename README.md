@@ -134,6 +134,10 @@ This parser can also still produce a recovered output:
 }
 ```
 
+The json example also has tracing support, so parsing can be stepped through in the trace viewer. See screenshot below. Left side is the rust source code for the parser, right side is the file being parsed.
+<img width="1126" height="531" alt="grafik" src="https://github.com/user-attachments/assets/e0ba9ef1-ca19-4f30-937d-279b718e58da" />
+
+
 ## Early release
 
 **Early release:** `marser` is my first published Rust library. Feedback on the API, error messages, and docs is welcome — [open an issue](https://github.com/ArneCode/marser/issues/new)
