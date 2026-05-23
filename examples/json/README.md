@@ -6,9 +6,9 @@ A full JSON parser that demonstrates **error recovery**, **inline and furthest-f
 
 ## Layout
 
-| File | Role |
-| ---- | ---- |
-| [`main.rs`](main.rs) | CLI: read file, run grammar, print errors and recovered output |
+| File                       | Role                                                                            |
+| -------------------------- | ------------------------------------------------------------------------------- |
+| [`main.rs`](main.rs)       | CLI: read file, run grammar, print errors and recovered output                  |
 | [`grammar.rs`](grammar.rs) | Grammar (`capture!`, `commit_on`, `recover_with`, labels, optional `WithTrace`) |
 
 Cargo runs this as the **`json`** example (`examples/json/main.rs` is the example root).
@@ -35,7 +35,8 @@ With **`parser-trace`** enabled, the same binary can record a trace file for the
 cargo run --example json --features "annotate-snippets parser-trace" -- \
   tests/data/json1.json --trace-file /tmp/json-trace.json
 
-cargo run -p marser-trace-viewer -- --trace /tmp/json-trace.json --source tests/data/json1.json
+cargo install marser-trace-viewer
+marser-trace-viewer --trace /tmp/json-trace.json --source tests/data/json1.json
 ```
 
 Without `--trace-file`, tracing still runs in memory (no file written).

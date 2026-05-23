@@ -11,17 +11,17 @@ Terminal UI for inspecting parser traces (JSON / JSONL). This crate depends on
 
 ## Run
 
-From this workspace:
-
-```bash
-cargo run -p marser-trace-viewer -- --trace path/to/trace.json --source path/to/input.txt
-```
-
-Install as a binary:
+Install from [crates.io](https://crates.io/crates/marser-trace-viewer) and run the `marser-trace-viewer` binary:
 
 ```bash
 cargo install marser-trace-viewer
 marser-trace-viewer --trace path/to/trace.json --source path/to/input.txt
+```
+
+When developing this repository, use the same flags with `cargo run`:
+
+```bash
+cargo run -p marser-trace-viewer -- --trace path/to/trace.json --source path/to/input.txt
 ```
 
 ## Arguments
@@ -60,8 +60,10 @@ cargo run --example json --features "annotate-snippets parser-trace" -- tests/da
 Open it in the viewer:
 
 ```bash
-cargo run -p marser-trace-viewer -- --trace /tmp/json-trace.json --source tests/data/json1.json
+marser-trace-viewer --trace /tmp/json-trace.json --source tests/data/json1.json
 ```
+
+(Or `cargo run -p marser-trace-viewer -- …` from a clone of this repo.)
 
 ## Related docs
 

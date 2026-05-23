@@ -33,10 +33,11 @@ Write a trace file from the same example:
 cargo run --example json --features "annotate-snippets parser-trace" -- tests/data/json1.json --trace-file /tmp/json-trace.json
 ```
 
-Open that trace in the TUI viewer:
+Open that trace in the TUI viewer ([`marser-trace-viewer`](https://crates.io/crates/marser-trace-viewer) on crates.io):
 
 ```bash
-cargo run -p marser-trace-viewer -- --trace /tmp/json-trace.json --source tests/data/json1.json
+cargo install marser-trace-viewer
+marser-trace-viewer --trace /tmp/json-trace.json --source tests/data/json1.json
 ```
 
 ## Learn by example: `examples/json/grammar.rs`
@@ -61,10 +62,10 @@ Suggested flow:
 cargo run --example json --features "annotate-snippets parser-trace" -- tests/data/json1.json --trace-file /tmp/json-trace.json
 ```
 
-3. Replay:
+3. Replay with `marser-trace-viewer` (install once with `cargo install marser-trace-viewer` if needed):
 
 ```bash
-cargo run -p marser-trace-viewer -- --trace /tmp/json-trace.json --source tests/data/json1.json
+marser-trace-viewer --trace /tmp/json-trace.json --source tests/data/json1.json
 ```
 
 This gives you a concrete baseline for deciding where to place `.trace()`
@@ -142,10 +143,11 @@ The `marser-trace-viewer` crate implements stepping and replay over a loaded
 `TraceSession` (see `marser_trace_viewer::replay`). It depends on
 `marser-trace-schema`, not on `marser`.
 
-Run from workspace root:
+Install and run (binary name matches the crate):
 
 ```bash
-cargo run -p marser-trace-viewer -- --trace path/to/trace.jsonl --source path/to/input.txt
+cargo install marser-trace-viewer
+marser-trace-viewer --trace path/to/trace.jsonl --source path/to/input.txt
 ```
 
 Arguments:
