@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Guide AI-assistance notices on docs.rs use rustdoc’s `.warning` callout styling so they read correctly in dark and Ayu themes (replacing fixed light-theme colors).
 - The guide and `capture!` docs now document **E0283** on disconnected or unused `let` rules (for example after commenting out the only `one_of` / `.trace()` use of a branch).
 
 ## [0.1.3] - 2026-05-23

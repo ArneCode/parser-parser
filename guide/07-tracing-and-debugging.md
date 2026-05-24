@@ -1,6 +1,6 @@
 Trace files, replay, and debugging parsers.
 
-<div style="background-color: #fff8e1; border-left: 4px solid #f9a825; padding: 0.75em 1em; margin: 1em 0;">
+<div class="warning">
 
 **AI assistance:** This chapter was drafted with AI assistance while the library is still young. The guide is expected to improve over time as APIs and examples stabilize. If anything looks wrong or confusing, please [report it on GitHub](https://github.com/ArneCode/marser/issues/new).
 
@@ -189,7 +189,6 @@ Key bindings:
 - No trace output: confirm `parser-trace` is enabled in your Cargo command.
 - Slow parse with tracing: expected; tracing adds collection overhead.
 - Hard-to-follow stepping: reduce marker density and prefer semantic trace points.
-
 ## Performance notes
 
 Without `parser-trace`, instrumentation is compiled out. With `parser-trace`,
