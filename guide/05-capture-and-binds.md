@@ -774,12 +774,6 @@ inference graph. A `capture!` inside it may then fail with **E0283** (“type an
 needed”), often with a note like `cannot satisfy _: Input<'_>` on a line that looks fine
 on its own.
 
-Typical causes:
-
-- Commenting out one arm of a top-level `one_of` (for example `boolean.trace()`) while
-  leaving the `let` bindings that only fed that arm.
-- Refactoring helpers into `let` parsers that are never wired into the returned grammar.
-
 Fixes:
 
 Delete the unused `let` rules, or wire them back into the parser you return.
