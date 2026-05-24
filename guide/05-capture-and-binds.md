@@ -782,9 +782,7 @@ Typical causes:
 
 Fixes:
 
-- Delete the unused `let` rules, or wire them back into the parser you return.
-- If you only wanted to disable tracing, keep the rule in the `one_of` without
-  `.trace()` (tracing is optional; the rule must stay in the graph for inference).
+Delete the unused `let` rules, or wire them back into the parser you return.
 
 Explicit type annotations on orphan rules are possible but awkward; prefer removing dead
 code or reconnecting the rule.
