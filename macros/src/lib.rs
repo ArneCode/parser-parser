@@ -932,6 +932,15 @@ impl VisitMut for BindMacroExpander {
 ///   `capture!` implements [`marser::error::BuildInlineError`] with `match SITE` dispatch. See the
 ///   `use_binds! expansion` comment in this crate for why (inference, `'src`, `erase_types`).
 ///
+/// # Type inference
+///
+/// Each `capture!` parser is generic over the input type `Inp: Input<'src>`. Rust usually
+/// infers `Inp` from the grammar entry (`impl Parser<'src, &'src str, …>`) and from how rules
+/// connect (`one_of`, `recursive`, the final `capture!`). A `let` rule that is never used in the
+/// returned parser is still type-checked but may fail with **E0283** (`_: Input<'_>`). Remove
+/// unused `let` bindings or keep the rule wired into the returned parser. See
+/// [`marser::guide::capture_and_binds`](https://docs.rs/marser/latest/marser/guide/capture_and_binds/index.html#disconnected-or-unused-rule-bindings).
+///
 /// Repeated **compatible** binds to the same identifier (same sigil bucket and compatible `as`
 /// types) are merged into one capture slot. Conflicting sigils, incompatible explicit types, or
 /// reusing the same name for both value and span captures are **compile errors** with spans on the

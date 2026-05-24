@@ -83,5 +83,6 @@ If you want the next step after this page, there are two good directions:
 - **Confusing matcher and parser output**: matcher checks structure; parser returns your enum/AST.
 - **Forgetting full-input parse behavior**: `Parser::parse_str` / `marser::parse` expect no trailing tokens.
 - **Starting too big**: begin with one literal rule, then add alternatives and recursion.
+- **Unused `let` rules**: every `capture!` binding is type-checked even if you removed it from the returned parser; orphan rules can cause **E0283** (see [Capture and Binds](crate::guide::capture_and_binds#disconnected-or-unused-rule-bindings)).
 
 Next: [Core Concepts](crate::guide::core_concepts)

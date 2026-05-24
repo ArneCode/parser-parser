@@ -569,7 +569,9 @@ The sigil still controls the outer shape:
 - `?name as T` gives `Option<T>`
 
 Use explicit types sparingly. They are most useful when Rust cannot infer a
-closure output, slice type, or repeated capture type.
+closure output, slice type, or repeated capture type. If the whole `let` rule is
+unused in the returned parser, see [disconnected rule bindings](#disconnected-or-unused-rule-bindings)
+below — explicit `as T` on binds rarely fixes that case.
 
 ## `use_binds!` in diagnostic factories
 
@@ -757,6 +759,35 @@ intern an identifier by itself.
 ### Forgetting `*` always means a vector
 
 `*items` is `Vec<T>` even if it matched exactly once.
+
+### Disconnected or unused rule bindings
+
+Every `let rule = capture!(…)` in a grammar function is still **type-checked**, even when
+nothing in the **returned** parser uses `rule`. `capture!` expands to parsers that are
+generic over the input type `Inp: Input<'src>`. Rust usually learns `Inp` (for example
+`&'src str`) from the function’s entry type — `impl Parser<'src, &'src str, …>` — and from
+chains such as the final `capture!`, `one_of(…)`, or `bind!(element, …)` inside
+`recursive`.
+
+If you remove the only consumer of a rule, that subtree is no longer connected to that
+inference graph. A `capture!` inside it may then fail with **E0283** (“type annotations
+needed”), often with a note like `cannot satisfy _: Input<'_>` on a line that looks fine
+on its own.
+
+Typical causes:
+
+- Commenting out one arm of a top-level `one_of` (for example `boolean.trace()`) while
+  leaving the `let` bindings that only fed that arm.
+- Refactoring helpers into `let` parsers that are never wired into the returned grammar.
+
+Fixes:
+
+- Delete the unused `let` rules, or wire them back into the parser you return.
+- If you only wanted to disable tracing, keep the rule in the `one_of` without
+  `.trace()` (tracing is optional; the rule must stay in the graph for inference).
+
+Explicit type annotations on orphan rules are possible but awkward; prefer removing dead
+code or reconnecting the rule.
 
 ## Designing captures
 

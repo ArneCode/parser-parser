@@ -89,6 +89,10 @@ Use the bind form that matches the boundary you want:
 
 Large `one_of` / nested `capture!` types compile to deep generic trees. When inference or compile time hurts, call `.erase_types()` on heavy parsers. Repository examples use this on some JSON sub-rules.
 
+**Disconnected rules:** `.erase_types()` helps with large *connected* grammars. It does not
+replace wiring: unused `let` parsers that never reach the returned grammar can still trigger
+**E0283** (`_: Input<'_>`). See [Capture and Binds — disconnected rule bindings](crate::guide::capture_and_binds#disconnected-or-unused-rule-bindings).
+
 **Compile time vs runtime:** erasure uses dynamic dispatch and can shrink type-checking and codegen cost for huge grammars. If you only need erasure for developer builds, use `erase_types()` under `#[cfg(debug_assertions)]` and keep concrete types in release (as in `parse-rosetta-rs`’s `marser-app`), or add a **`fast-compile`** (or similar) Cargo feature on your grammar crate that enables erasure in release when you are not benchmarking.
 
 **Measuring:** use `cargo build -p your_crate --timings` for a crate-level breakdown; on nightly, `cargo llvm-lines --release -p your_crate` shows monomorphization hotspots.
