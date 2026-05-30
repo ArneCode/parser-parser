@@ -68,6 +68,11 @@ where
             Ok(false) => Ok(false),
             Err(MatcherRunError::RetryRerunNeeded) => Err(MatcherRunError::RetryRerunNeeded),
             Err(MatcherRunError::FurthestFail(mut e)) => {
+                if !M::IS_IN_ERROR_RECOVERY {
+                    panic!(
+                        "FurthestFailError should never be returned outside of error recovery mode"
+                    );
+                }
                 let resume_pos = input.get_pos();
                 input.set_pos(start_pos.clone());
                 if let Ok(Some(f)) =

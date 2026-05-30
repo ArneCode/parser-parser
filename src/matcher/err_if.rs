@@ -74,7 +74,11 @@ where
                         .push_stack_error(ParserError::Inline(err));
                     Ok(true)
                 } else {
-                    Err(MatcherRunError::RetryRerunNeeded)
+                    // TODO: this should be RetryRerunNeeded
+                    // but that leads to 1300% runtime increase somehow.
+                    // I need to investigate why this is happening.
+                    // In most grammars this makes no difference
+                    Ok(false)
                 }
             }
         }

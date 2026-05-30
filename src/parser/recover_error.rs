@@ -76,8 +76,16 @@ where
                     input.set_pos(start_pos.clone());
                     return Err(e);
                 }
+                if !M::IS_IN_ERROR_RECOVERY {
+                    panic!(
+                        "FurthestFailError should never be returned outside of error recovery mode"
+                    );
+                }
                 input.set_pos(start_pos.clone());
-                match self.recover_parser.parse::<M>(context, error_handler, input) {
+                match self
+                    .recover_parser
+                    .parse::<M>(context, error_handler, input)
+                {
                     Ok(Some(output)) => {
                         // TODO: maybe find a way to avoid registering the same error multiple times.
                         if !context
