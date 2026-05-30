@@ -60,7 +60,7 @@ where
     const CAN_FAIL: bool = true;
 
     #[inline]
-    fn parse(
+    fn parse<M: crate::mode::Mode>(
         &self,
         _context: &mut ParserContext<'src>,
         _error_handler: &mut impl ErrorHandler,

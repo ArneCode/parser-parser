@@ -10,6 +10,7 @@ use crate::{
     },
     input::{Input, InputStream},
     matcher::{MatchRunner, Matcher, MatcherCombinator},
+    mode::Mode,
     parser::capture::MatchResult,
 };
 
@@ -46,7 +47,7 @@ where
     const CAN_FAIL: bool = CommitOn::CAN_FAIL;
 
     #[inline]
-    fn match_with_runner<'a, Runner>(
+    fn match_with_runner<'a, Runner, M: crate::mode::Mode>(
         &'a self,
         runner: &mut Runner,
         error_handler: &mut impl ErrorHandler,
@@ -56,11 +57,15 @@ where
         Runner: MatchRunner<'a, 'src, Inp, MRes = MRes>,
         'src: 'a,
     {
-        if !runner.run_match(&self.commit_on, error_handler, input)? {
+        if !runner.run_match::<_, M, _>(&self.commit_on, error_handler, input)? {
             return Ok(false);
         }
-        if !runner.is_in_error_recovery_mode() {
-            if runner.run_match(&self.then_matcher, error_handler, input)? {
+        if !M::IS_IN_ERROR_RECOVERY {
+            if runner.run_match::<_, <M as Mode>::Committed, _>(
+                &self.then_matcher,
+                error_handler,
+                input,
+            )? {
                 return Ok(true);
             }
             return Err(MatcherRunError::RetryRerunNeeded);
@@ -70,7 +75,11 @@ where
         // use empty cache so that every Symbol is explored fully, otherwise we might miss some errors due to memoization.
         let mut cache = Cache::new();
         swap(&mut runner.get_parser_context().cache, &mut cache);
-        let result = runner.run_match(&self.then_matcher, &mut inner_error_handler, input);
+        let result = runner.run_match::<_, <M as Mode>::Committed, _>(
+            &self.then_matcher,
+            &mut inner_error_handler,
+            input,
+        );
         swap(&mut runner.get_parser_context().cache, &mut cache);
 
         // only evaluating errors after swapping old cache back in

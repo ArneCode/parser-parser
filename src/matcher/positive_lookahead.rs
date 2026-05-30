@@ -41,7 +41,7 @@ where
     const CAN_FAIL: bool = Check::CAN_FAIL;
 
     #[inline]
-    fn match_with_runner<'a, Runner>(
+    fn match_with_runner<'a, Runner, M: crate::mode::Mode>(
         &'a self,
         runner: &mut Runner,
         error_handler: &mut impl ErrorHandler,
@@ -52,7 +52,7 @@ where
         'src: 'a,
     {
         let original_pos = input.get_pos();
-        let result = runner.run_match(&self.checker, error_handler, input)?;
+        let result = runner.run_match::<_, M, _>(&self.checker, error_handler, input)?;
         input.set_pos(original_pos);
         Ok(result)
     }

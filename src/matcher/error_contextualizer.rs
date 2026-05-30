@@ -52,7 +52,7 @@ where
     const CAN_FAIL: bool = Happy::CAN_FAIL;
 
     #[inline]
-    fn match_with_runner<'a, Runner>(
+    fn match_with_runner<'a, Runner, M: crate::mode::Mode>(
         &'a self,
         runner: &mut Runner,
         error_handler: &mut impl ErrorHandler,
@@ -63,7 +63,7 @@ where
         'src: 'a,
     {
         let start_pos = input.get_pos();
-        match runner.run_match(&self.happy, error_handler, input) {
+        match runner.run_match::<_, M, _>(&self.happy, error_handler, input) {
             Ok(true) => Ok(true),
             Ok(false) => Ok(false),
             Err(MatcherRunError::RetryRerunNeeded) => Err(MatcherRunError::RetryRerunNeeded),
@@ -72,7 +72,7 @@ where
                 input.set_pos(start_pos.clone());
                 if let Ok(Some(f)) =
                     self.error_parser
-                        .parse(runner.get_parser_context(), error_handler, input)
+                        .parse::<M>(runner.get_parser_context(), error_handler, input)
                 {
                     f(&mut e);
                 }
@@ -99,21 +99,21 @@ where
     const CAN_FAIL: bool = Happy::CAN_FAIL;
 
     #[inline]
-    fn parse(
+    fn parse<M: crate::mode::Mode>(
         &self,
         context: &mut ParserContext<'src>,
         error_handler: &mut impl ErrorHandler,
         input: &mut InputStream<'src, Inp>,
     ) -> Result<Option<Self::Output>, MatcherRunError> {
         let start_pos = input.get_pos();
-        match self.happy.parse(context, error_handler, input) {
+        match self.happy.parse::<M>(context, error_handler, input) {
             Ok(Some(output)) => Ok(Some(output)),
             Ok(None) => Ok(None),
             Err(MatcherRunError::RetryRerunNeeded) => Err(MatcherRunError::RetryRerunNeeded),
             Err(MatcherRunError::FurthestFail(mut e)) => {
                 let resume_pos = input.get_pos();
                 input.set_pos(start_pos);
-                if let Ok(Some(f)) = self.error_parser.parse(context, error_handler, input) {
+                if let Ok(Some(f)) = self.error_parser.parse::<M>(context, error_handler, input) {
                     f(&mut e);
                 }
                 input.set_pos(resume_pos);

@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Removed `ParserContext::is_in_error_recovery`; the whole-input parse driver now selects the error-recovery pass via internal `Mode` (`Emit<false, false>` vs `Emit<true, false>`). Custom parse drivers that relied on that field should pass the appropriate mode to the crate-private parse entry point instead.
 - `cargo bench` uses `[profile.bench]` tuned for throughput (`lto`, `codegen-units = 1`, no debug info). Sampling profilers and flamegraphs should use `[profile.profiling]` (`debug = true`, LTO off); `profile.samply` inherits `profiling`.
 - Guide AI-assistance notices on docs.rs use rustdoc’s `.warning` callout styling so they read correctly in dark and Ayu themes (replacing fixed light-theme colors).
 - The guide and `capture!` docs now document **E0283** on disconnected or unused `let` rules (for example after commenting out the only `one_of` / `.trace()` use of a branch).

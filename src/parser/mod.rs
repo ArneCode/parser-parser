@@ -74,6 +74,7 @@ use crate::{
     },
     input::{Input, InputStream},
     matcher::{ErrorContextualizer, ignore_result::IgnoreResult},
+    mode::{ConcreteMode, Emit, Mode},
     parser::recover_error::ErrorRecoverer as ErrorRecovererInner,
 };
 
@@ -84,6 +85,7 @@ pub(crate) mod internal {
         context::ParserContext,
         error::{MatcherRunError, error_handler::ErrorHandler},
         input::{Input, InputStream},
+        mode::Mode,
         parser::ParserCombinator,
     };
 
@@ -101,7 +103,7 @@ pub(crate) mod internal {
         const CAN_FAIL: bool;
 
         /// Run the parser at `pos` against `context`, reporting secondary issues through `error_handler`.
-        fn parse(
+        fn parse<M: Mode>(
             &self,
             context: &mut ParserContext<'src>,
             error_handler: &mut impl ErrorHandler,
@@ -360,10 +362,70 @@ impl<'src, Inp: Input<'src>, P> Parser<'src, Inp> for P where
 {
 }
 
+pub(crate) fn parse_with_concrete_mode<'src, Inp, P>(
+    parser: &P,
+    mode: ConcreteMode,
+    context: &mut ParserContext<'src>,
+    error_handler: ErrorHandlerChoice<'_>,
+    input: &mut InputStream<'src, Inp>,
+) -> Result<Option<P::Output>, MatcherRunError>
+where
+    Inp: Input<'src>,
+    P: internal::ParserImpl<'src, Inp>,
+{
+    match mode {
+        ConcreteMode::Emit {
+            is_in_error_recovery: false,
+            is_in_committed: false,
+        } => match error_handler {
+            ErrorHandlerChoice::Empty(handler) => {
+                parser.parse::<Emit<false, false>>(context, handler, input)
+            }
+            ErrorHandlerChoice::Multi(handler) => {
+                parser.parse::<Emit<false, false>>(context, handler, input)
+            }
+        },
+        ConcreteMode::Emit {
+            is_in_error_recovery: false,
+            is_in_committed: true,
+        } => match error_handler {
+            ErrorHandlerChoice::Empty(handler) => {
+                parser.parse::<Emit<false, true>>(context, handler, input)
+            }
+            ErrorHandlerChoice::Multi(handler) => {
+                parser.parse::<Emit<false, true>>(context, handler, input)
+            }
+        },
+        ConcreteMode::Emit {
+            is_in_error_recovery: true,
+            is_in_committed: false,
+        } => match error_handler {
+            ErrorHandlerChoice::Empty(handler) => {
+                parser.parse::<Emit<true, false>>(context, handler, input)
+            }
+            ErrorHandlerChoice::Multi(handler) => {
+                parser.parse::<Emit<true, false>>(context, handler, input)
+            }
+        },
+        ConcreteMode::Emit {
+            is_in_error_recovery: true,
+            is_in_committed: true,
+        } => match error_handler {
+            ErrorHandlerChoice::Empty(handler) => {
+                parser.parse::<Emit<true, true>>(context, handler, input)
+            }
+            ErrorHandlerChoice::Multi(handler) => {
+                parser.parse::<Emit<true, true>>(context, handler, input)
+            }
+        },
+    }
+}
+
 pub(crate) trait ParserObjSafe<'src, Inp: Input<'src>, Output>: std::fmt::Debug {
     fn parse(
         &self,
         context: &mut ParserContext<'src>,
+        mode: ConcreteMode,
         error_handler: ErrorHandlerChoice<'_>,
         input: &mut InputStream<'src, Inp>,
     ) -> Result<Option<Output>, MatcherRunError>;
@@ -383,13 +445,11 @@ where
     fn parse(
         &self,
         context: &mut ParserContext<'src>,
+        mode: ConcreteMode,
         error_handler: ErrorHandlerChoice<'_>,
         input: &mut InputStream<'src, Inp>,
     ) -> Result<Option<Output>, MatcherRunError> {
-        match error_handler {
-            ErrorHandlerChoice::Empty(handler) => self.parse(context, handler, input),
-            ErrorHandlerChoice::Multi(handler) => self.parse(context, handler, input),
-        }
+        parse_with_concrete_mode(self, mode, context, error_handler, input)
     }
 
     #[inline]
@@ -416,13 +476,13 @@ where
     const CAN_FAIL: bool = Inner::CAN_FAIL;
 
     #[inline]
-    fn parse(
+    fn parse<M: Mode>(
         &self,
         context: &mut ParserContext<'src>,
         error_handler: &mut impl ErrorHandler,
         input: &mut InputStream<'src, Inp>,
     ) -> Result<Option<Self::Output>, MatcherRunError> {
-        (**self).parse(context, error_handler, input)
+        (**self).parse::<M>(context, error_handler, input)
     }
 
     #[inline]
@@ -440,13 +500,13 @@ where
     const CAN_FAIL: bool = Inner::CAN_FAIL;
 
     #[inline]
-    fn parse(
+    fn parse<M: Mode>(
         &self,
         context: &mut ParserContext<'src>,
         error_handler: &mut impl ErrorHandler,
         input: &mut InputStream<'src, Inp>,
     ) -> Result<Option<Self::Output>, MatcherRunError> {
-        (**self).parse(context, error_handler, input)
+        (**self).parse::<M>(context, error_handler, input)
     }
 
     #[inline]
@@ -464,13 +524,13 @@ where
     const CAN_FAIL: bool = Inner::CAN_FAIL;
 
     #[inline]
-    fn parse(
+    fn parse<M: Mode>(
         &self,
         context: &mut ParserContext<'src>,
         error_handler: &mut impl ErrorHandler,
         input: &mut InputStream<'src, Inp>,
     ) -> Result<Option<Self::Output>, MatcherRunError> {
-        (**self).parse(context, error_handler, input)
+        (**self).parse::<M>(context, error_handler, input)
     }
 
     #[inline]

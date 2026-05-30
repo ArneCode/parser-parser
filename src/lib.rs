@@ -36,6 +36,7 @@ pub mod guide {
 pub mod input;
 pub mod label;
 pub mod matcher;
+pub(crate) mod mode;
 pub mod one_of;
 pub mod parser;
 pub mod trace;
@@ -57,6 +58,7 @@ use crate::{
     matcher::{
         any_token::AnyToken, commit_matcher::commit_on, negative_lookahead::negative_lookahead,
     },
+    mode::Emit,
     parser::{Parser, internal::ParserImpl},
 };
 
@@ -77,9 +79,9 @@ where
     parse_whole_input_with_default_eof(&parser, src)
 }
 
-/// Whole-input parse with default EOF wrapper: first pass with [`ParserContext::is_in_error_recovery`]
-/// false; on [`MatcherRunError::RetryRerunNeeded`], rewind, reset transient state, set recovery flag,
-/// and parse once more.
+/// Whole-input parse with default EOF wrapper: first pass with [`Emit<false, false>`];
+/// on [`MatcherRunError::RetryRerunNeeded`], rewind, reset transient state, and parse once more
+/// with [`Emit<true, false>`].
 ///
 /// Works for any [`Input`](crate::input::Input) (for example `&str` or `&[T]`).
 #[inline]
@@ -105,8 +107,7 @@ where
         )) => result
     );
 
-    context.is_in_error_recovery = false;
-    let first = eof_wrapped.parse(&mut context, &mut error_handler, &mut input);
+    let first = eof_wrapped.parse::<Emit<false, false>>(&mut context, &mut error_handler, &mut input);
     match first {
         Ok(Some(out)) => Ok((out, context.get_errors())),
         Ok(None) => {
@@ -119,8 +120,7 @@ where
         Err(MatcherRunError::RetryRerunNeeded) => {
             input.set_pos(start_pos.clone());
             context = ParserContext::new();
-            context.is_in_error_recovery = true;
-            match eof_wrapped.parse(&mut context, &mut error_handler, &mut input) {
+            match eof_wrapped.parse::<Emit<true, false>>(&mut context, &mut error_handler, &mut input) {
                 Ok(Some(out)) => Ok((out, context.get_errors())),
                 Ok(None) => {
                     let p: usize = input.get_pos().into();
@@ -164,15 +164,15 @@ where
         )) => result
     );
 
-    context.is_in_error_recovery = false;
-    let mut parse_result = eof_wrapped.parse(&mut context, &mut error_handler, &mut input);
+    let mut parse_result =
+        eof_wrapped.parse::<Emit<false, false>>(&mut context, &mut error_handler, &mut input);
     if matches!(parse_result, Err(MatcherRunError::RetryRerunNeeded)) {
         input.set_pos(start_pos.clone());
         let session = context.take_trace_session().unwrap_or_default();
         context = ParserContext::new();
         context.attach_trace_session(session);
-        context.is_in_error_recovery = true;
-        parse_result = eof_wrapped.parse(&mut context, &mut error_handler, &mut input);
+        parse_result =
+            eof_wrapped.parse::<Emit<true, false>>(&mut context, &mut error_handler, &mut input);
     }
     let trace = context.take_trace_session().unwrap_or_default();
     match parse_result {

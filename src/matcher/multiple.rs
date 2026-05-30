@@ -35,7 +35,7 @@ where
     const HAS_PROPERTY: bool = Match::HAS_PROPERTY;
     const CAN_FAIL: bool = false;
     #[inline]
-    fn match_with_runner<'a, Runner>(
+    fn match_with_runner<'a, Runner, M: crate::mode::Mode>(
         &'a self,
         runner: &mut Runner,
         error_handler: &mut impl ErrorHandler,
@@ -48,7 +48,7 @@ where
         loop {
             // TODO: maybe throw an error if an infinite loop is detected.
             let before = input.get_pos();
-            if !runner.run_match(&self.matcher, error_handler, input)? {
+            if !runner.run_match::<_, M, _>(&self.matcher, error_handler, input)? {
                 break;
             }
             if input.get_pos().into() == before.into() {

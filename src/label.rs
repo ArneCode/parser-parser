@@ -39,7 +39,7 @@ where
     const CAN_FAIL: bool = I::CAN_FAIL;
 
     #[inline]
-    fn match_with_runner<'a, Runner>(
+    fn match_with_runner<'a, Runner, M: crate::mode::Mode>(
         &'a self,
         runner: &mut Runner,
         error_handler: &mut impl ErrorHandler,
@@ -49,7 +49,7 @@ where
         Runner: MatchRunner<'a, 'src, Inp, MRes = MRes>,
         'src: 'a,
     {
-        runner.run_match(&self.inner, error_handler, input)
+        runner.run_match::<_, M, _>(&self.inner, error_handler, input)
     }
     #[inline]
     fn maybe_label(&self) -> Option<Box<dyn Display>> {
@@ -67,17 +67,17 @@ where
     const CAN_FAIL: bool = I::CAN_FAIL;
 
     #[inline]
-    fn parse(
+    fn parse<M: crate::mode::Mode>(
         &self,
         context: &mut ParserContext<'src>,
         error_handler: &mut impl ErrorHandler,
         input: &mut InputStream<'src, Inp>,
     ) -> Result<Option<Self::Output>, MatcherRunError> {
         if !error_handler.is_real() {
-            return self.inner.parse(context, error_handler, input);
+            return self.inner.parse::<M>(context, error_handler, input);
         }
         let idx = error_handler.register_start(input.get_pos().into());
-        match self.inner.parse(context, error_handler, input) {
+        match self.inner.parse::<M>(context, error_handler, input) {
             Ok(Some(output)) => {
                 error_handler.register_success(idx);
                 Ok(Some(output))

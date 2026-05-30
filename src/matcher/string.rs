@@ -31,7 +31,7 @@ impl<'src, Inp: Input<'src, Token = char>, MRes> super::internal::MatcherImpl<'s
     const CAN_FAIL: bool = true;
 
     #[inline]
-    fn match_with_runner<'a, Runner>(
+    fn match_with_runner<'a, Runner, M: crate::mode::Mode>(
         &'a self,
         _runner: &mut Runner,
         _error_handler: &mut impl ErrorHandler,
@@ -75,7 +75,7 @@ impl<'src, Inp: Input<'src, Token = char>, MRes> super::internal::MatcherImpl<'s
     const CAN_FAIL: bool = true;
 
     #[inline]
-    fn match_with_runner<'a, Runner>(
+    fn match_with_runner<'a, Runner, M: crate::mode::Mode>(
         &'a self,
         _runner: &mut Runner,
         _error_handler: &mut impl ErrorHandler,
@@ -119,7 +119,7 @@ impl<'src, Inp: Input<'src, Token = char>, MRes> super::internal::MatcherImpl<'s
     const CAN_FAIL: bool = true;
 
     #[inline]
-    fn match_with_runner<'a, Runner>(
+    fn match_with_runner<'a, Runner, M: crate::mode::Mode>(
         &'a self,
         _runner: &mut Runner,
         _error_handler: &mut impl ErrorHandler,
@@ -152,7 +152,7 @@ impl<'src, MRes> super::internal::MatcherImpl<'src, &'src [u8], MRes> for &[u8] 
     const CAN_FAIL: bool = true;
 
     #[inline]
-    fn match_with_runner<'a, Runner>(
+    fn match_with_runner<'a, Runner, M: crate::mode::Mode>(
         &'a self,
         _runner: &mut Runner,
         _error_handler: &mut impl ErrorHandler,
@@ -181,7 +181,7 @@ impl<'src, MRes> super::internal::MatcherImpl<'src, &'src [u8], MRes> for u8 {
     const CAN_FAIL: bool = true;
 
     #[inline]
-    fn match_with_runner<'a, Runner>(
+    fn match_with_runner<'a, Runner, M: crate::mode::Mode>(
         &'a self,
         _runner: &mut Runner,
         _error_handler: &mut impl ErrorHandler,

@@ -30,7 +30,7 @@ impl<'src, Inp: Input<'src, Token = Token>, Token: PartialEq + Clone + Debug>
     type Output = Token;
     const CAN_FAIL: bool = true;
     #[inline]
-    fn parse(
+    fn parse<M: crate::mode::Mode>(
         &self,
         _context: &mut ParserContext<'src>,
         _error_handler: &mut impl ErrorHandler,
@@ -55,7 +55,7 @@ impl<'src, Inp: Input<'src, Token = char>> super::internal::ParserImpl<'src, Inp
     const CAN_FAIL: bool = true;
 
     #[inline]
-    fn parse(
+    fn parse<M: crate::mode::Mode>(
         &self,
         _context: &mut ParserContext<'src>,
         _error_handler: &mut impl ErrorHandler,
@@ -79,7 +79,7 @@ impl<'src> super::internal::ParserImpl<'src, &'src [u8]> for u8 {
     const CAN_FAIL: bool = true;
 
     #[inline]
-    fn parse(
+    fn parse<M: crate::mode::Mode>(
         &self,
         _context: &mut ParserContext<'src>,
         _error_handler: &mut impl ErrorHandler,

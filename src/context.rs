@@ -2,16 +2,14 @@
 //!
 //! # Invariants
 //!
-//! - **`is_in_error_recovery`** — Only the top-level driver sets this for the second pass after
-//!   [`crate::error::MatcherRunError::RetryRerunNeeded`]. Nested code must not flip it. A fresh
-//!   [`ParserContext::new`] is used between passes so memoization and recovery-local state do not
-//!   leak across attempts.
 //! - **`memo_store`** — Parse-scoped; see [`crate::memo_store`] for the per-parser-id typing
 //!   contract. [`crate::matcher::commit_matcher::CommitMatcher`] swaps memo stores during recovery
 //!   so the inner branch explores with an empty cache without mutating the outer parse’s memos.
 //! - **Error stacks** — [`crate::matcher::MatchRunner::run_match`] records a stack watermark on
 //!   entry and truncates [`ParserContext::error_stack`] on matcher failure or `Err`, pairing
 //!   [`crate::error::ErrorHandler::register_start`] / `register_success` / `register_failure`.
+//!
+//! Error-recovery pass selection is via [`crate::mode::Mode`] at the parse driver, not context fields.
 
 use std::collections::HashSet;
 
@@ -28,7 +26,6 @@ pub struct ParserContext<'src> {
     pub error_sink: Vec<ParserError>,
     pub registered_error_set: HashSet<(usize, usize)>,
     pub error_stack: Vec<ParserError>,
-    pub is_in_error_recovery: bool,
     #[cfg(feature = "parser-trace")]
     pub(crate) trace: Option<TraceState>,
     _marker: std::marker::PhantomData<&'src ()>,
@@ -42,7 +39,6 @@ impl<'src> ParserContext<'src> {
             error_sink: Vec::new(),
             registered_error_set: HashSet::new(),
             error_stack: Vec::new(),
-            is_in_error_recovery: false,
             #[cfg(feature = "parser-trace")]
             trace: None,
             _marker: std::marker::PhantomData,

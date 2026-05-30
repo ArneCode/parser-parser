@@ -63,21 +63,21 @@ where
     const CAN_FAIL: bool = HappyParser::CAN_FAIL;
 
     #[inline]
-    fn parse(
+    fn parse<M: crate::mode::Mode>(
         &self,
         context: &mut ParserContext<'src>,
         error_handler: &mut impl ErrorHandler,
         input: &mut InputStream<'src, Inp>,
     ) -> Result<Option<Self::Output>, crate::error::MatcherRunError> {
         let start_pos = input.get_pos();
-        match self.happy.parse(context, error_handler, input) {
+        match self.happy.parse::<M>(context, error_handler, input) {
             Err(e) => {
                 if matches!(e, MatcherRunError::RetryRerunNeeded) {
                     input.set_pos(start_pos.clone());
                     return Err(e);
                 }
                 input.set_pos(start_pos.clone());
-                match self.recover_parser.parse(context, error_handler, input) {
+                match self.recover_parser.parse::<M>(context, error_handler, input) {
                     Ok(Some(output)) => {
                         // TODO: maybe find a way to avoid registering the same error multiple times.
                         if !context

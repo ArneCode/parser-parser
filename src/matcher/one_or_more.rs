@@ -37,7 +37,7 @@ where
     const CAN_FAIL: bool = Match::CAN_FAIL;
 
     #[inline]
-    fn match_with_runner<'a, Runner>(
+    fn match_with_runner<'a, Runner, M: crate::mode::Mode>(
         &'a self,
         runner: &mut Runner,
         error_handler: &mut impl ErrorHandler,
@@ -48,13 +48,13 @@ where
         'src: 'a,
     {
         // First match is mandatory — propagate the error if absent.
-        if !runner.run_match(&self.matcher, error_handler, input)? {
+        if !runner.run_match::<_, M, _>(&self.matcher, error_handler, input)? {
             return Ok(false);
         }
         // Remaining matches are optional (same as Multiple).
         loop {
             let before = input.get_pos();
-            if !runner.run_match(&self.matcher, error_handler, input)? {
+            if !runner.run_match::<_, M, _>(&self.matcher, error_handler, input)? {
                 break;
             }
             if input.get_pos().into() == before.into() {

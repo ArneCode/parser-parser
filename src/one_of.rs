@@ -52,19 +52,19 @@ macro_rules! impl_one_of_tuples {
             const CAN_FAIL: bool = $head::CAN_FAIL  $(&& $tail::CAN_FAIL)*;
 
             #[inline]
-            fn match_with_runner<'a, Runner>(&'a self, runner: &mut Runner, error_handler: &mut impl ErrorHandler, input: &mut InputStream<'src, Inp>) -> Result<bool, MatcherRunError>
+            fn match_with_runner<'a, Runner, M: crate::mode::Mode>(&'a self, runner: &mut Runner, error_handler: &mut impl ErrorHandler, input: &mut InputStream<'src, Inp>) -> Result<bool, MatcherRunError>
             where
                 Runner: MatchRunner<'a, 'src, Inp, MRes = MRes>,
                 'src: 'a,
             {
                 #[allow(non_snake_case)]
                 let ($head, $($tail,)*) = &self.options;
-                if runner.run_match($head, error_handler, input)? {
+                if runner.run_match::<_, M, _>($head, error_handler, input)? {
                     return Ok(true);
                 }
 
                 $(
-                    if runner.run_match($tail, error_handler, input)? {
+                    if runner.run_match::<_, M, _>($tail, error_handler, input)? {
                         return Ok(true);
                     }
                 )*
@@ -80,25 +80,25 @@ macro_rules! impl_one_of_tuples {
             type Output = Output;
             const CAN_FAIL: bool = $head::CAN_FAIL  $(&& $tail::CAN_FAIL)*;
             #[inline]
-            fn parse(&self, context: &mut ParserContext<'src>, error_handler: &mut impl ErrorHandler, input: &mut InputStream<'src, Inp>) -> Result<Option<Output>, MatcherRunError> {
+            fn parse<M: crate::mode::Mode>(&self, context: &mut ParserContext<'src>, error_handler: &mut impl ErrorHandler, input: &mut InputStream<'src, Inp>) -> Result<Option<Output>, MatcherRunError> {
 
                 #[allow(non_snake_case)]
                 let ($head, $($tail,)*) = &self.options;
 
                 // if $head.check_no_advance(context, pos) {
-                //     return $head.parse(context, pos);
+                //     return $head.parse::<M>(context, pos);
                 // }
-                if let Some(output) = $head.parse(context, error_handler, input)? {
+                if let Some(output) = $head.parse::<M>(context, error_handler, input)? {
                     return Ok(Some(output));
                 }
 
                 // $(
                 //     if $tail.check_no_advance(context, pos) {
-                //         return $tail.parse(context, pos);
+                //         return $tail.parse::<M>(context, pos);
                 //     }
                 // )*
                 $(
-                    if let Some(output) = $tail.parse(context, error_handler, input)? {
+                    if let Some(output) = $tail.parse::<M>(context, error_handler, input)? {
                         return Ok(Some(output));
                     }
                 )*
