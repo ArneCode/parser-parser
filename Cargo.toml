@@ -39,9 +39,18 @@ exclude = [
 features = ["parser-trace", "annotate-snippets", "embed-guide"]
 cargo-args = ["-Zunstable-options", "-Zrustdoc-scrape-examples"]
 
-# Readable stacks in `cargo flamegraph --bench …` / perf (line-level is still limited without LTO off).
+# `cargo bench` — throughput / Criterion A/B (slower links, faster runtime).
 [profile.bench]
+inherits = "release"
+debug = false
+lto = true
+codegen-units = 1
+
+# `cargo run --profile profiling`, flamegraph script — debug symbols; LTO off for clearer stacks.
+[profile.profiling]
+inherits = "release"
 debug = true
+lto = false
 
 [features]
 default = []
@@ -86,5 +95,4 @@ required-features = ["annotate-snippets"]
 doc-scrape-examples = true
 
 [profile.samply]
-inherits = "release"
-debug = true
+inherits = "profiling"

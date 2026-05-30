@@ -16,7 +16,7 @@ fn bench_fixture(c: &mut Criterion, fixture: Fixture) {
     assert_parse_clean(label, &parser, src.as_str());
 
     let mut group = c.benchmark_group(label);
-    if fixture == Fixture::Canada {
+    if fixture.uses_extended_criterion_timing() {
         // Default is ~100 samples in ~5s; full-file parse is hundreds of ms per iter.
         group
             .measurement_time(Duration::from_secs(20))
@@ -32,8 +32,9 @@ fn bench_fixture(c: &mut Criterion, fixture: Fixture) {
 }
 
 fn parse_fixtures(c: &mut Criterion) {
-    bench_fixture(c, Fixture::Json0);
-    bench_fixture(c, Fixture::Canada);
+    for fixture in Fixture::ALL {
+        bench_fixture(c, fixture);
+    }
 }
 
 criterion_group!(benches, parse_fixtures);

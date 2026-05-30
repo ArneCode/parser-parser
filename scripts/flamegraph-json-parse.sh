@@ -24,4 +24,4 @@ if [[ -z "${PERF:-}" ]] && ! command -v perf >/dev/null 2>&1; then
   exit 1
 fi
 
-exec cargo flamegraph --profile bench --bin profile_json_parse "$@"
+exec cargo flamegraph --profile profiling --bin profile_json_parse "$@"

@@ -9,8 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Criterion and profiling fixtures `twitter.json` and `citm_catalog.json` (simdjson-data) alongside `canada.json`.
+
 ### Changed
 
+- `cargo bench` uses `[profile.bench]` tuned for throughput (`lto`, `codegen-units = 1`, no debug info). Sampling profilers and flamegraphs should use `[profile.profiling]` (`debug = true`, LTO off); `profile.samply` inherits `profiling`.
 - Guide AI-assistance notices on docs.rs use rustdoc’s `.warning` callout styling so they read correctly in dark and Ayu themes (replacing fixed light-theme colors).
 - The guide and `capture!` docs now document **E0283** on disconnected or unused `let` rules (for example after commenting out the only `one_of` / `.trace()` use of a branch).
 

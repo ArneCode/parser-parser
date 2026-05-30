@@ -148,7 +148,7 @@ If you use AI tools to draft code, ensure it is correct and tested; the maintain
 cargo bench --bench json_parse
 ```
 
-Profiling script (needs `perf` / flamegraph tooling): [`scripts/flamegraph-json-parse.sh`](scripts/flamegraph-json-parse.sh). Details in [README.md](README.md).
+Uses `[profile.bench]` (`lto`, `codegen-units = 1`). For flamegraphs / `perf`, use `[profile.profiling]` (`debug = true`, LTO off), e.g. [`scripts/flamegraph-json-parse.sh`](scripts/flamegraph-json-parse.sh) or `cargo run --profile profiling --bin profile_json_parse`.
 
 ---
 

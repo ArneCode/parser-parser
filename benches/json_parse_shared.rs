@@ -16,14 +16,26 @@ pub use json_grammar::get_json_grammar;
 pub enum Fixture {
     Json0,
     Canada,
+    Twitter,
+    CitmCatalog,
 }
 
+#[allow(dead_code)] // `ALL` / timing helpers are bench-only; `parse_name` is profile-binary-only.
 impl Fixture {
+    pub const ALL: [Self; 4] = [Self::Json0, Self::Canada, Self::Twitter, Self::CitmCatalog];
+
     pub const fn label(self) -> &'static str {
         match self {
             Self::Json0 => "parse_json0",
             Self::Canada => "parse_canada",
+            Self::Twitter => "parse_twitter",
+            Self::CitmCatalog => "parse_citm_catalog",
         }
+    }
+
+    /// Criterion groups for large simdjson-style files need longer measurement windows.
+    pub const fn uses_extended_criterion_timing(self) -> bool {
+        !matches!(self, Self::Json0)
     }
 
     pub fn path(self) -> PathBuf {
@@ -31,6 +43,27 @@ impl Fixture {
         match self {
             Self::Json0 => root.join("tests/data/json0.json"),
             Self::Canada => root.join("benches/data/canada.json"),
+            Self::Twitter => root.join("benches/data/twitter.json"),
+            Self::CitmCatalog => root.join("benches/data/citm_catalog.json"),
+        }
+    }
+
+    pub fn parse_name(self) -> &'static str {
+        match self {
+            Self::Json0 => "json0",
+            Self::Canada => "canada",
+            Self::Twitter => "twitter",
+            Self::CitmCatalog => "citm_catalog",
+        }
+    }
+
+    pub fn from_parse_name(name: &str) -> Option<Self> {
+        match name.to_ascii_lowercase().as_str() {
+            "json0" => Some(Self::Json0),
+            "canada" => Some(Self::Canada),
+            "twitter" => Some(Self::Twitter),
+            "citm_catalog" | "citm" => Some(Self::CitmCatalog),
+            _ => None,
         }
     }
 }

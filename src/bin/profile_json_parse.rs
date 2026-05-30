@@ -6,19 +6,20 @@
 //! cargo bench --bench json_parse
 //! ```
 //!
-//! Typical flamegraph (same `[profile.bench]` as the bench — readable symbols):
+//! Typical flamegraph (`[profile.profiling]`: debug symbols, LTO off for clearer stacks):
 //!
 //! ```text
-//! cargo flamegraph --profile bench --bin profile_json_parse
+//! cargo flamegraph --profile profiling --bin profile_json_parse
 //! ```
 //!
 //! Optional arguments after `--` are fixture name then wall-clock seconds:
 //!
 //! ```text
-//! cargo flamegraph --profile bench --bin profile_json_parse -- json0 3
+//! cargo flamegraph --profile profiling --bin profile_json_parse -- json0 3
 //! ```
 //!
-//! Fixtures: `json0` (small), `canada` (large). Default: `canada` and `5` seconds.
+//! Fixtures: `json0` (small), `canada`, `twitter`, `citm_catalog` (simdjson-data).
+//! Default: `canada` and `5` seconds.
 
 use std::time::{Duration, Instant};
 
@@ -30,7 +31,7 @@ mod shared;
 use shared::{Fixture, assert_parse_clean, get_json_grammar, load_src};
 
 fn usage() -> ! {
-    eprintln!("usage: profile_json_parse [json0|canada] [seconds]");
+    eprintln!("usage: profile_json_parse [json0|canada|twitter|citm_catalog] [seconds]");
     std::process::exit(2);
 }
 
@@ -42,16 +43,10 @@ fn main() {
         usage();
     }
 
-    let fixture = match fixture_arg
+    let fixture = fixture_arg
         .as_deref()
-        .unwrap_or("canada")
-        .to_ascii_lowercase()
-        .as_str()
-    {
-        "json0" => Fixture::Json0,
-        "canada" => Fixture::Canada,
-        _ => usage(),
-    };
+        .unwrap_or("canada");
+    let fixture = Fixture::from_parse_name(fixture).unwrap_or_else(|| usage());
 
     let seconds: u64 = seconds_arg
         .as_deref()

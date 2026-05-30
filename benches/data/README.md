@@ -1,7 +1,11 @@
 # Benchmark JSON fixtures
 
-## `canada.json`
+Files under this directory are copied from the [simdjson-data](https://github.com/simdjson/simdjson-data) repository (`jsonexamples/`), commonly used for JSON parser benchmarking.
 
-Copied from the [simdjson-data](https://github.com/simdjson/simdjson-data) repository (`jsonexamples/canada.json`), a commonly used real-world–shaped JSON benchmark (nested arrays, many numbers).
+| File | Upstream path | Notes |
+|------|----------------|-------|
+| `canada.json` | `jsonexamples/canada.json` | Nested arrays, many numbers |
+| `twitter.json` | `jsonexamples/twitter.json` | Typical API-style JSON |
+| `citm_catalog.json` | `jsonexamples/citm_catalog.json` | Larger structured document |
 
 The upstream collection is intended for testing and benchmarking; see that repository for citation guidance if you publish results using these files.

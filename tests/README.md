@@ -120,7 +120,7 @@ Criterion bench **`json_parse`** (same grammar as `json_harness` via `examples/j
 cargo bench --bench json_parse
 ```
 
-See the repo `README.md` for Criterion HTML output, optional **gnuplot**, and **flamegraph** / `perf` notes (WSL2 often needs a generic `perf` or `PERF=…`).
+Criterion uses `[profile.bench]` (LTO, single codegen unit). Fixtures: `json0`, `canada`, `twitter`, and `citm_catalog` under `benches/data/` (see [`benches/data/README.md`](../benches/data/README.md)). Flamegraphs: `--profile profiling` or [`scripts/flamegraph-json-parse.sh`](../scripts/flamegraph-json-parse.sh) (WSL2 may need `PERF=…`; see script).
 
 ## Workspace crates
 
