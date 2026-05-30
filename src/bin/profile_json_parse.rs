@@ -43,9 +43,7 @@ fn main() {
         usage();
     }
 
-    let fixture = fixture_arg
-        .as_deref()
-        .unwrap_or("canada");
+    let fixture = fixture_arg.as_deref().unwrap_or("canada");
     let fixture = Fixture::from_parse_name(fixture).unwrap_or_else(|| usage());
 
     let seconds: u64 = seconds_arg

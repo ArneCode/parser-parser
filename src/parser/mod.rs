@@ -64,8 +64,7 @@ pub use token_parser::{TokenParser, token_parser};
 use crate::trace::{TraceFormat, TraceSession};
 
 #[cfg(feature = "parser-trace")]
-type ParseWithTraceResult<Out> =
-    Result<(Out, Vec<ParserError>, TraceSession), FurthestFailError>;
+type ParseWithTraceResult<Out> = Result<(Out, Vec<ParserError>, TraceSession), FurthestFailError>;
 
 use crate::{
     context::ParserContext,

@@ -168,9 +168,7 @@ where
     let mut parse_result = eof_wrapped.parse(&mut context, &mut error_handler, &mut input);
     if matches!(parse_result, Err(MatcherRunError::RetryRerunNeeded)) {
         input.set_pos(start_pos.clone());
-        let session = context
-            .take_trace_session()
-            .unwrap_or_default();
+        let session = context.take_trace_session().unwrap_or_default();
         context = ParserContext::new();
         context.attach_trace_session(session);
         context.is_in_error_recovery = true;

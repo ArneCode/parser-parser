@@ -13,11 +13,11 @@ use crate::{
 };
 
 #[cfg(feature = "parser-trace")]
+use super::context_trace_impl::ExplicitMarkerTraceParams;
+#[cfg(feature = "parser-trace")]
 use super::{
     ExplicitMarkerEndOutcome, RuleSourceMetadata, TraceMarkerFailureSnapshot, TraceMarkerPhase,
 };
-#[cfg(feature = "parser-trace")]
-use super::context_trace_impl::ExplicitMarkerTraceParams;
 
 #[cfg(feature = "parser-trace")]
 fn trace_failure_snapshot_for_end(
@@ -131,16 +131,18 @@ where
                 matched.as_ref().err().map(TraceMarkerFailureSnapshot::from),
                 input.get_pos().into(),
             );
-            runner.get_parser_context().trace_explicit_marker(ExplicitMarkerTraceParams {
-                marker_id,
-                phase: TraceMarkerPhase::End,
-                pos: input.get_pos().into(),
-                label: trace_label,
-                usage_metadata: self.source,
-                definition_metadata: None,
-                end_outcome: Some(end_outcome),
-                marker_failure: failure_snapshot,
-            });
+            runner
+                .get_parser_context()
+                .trace_explicit_marker(ExplicitMarkerTraceParams {
+                    marker_id,
+                    phase: TraceMarkerPhase::End,
+                    pos: input.get_pos().into(),
+                    label: trace_label,
+                    usage_metadata: self.source,
+                    definition_metadata: None,
+                    end_outcome: Some(end_outcome),
+                    marker_failure: failure_snapshot,
+                });
         }
         matched
     }

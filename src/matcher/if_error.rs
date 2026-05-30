@@ -47,7 +47,7 @@ where
 {
     const CAN_MATCH_DIRECTLY: bool = true;
     const HAS_PROPERTY: bool = false;
-    const CAN_FAIL: bool = true;
+    const CAN_FAIL: bool = false;
 
     #[inline]
     fn match_with_runner<'a, Runner>(

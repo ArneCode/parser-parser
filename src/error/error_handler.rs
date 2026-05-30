@@ -27,7 +27,7 @@ pub(crate) trait ErrorHandler {
     fn register_success(&mut self, idx: Self::Indexer);
     fn register_watermark(&mut self, pos: usize);
     fn to_choice(&mut self) -> ErrorHandlerChoice<'_>;
-    #[inline]
+    #[inline(always)]
     fn is_real(&self) -> bool {
         Self::IS_REAL
     }

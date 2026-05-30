@@ -176,9 +176,7 @@ pub fn get_json_grammar<'src>() -> impl Parser<'src, &'src str, Output = JsonVal
             }) as Box<dyn Fn(&mut FurthestFailError)>
             ),
         )))
-        .recover_with(
-            invalid_element.clone()
-        )
+        .recover_with(invalid_element.clone())
         .with_label("number");
 
         let character = Rc::new(
@@ -341,8 +339,6 @@ pub fn get_json_grammar<'src>() -> impl Parser<'src, &'src str, Output = JsonVal
         let string = raw_string
             .map_output(JsonValue::String)
             .with_label("string");
-
-
 
         capture!((
             ws.clone().trace(),
