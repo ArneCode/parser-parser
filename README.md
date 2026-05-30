@@ -26,6 +26,7 @@ use marser::matcher::one_or_more;
 use marser::parser::Parser;
 
 // the struct we want to parse into
+#[derive(Debug, PartialEq)]
 struct Roll {
     count: u32,
     sides: u32,
