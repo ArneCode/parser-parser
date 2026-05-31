@@ -86,7 +86,7 @@ where
     const CAN_FAIL: bool = I::CAN_FAIL;
 
     #[inline]
-    fn match_with_runner<'a, Runner>(
+    fn match_with_runner<'a, Runner, M: crate::mode::Mode>(
         &'a self,
         runner: &mut Runner,
         error_handler: &mut impl ErrorHandler,
@@ -117,7 +117,7 @@ where
             });
             marker_id
         };
-        let matched = runner.run_match(&self.inner, error_handler, input);
+        let matched = runner.run_match::<_, M, _>(&self.inner, error_handler, input);
         #[cfg(feature = "parser-trace")]
         {
             let end_outcome = match &matched {
@@ -161,7 +161,7 @@ where
     const CAN_FAIL: bool = I::CAN_FAIL;
 
     #[inline]
-    fn parse(
+    fn parse<M: crate::mode::Mode>(
         &self,
         context: &mut ParserContext<'src>,
         error_handler: &mut impl ErrorHandler,
@@ -187,7 +187,7 @@ where
             });
             marker_id
         };
-        let parsed = self.inner.parse(context, error_handler, input);
+        let parsed = self.inner.parse::<M>(context, error_handler, input);
         #[cfg(feature = "parser-trace")]
         {
             let end_outcome = match &parsed {

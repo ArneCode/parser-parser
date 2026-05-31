@@ -50,7 +50,7 @@ where
     const CAN_FAIL: bool = false;
 
     #[inline]
-    fn match_with_runner<'a, Runner>(
+    fn match_with_runner<'a, Runner, M: crate::mode::Mode>(
         &'a self,
         runner: &mut Runner,
         error_handler: &mut impl crate::error::error_handler::ErrorHandler,
@@ -60,10 +60,11 @@ where
         Runner: super::MatchRunner<'a, 'src, Inp, MRes = MRes>,
         'src: 'a,
     {
-        if !error_handler.is_real() {
+        if !M::IS_IN_ERROR_RECOVERY {
             return Ok(true);
         }
-        self.inner.match_with_runner(runner, error_handler, input)
+        self.inner
+            .match_with_runner::<Runner, M>(runner, error_handler, input)
     }
 
     #[inline]
@@ -82,7 +83,7 @@ where
     const CAN_FAIL: bool = true;
 
     #[inline]
-    fn match_with_runner<'a, Runner>(
+    fn match_with_runner<'a, Runner, M: crate::mode::Mode>(
         &'a self,
         runner: &mut Runner,
         error_handler: &mut impl crate::error::error_handler::ErrorHandler,
@@ -92,10 +93,11 @@ where
         Runner: super::MatchRunner<'a, 'src, Inp, MRes = MRes>,
         'src: 'a,
     {
-        if !error_handler.is_real() {
+        if !M::IS_IN_ERROR_RECOVERY {
             return Ok(false);
         }
-        self.inner.match_with_runner(runner, error_handler, input)
+        self.inner
+            .match_with_runner::<Runner, M>(runner, error_handler, input)
     }
 
     #[inline]
@@ -113,16 +115,16 @@ where
     const CAN_FAIL: bool = true;
 
     #[inline]
-    fn parse(
+    fn parse<M: crate::mode::Mode>(
         &self,
         context: &mut crate::context::ParserContext<'src>,
         error_handler: &mut impl crate::error::error_handler::ErrorHandler,
         input: &mut crate::input::InputStream<'src, Inp>,
     ) -> Result<Option<Self::Output>, crate::error::MatcherRunError> {
-        if !error_handler.is_real() {
+        if !M::IS_IN_ERROR_RECOVERY {
             return Ok(None);
         }
-        self.inner.parse(context, error_handler, input)
+        self.inner.parse::<M>(context, error_handler, input)
     }
 
     #[inline]

@@ -97,15 +97,15 @@ where
     const CAN_FAIL: bool = Match::CAN_FAIL;
 
     #[inline]
-    fn parse(
+    fn parse<M: crate::mode::Mode>(
         &self,
         context: &mut ParserContext<'src>,
         error_handler: &mut impl ErrorHandler,
         input: &mut InputStream<'src, Inp>,
     ) -> Result<Option<Self::Output>, MatcherRunError> {
-        if Match::CAN_MATCH_DIRECTLY && !error_handler.is_real() && !context.is_in_error_recovery {
+        if Match::CAN_MATCH_DIRECTLY && !M::IS_IN_ERROR_RECOVERY {
             let mut runner = DirectMatchRunner::new(context);
-            match runner.run_match(&self.matcher, error_handler, input) {
+            match runner.run_match::<_, M, _>(&self.matcher, error_handler, input) {
                 Ok(true) => {
                     let (res_single, res_multiple, res_optional) = runner.get_match_result();
                     let result =
@@ -117,7 +117,7 @@ where
             }
         } else {
             let mut runner = NoMemoizeBacktrackingRunner::new(context);
-            match runner.run_match(&self.matcher, error_handler, input) {
+            match runner.run_match::<_, M, _>(&self.matcher, error_handler, input) {
                 Ok(true) => {
                     let (res_single, res_multiple, res_optional) = runner.get_match_result();
                     let result =

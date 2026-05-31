@@ -70,6 +70,7 @@ use std::{fmt::Display, ops::Deref, rc::Rc};
 use crate::{
     error::{MissingSyntax, UnwantedSyntax, error_handler::ErrorHandler},
     input::{Input, InputStream},
+    mode::Mode,
 };
 
 pub(crate) mod internal {
@@ -79,6 +80,7 @@ pub(crate) mod internal {
         error::{MatcherRunError, error_handler::ErrorHandler},
         input::{Input, InputStream},
         matcher::{MatcherCombinator, runner::MatchRunner},
+        mode::Mode,
     };
 
     /// Crate-private matching interface used by [`super::Matcher`].
@@ -101,7 +103,7 @@ pub(crate) mod internal {
         const CAN_FAIL: bool;
 
         /// Run this matcher via `runner`, updating `pos` and possibly `MRes` on success.
-        fn match_with_runner<'a, Runner>(
+        fn match_with_runner<'a, Runner, M: Mode>(
             &'a self,
             runner: &mut Runner,
             error_handler: &mut impl ErrorHandler,
@@ -213,7 +215,7 @@ where
     const CAN_FAIL: bool = Inner::CAN_FAIL;
 
     #[inline]
-    fn match_with_runner<'a, Runner>(
+    fn match_with_runner<'a, Runner, M: Mode>(
         &'a self,
         runner: &mut Runner,
         error_handler: &mut impl ErrorHandler,
@@ -223,7 +225,7 @@ where
         Runner: MatchRunner<'a, 'src, Inp, MRes = MRes>,
         'src: 'a,
     {
-        (**self).match_with_runner(runner, error_handler, input)
+        (**self).match_with_runner::<Runner, M>(runner, error_handler, input)
     }
 
     #[inline]
@@ -243,7 +245,7 @@ where
     const CAN_FAIL: bool = Inner::CAN_FAIL;
 
     #[inline]
-    fn match_with_runner<'a, Runner>(
+    fn match_with_runner<'a, Runner, M: Mode>(
         &'a self,
         runner: &mut Runner,
         error_handler: &mut impl ErrorHandler,
@@ -253,7 +255,8 @@ where
         Runner: MatchRunner<'a, 'src, Inp, MRes = MRes>,
         'src: 'a,
     {
-        self.deref().match_with_runner(runner, error_handler, input)
+        self.deref()
+            .match_with_runner::<Runner, M>(runner, error_handler, input)
     }
 
     #[inline]
@@ -273,7 +276,7 @@ where
     const CAN_FAIL: bool = Inner::CAN_FAIL;
 
     #[inline]
-    fn match_with_runner<'a, Runner>(
+    fn match_with_runner<'a, Runner, M: Mode>(
         &'a self,
         runner: &mut Runner,
         error_handler: &mut impl ErrorHandler,
@@ -283,7 +286,7 @@ where
         Runner: MatchRunner<'a, 'src, Inp, MRes = MRes>,
         'src: 'a,
     {
-        (**self).match_with_runner(runner, error_handler, input)
+        (**self).match_with_runner::<Runner, M>(runner, error_handler, input)
     }
 
     #[inline]
@@ -300,7 +303,7 @@ impl<'src, Inp: Input<'src>, MRes> internal::MatcherImpl<'src, Inp, MRes> for ()
     const CAN_FAIL: bool = false;
 
     #[inline(always)]
-    fn match_with_runner<'a, Runner>(
+    fn match_with_runner<'a, Runner, M: Mode>(
         &'a self,
         _runner: &mut Runner,
         _error_handler: &mut impl ErrorHandler,

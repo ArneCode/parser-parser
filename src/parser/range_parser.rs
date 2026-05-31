@@ -39,7 +39,7 @@ where
     const CAN_FAIL: bool = true;
 
     #[inline]
-    fn parse(
+    fn parse<M: crate::mode::Mode>(
         &self,
         _context: &mut ParserContext<'src>,
         _error_handler: &mut impl ErrorHandler,
@@ -68,7 +68,7 @@ where
     const CAN_FAIL: bool = true;
 
     #[inline]
-    fn parse(
+    fn parse<M: crate::mode::Mode>(
         &self,
         _context: &mut ParserContext<'src>,
         _error_handler: &mut impl ErrorHandler,
@@ -97,7 +97,7 @@ where
     const CAN_FAIL: bool = true;
 
     #[inline]
-    fn parse(
+    fn parse<M: crate::mode::Mode>(
         &self,
         _context: &mut ParserContext<'src>,
         _error_handler: &mut impl ErrorHandler,
@@ -127,7 +127,7 @@ where
     const CAN_FAIL: bool = true;
 
     #[inline]
-    fn match_with_runner<'a, Runner>(
+    fn match_with_runner<'a, Runner, M: crate::mode::Mode>(
         &'a self,
         _runner: &mut Runner,
         _error_handler: &mut impl ErrorHandler,
@@ -164,7 +164,7 @@ where
     const CAN_FAIL: bool = true;
 
     #[inline]
-    fn match_with_runner<'a, Runner>(
+    fn match_with_runner<'a, Runner, M: crate::mode::Mode>(
         &'a self,
         _runner: &mut Runner,
         _error_handler: &mut impl ErrorHandler,
@@ -195,7 +195,7 @@ impl<'src> super::internal::ParserImpl<'src, &'src [u8]> for RangeInclusive<u8> 
     const CAN_FAIL: bool = true;
 
     #[inline]
-    fn parse(
+    fn parse<M: crate::mode::Mode>(
         &self,
         _context: &mut ParserContext<'src>,
         _error_handler: &mut impl ErrorHandler,
@@ -217,7 +217,7 @@ impl<'src> super::internal::ParserImpl<'src, &'src [u8]> for Range<u8> {
     const CAN_FAIL: bool = true;
 
     #[inline]
-    fn parse(
+    fn parse<M: crate::mode::Mode>(
         &self,
         _context: &mut ParserContext<'src>,
         _error_handler: &mut impl ErrorHandler,
@@ -240,7 +240,7 @@ impl<'src, MRes> MatcherImpl<'src, &'src [u8], MRes> for RangeInclusive<u8> {
     const CAN_FAIL: bool = true;
 
     #[inline]
-    fn match_with_runner<'a, Runner>(
+    fn match_with_runner<'a, Runner, M: crate::mode::Mode>(
         &'a self,
         _runner: &mut Runner,
         _error_handler: &mut impl ErrorHandler,
@@ -270,7 +270,7 @@ impl<'src, MRes> MatcherImpl<'src, &'src [u8], MRes> for Range<u8> {
     const CAN_FAIL: bool = true;
 
     #[inline]
-    fn match_with_runner<'a, Runner>(
+    fn match_with_runner<'a, Runner, M: crate::mode::Mode>(
         &'a self,
         _runner: &mut Runner,
         _error_handler: &mut impl ErrorHandler,

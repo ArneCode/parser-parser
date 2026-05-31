@@ -56,7 +56,7 @@ where
     const CAN_FAIL: bool = P::CAN_FAIL;
 
     #[inline]
-    fn parse(
+    fn parse<M: crate::mode::Mode>(
         &self,
         context: &mut ParserContext<'src>,
         error_handler: &mut impl ErrorHandler,
@@ -74,7 +74,7 @@ where
             return Ok(result.clone());
         }
 
-        let result = self.inner.parse(context, error_handler, input)?;
+        let result = self.inner.parse::<M>(context, error_handler, input)?;
         Ok(unsafe {
             context
                 .cache

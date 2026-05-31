@@ -67,7 +67,7 @@ macro_rules! impl_matcher_for_seq_tuples {
             const CAN_FAIL: bool = $head::CAN_FAIL  $(|| $tail::CAN_FAIL)*;
 
             #[inline]
-            fn match_with_runner<'a, Runner>(&'a self, runner: &mut Runner, error_handler: &mut impl ErrorHandler, input: &mut InputStream<'src, Inp>) -> Result<bool, MatcherRunError>
+            fn match_with_runner<'a, Runner, M: crate::mode::Mode>(&'a self, runner: &mut Runner, error_handler: &mut impl ErrorHandler, input: &mut InputStream<'src, Inp>) -> Result<bool, MatcherRunError>
             where
                 Runner: MatchRunner<'a, 'src, Inp, MRes = MRes>,
                 'src: 'a,
@@ -76,12 +76,12 @@ macro_rules! impl_matcher_for_seq_tuples {
                 #[allow(non_snake_case)]
                 let ($head, $($tail,)*) = &self;
 
-                if !runner.run_match($head, error_handler, input)? {
+                if !runner.run_match::<_, M, _>($head, error_handler, input)? {
                     return Ok(false);
                 }
 
                 $(
-                    if !runner.run_match($tail, error_handler, input)? {
+                    if !runner.run_match::<_, M, _>($tail, error_handler, input)? {
                         return Ok(false);
                     }
                 )*

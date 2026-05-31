@@ -57,7 +57,7 @@ where
     const CAN_FAIL: bool = Pars::CAN_FAIL;
 
     #[inline]
-    fn match_with_runner<'a, Runner>(
+    fn match_with_runner<'a, Runner, M: crate::mode::Mode>(
         &'a self,
         runner: &mut Runner,
         error_handler: &mut impl ErrorHandler,
@@ -69,7 +69,7 @@ where
     {
         if let Some(result) =
             self.parser
-                .parse(runner.get_parser_context(), error_handler, input)?
+                .parse::<M>(runner.get_parser_context(), error_handler, input)?
         {
             let bound = self.property.bind_result(result);
             runner.register_result(bound);

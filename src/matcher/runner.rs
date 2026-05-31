@@ -9,9 +9,7 @@
 //!   length after `register_failure`.
 //! - **Error handler pairing** — Every attempt calls `register_start`, then exactly one of
 //!   `register_success` or `register_failure` for that index (see [`crate::error::ErrorHandler`]).
-//! - **Recovery mode** — [`MatchRunner::is_in_error_recovery_mode`] reflects
-//!   [`crate::context::ParserContext::is_in_error_recovery`] for diagnostics that differ in the
-//!   second pass.
+//! - **Recovery** — [`MatchRunner::run_match`] passes compile-time [`crate::mode::Mode`] (typically [`crate::mode::Emit`]); recovery flag is `M::IS_IN_ERROR_RECOVERY`.
 //! - **Deferred captures** — [`MatchRunner::register_result`] stores [`crate::parser::capture::BoundResult`]
 //!   values at lifetime `'src`; they must not outlive the parse.
 
@@ -22,6 +20,7 @@ use crate::{
     error::{MatcherRunError, error_handler::ErrorHandler},
     input::{Input, InputStream},
     matcher::Matcher,
+    mode::Mode,
     parser::capture::{BoundResult, MatchResult},
 };
 
@@ -35,7 +34,7 @@ where
     Inp: Input<'src>,
 {
     type MRes: MatchResult;
-    fn run_match_inner<Match, EHandler: ErrorHandler>(
+    fn run_match_inner<Match, M, EHandler>(
         &mut self,
         matcher: &'a Match,
         error_handler: &mut EHandler,
@@ -43,10 +42,12 @@ where
     ) -> Result<bool, MatcherRunError>
     where
         Match: Matcher<'src, Inp, Self::MRes>,
+        M: Mode,
+        EHandler: ErrorHandler,
         'src: 'a,
         Self: Sized;
     #[inline]
-    fn run_match<Match, EHandler: ErrorHandler>(
+    fn run_match<Match, M, EHandler>(
         &mut self,
         matcher: &'a Match,
         error_handler: &mut EHandler,
@@ -54,13 +55,15 @@ where
     ) -> Result<bool, MatcherRunError>
     where
         Match: Matcher<'src, Inp, Self::MRes>,
+        M: Mode,
+        EHandler: ErrorHandler,
         'src: 'a,
         Self: Sized,
     {
         let old_pos = input.get_pos();
         let idx = error_handler.register_start(old_pos.clone().into());
         let old_stack_len = self.get_parser_context().error_stack.len();
-        let result = self.run_match_inner(matcher, error_handler, input);
+        let result = self.run_match_inner::<Match, M, EHandler>(matcher, error_handler, input);
         if error_handler.is_real() {
             error_handler.register_watermark(input.get_pos().into());
         }
@@ -70,10 +73,13 @@ where
             } else {
                 error_handler.register_failure(None::<&'static str>, idx);
             }
-            // move back error stack to the previous state
-            self.get_parser_context()
-                .error_stack
-                .truncate(old_stack_len);
+
+            if M::IS_IN_ERROR_RECOVERY {
+                // move back error stack to the previous state
+                self.get_parser_context()
+                    .error_stack
+                    .truncate(old_stack_len);
+            }
             return Err(err);
         } else {
             result.unwrap()
@@ -85,10 +91,13 @@ where
             } else {
                 error_handler.register_failure(None::<&'static str>, idx);
             }
-            // move back error stack to the previous state
-            self.get_parser_context()
-                .error_stack
-                .truncate(old_stack_len);
+
+            if M::IS_IN_ERROR_RECOVERY {
+                // move back error stack to the previous state
+                self.get_parser_context()
+                    .error_stack
+                    .truncate(old_stack_len);
+            }
         } else {
             error_handler.register_success(idx);
         }
@@ -105,9 +114,6 @@ where
     fn with_snapshot<R, F>(&self, f: F) -> R
     where
         F: FnOnce(<Self::MRes as MatchResult>::Snapshot<'_>) -> R;
-
-    /// `true` when [`ParserContext::is_in_error_recovery`] is set by the global parse driver.
-    fn is_in_error_recovery_mode(&self) -> bool;
 }
 
 pub(crate) struct NoMemoizeBacktrackingRunner<'a, 'src, Inp, MRes> {
@@ -135,7 +141,7 @@ where
     type MRes = MRes;
 
     #[inline]
-    fn run_match_inner<Match, EHandler: ErrorHandler>(
+    fn run_match_inner<Match, M, EHandler>(
         &mut self,
         matcher: &'a Match,
         error_handler: &mut EHandler,
@@ -143,11 +149,13 @@ where
     ) -> Result<bool, MatcherRunError>
     where
         Match: Matcher<'src, Inp, Self::MRes>,
+        M: Mode,
+        EHandler: ErrorHandler,
         'src: 'a,
         Self: Sized,
     {
         let old_stack_len = self.stack.len();
-        let result = matcher.match_with_runner(self, error_handler, input)?;
+        let result = matcher.match_with_runner::<Self, M>(self, error_handler, input)?;
         if !result {
             self.stack.truncate(old_stack_len);
         }
@@ -184,11 +192,6 @@ where
         }
         f(snap)
     }
-
-    #[inline]
-    fn is_in_error_recovery_mode(&self) -> bool {
-        self.parser_context.is_in_error_recovery
-    }
 }
 
 pub(crate) struct DirectMatchRunner<'a, 'src, Inp, MRes> {
@@ -219,7 +222,7 @@ where
     type MRes = MRes;
 
     #[inline]
-    fn run_match_inner<Match, EHandler: ErrorHandler>(
+    fn run_match_inner<Match, M, EHandler>(
         &mut self,
         matcher: &'a Match,
         error_handler: &mut EHandler,
@@ -227,10 +230,12 @@ where
     ) -> Result<bool, MatcherRunError>
     where
         Match: Matcher<'src, Inp, Self::MRes>,
+        M: Mode,
+        EHandler: ErrorHandler,
         'src: 'a,
         Self: Sized,
     {
-        matcher.match_with_runner(self, error_handler, input)
+        matcher.match_with_runner::<Self, M>(self, error_handler, input)
     }
 
     #[inline]
@@ -254,10 +259,5 @@ where
         F: FnOnce(MRes::Snapshot<'_>) -> R,
     {
         f(self.result.snapshot())
-    }
-
-    #[inline]
-    fn is_in_error_recovery_mode(&self) -> bool {
-        self.parser_context.is_in_error_recovery
     }
 }

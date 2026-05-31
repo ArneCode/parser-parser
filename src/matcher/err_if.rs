@@ -51,7 +51,7 @@ where
     const CAN_FAIL: bool = true;
 
     #[inline]
-    fn match_with_runner<'a, Runner>(
+    fn match_with_runner<'a, Runner, M: crate::mode::Mode>(
         &'a self,
         runner: &mut Runner,
         error_handler: &mut impl crate::error::error_handler::ErrorHandler,
@@ -62,10 +62,10 @@ where
         'src: 'a,
     {
         let start_pos: usize = input.get_pos().into();
-        match runner.run_match(&self.inner, error_handler, input)? {
+        match runner.run_match::<_, M, _>(&self.inner, error_handler, input)? {
             true => Ok(true),
             false => {
-                if error_handler.is_real() {
+                if M::IS_IN_ERROR_RECOVERY {
                     let ctx = MatchDiagCtx::insertion_point(start_pos);
                     let err =
                         runner.with_snapshot(|snap| self.factory.build_inline_error(ctx, snap));
@@ -74,6 +74,10 @@ where
                         .push_stack_error(ParserError::Inline(err));
                     Ok(true)
                 } else {
+                    // TODO: this should be RetryRerunNeeded
+                    // but that leads to 1300% runtime increase somehow.
+                    // I need to investigate why this is happening.
+                    // In most grammars this makes no difference
                     Ok(false)
                 }
             }
@@ -119,7 +123,7 @@ where
     const CAN_FAIL: bool = Inner::CAN_FAIL;
 
     #[inline]
-    fn match_with_runner<'a, Runner>(
+    fn match_with_runner<'a, Runner, M: crate::mode::Mode>(
         &'a self,
         runner: &mut Runner,
         error_handler: &mut impl crate::error::error_handler::ErrorHandler,
@@ -130,7 +134,7 @@ where
         'src: 'a,
     {
         let start_pos: usize = input.get_pos().into();
-        let matched = runner.run_match(&self.inner, error_handler, input)?;
+        let matched = runner.run_match::<_, M, _>(&self.inner, error_handler, input)?;
         if matched {
             let end_pos: usize = input.get_pos().into();
             let ctx = MatchDiagCtx {

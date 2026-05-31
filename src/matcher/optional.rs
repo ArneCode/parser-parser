@@ -36,7 +36,7 @@ where
     const CAN_FAIL: bool = false;
 
     #[inline]
-    fn match_with_runner<'a, Runner>(
+    fn match_with_runner<'a, Runner, M: crate::mode::Mode>(
         &'a self,
         runner: &mut Runner,
         error_handler: &mut impl ErrorHandler,
@@ -46,7 +46,7 @@ where
         Runner: MatchRunner<'a, 'src, Inp, MRes = MRes>,
         'src: 'a,
     {
-        if runner.run_match(&self.matcher, error_handler, input)? {
+        if runner.run_match::<_, M, _>(&self.matcher, error_handler, input)? {
             return Ok(true);
         }
         Ok(true)

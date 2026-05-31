@@ -45,13 +45,13 @@ where
     const CAN_FAIL: bool = Pars::CAN_FAIL;
 
     #[inline]
-    fn parse(
+    fn parse<M: crate::mode::Mode>(
         &self,
         context: &mut ParserContext<'src>,
         error_handler: &mut impl ErrorHandler,
         input: &mut InputStream<'src, Inp>,
     ) -> Result<Option<Self::Output>, MatcherRunError> {
-        if let Some(result) = self.parser.parse(context, error_handler, input)? {
+        if let Some(result) = self.parser.parse::<M>(context, error_handler, input)? {
             Ok(Some((self.map_fn)(result)))
         } else {
             Ok(None)

@@ -21,7 +21,7 @@ where
     const CAN_FAIL: bool = true;
 
     #[inline]
-    fn match_with_runner<'a, Runner>(
+    fn match_with_runner<'a, Runner, M: crate::mode::Mode>(
         &'a self,
         _runner: &mut Runner,
         _error_handler: &mut impl ErrorHandler,

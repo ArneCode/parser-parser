@@ -2,6 +2,7 @@ use crate::context::ParserContext;
 use crate::error::MatcherRunError;
 use crate::error::error_handler::ErrorHandler;
 use crate::input::{Input, InputStream};
+use crate::mode::ConcreteMode;
 use crate::parser::internal::ParserImpl;
 use crate::parser::{Parser, ParserCombinator, ParserObjSafe};
 
@@ -54,13 +55,18 @@ where
     type Output = Out;
     const CAN_FAIL: bool = true; // conservative; see note below
     #[inline]
-    fn parse(
+    fn parse<M: crate::mode::Mode>(
         &self,
         context: &mut ParserContext<'src>,
         error_handler: &mut impl ErrorHandler,
         input: &mut InputStream<'src, Inp>,
     ) -> Result<Option<Self::Output>, MatcherRunError> {
-        self.inner.parse(context, error_handler.to_choice(), input)
+        self.inner.parse(
+            context,
+            ConcreteMode::from_mode::<M>(),
+            error_handler.to_choice(),
+            input,
+        )
     }
 
     #[inline]

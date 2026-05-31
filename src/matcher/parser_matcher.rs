@@ -49,7 +49,7 @@ where
     const CAN_FAIL: bool = Pars::CAN_FAIL;
 
     #[inline]
-    fn match_with_runner<'a, Runner>(
+    fn match_with_runner<'a, Runner, M: crate::mode::Mode>(
         &'a self,
         runner: &mut Runner,
         error_handler: &mut impl ErrorHandler,
@@ -61,7 +61,7 @@ where
     {
         let parsed = self
             .parser
-            .parse(runner.get_parser_context(), error_handler, input)?;
+            .parse::<M>(runner.get_parser_context(), error_handler, input)?;
         if let Some(output) = parsed
             && output == self.expected_output
         {

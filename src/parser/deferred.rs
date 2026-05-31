@@ -12,6 +12,7 @@ use crate::{
     context::ParserContext,
     error::{MatcherRunError, error_handler::ErrorHandler},
     input::{Input, InputStream},
+    mode::ConcreteMode,
     parser::{Parser, ParserCombinator, ParserObjSafe},
 };
 
@@ -101,14 +102,19 @@ where
     const CAN_FAIL: bool = true;
 
     #[inline]
-    fn parse(
+    fn parse<M: crate::mode::Mode>(
         &self,
         context: &mut ParserContext<'src>,
         error_handler: &mut impl ErrorHandler,
         input: &mut InputStream<'src, Inp>,
     ) -> Result<Option<Self::Output>, MatcherRunError> {
         if let Some(parser) = self.parser.get() {
-            parser.parse(context, error_handler.to_choice(), input)
+            parser.parse(
+                context,
+                ConcreteMode::from_mode::<M>(),
+                error_handler.to_choice(),
+                input,
+            )
         } else {
             panic!("Deferred parser was not set before parsing")
         }
@@ -129,7 +135,7 @@ where
     const CAN_FAIL: bool = true;
 
     #[inline]
-    fn parse(
+    fn parse<M: crate::mode::Mode>(
         &self,
         context: &mut ParserContext<'src>,
         error_handler: &mut impl ErrorHandler,
@@ -137,7 +143,12 @@ where
     ) -> Result<Option<Self::Output>, MatcherRunError> {
         if let Some(parser) = self.parser.upgrade() {
             if let Some(parser) = parser.get() {
-                parser.parse(context, error_handler.to_choice(), input)
+                parser.parse(
+                context,
+                ConcreteMode::from_mode::<M>(),
+                error_handler.to_choice(),
+                input,
+            )
             } else {
                 panic!("Deferred parser was not set before parsing")
             }
