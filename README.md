@@ -79,10 +79,10 @@ Runnable examples live under [`examples/`](examples/README.md) (see also [below]
 
 ## Cargo features
 
-| Feature                 | When you need it                                                                                                                                                                        |
-| ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| *(default)*             | Core library only.                                                                                                                                                                      |
-| **`annotate-snippets`** | Enables rendering of error messages using the annotate-snippets crate                                                                                                                   |
+| Feature                 | When you need it                                                                                                                                                                                                                                 |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| *(default)*             | Core library only.                                                                                                                                                                                                                               |
+| **`annotate-snippets`** | Enables rendering of error messages using the annotate-snippets crate                                                                                                                                                                            |
 | **`parser-trace`**      | **Experimental:** record parser traces to replay them in the trace viewer TUI. See the [tracing guide](https://docs.rs/marser/latest/marser/guide/tracing_and_debugging/index.html) and [`marser-trace-viewer/`](marser-trace-viewer/README.md). |
 
 
@@ -138,6 +138,13 @@ This parser can also still produce a recovered output:
 The json example also has tracing support, so parsing can be stepped through in the trace viewer. See screenshot below. Left side is the rust source code for the parser, right side is the file being parsed.
 <img width="1126" height="531" alt="grafik" src="https://github.com/user-attachments/assets/e0ba9ef1-ca19-4f30-937d-279b718e58da" />
 
+## Performance compared to other libraries:
+
+Below is a comparison of the speed of different libraries for parsing json, including marser. I used json because there are already parsers using different libraries written for it.
+![Benchmark results](chart.png)
+Code for other libraries taken from [parse-rosetta](https://github.com/rosetta-rs/parse-rosetta-rs). Read more [here](https://github.com/ArneCode/json-parser-compare).
+
+The difference in speed between the marser implementation with error recovery and diagnostics ("marser") and the implementation without error recovery and diagnostics ("marser-bare") is quite small because marser works in two modes. First the parser is run without error recovery logic. If the parser encounters an error, it is restarted with error recovery included. This makes it so that the performance cost of including error recovery and diagnostics is only very little. 
 
 ## Early release
 
