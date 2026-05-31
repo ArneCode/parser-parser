@@ -140,8 +140,10 @@ The json example also has tracing support, so parsing can be stepped through in 
 
 ## Performance compared to other libraries:
 
-Below is a comparison of the speed of different libraries for parsing json, including marser. I used json because there are already parsers using different libraries written for it.
-![Benchmark results](chart.png)
+Below is a comparison of the speed of different libraries for parsing json, including marser. I used json because there are already parsers using different libraries written for it
+
+<img src="https://github.com/ArneCode/marser/raw/main/chart.png" width="400">
+
 Code for other libraries taken from [parse-rosetta](https://github.com/rosetta-rs/parse-rosetta-rs). Read more [here](https://github.com/ArneCode/json-parser-compare).
 
 The difference in speed between the marser implementation with error recovery and diagnostics ("marser") and the implementation without error recovery and diagnostics ("marser-bare") is quite small because marser works in two modes. First the parser is run without error recovery logic. If the parser encounters an error, it is restarted with error recovery included. This makes it so that the performance cost of including error recovery and diagnostics is only very little. 
